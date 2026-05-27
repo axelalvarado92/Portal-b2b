@@ -11,6 +11,7 @@ override.tf
 override.tf.json
 *.tfvars
 *.tfvars.json
+*.zip
 
 # =====================
 # Node / React
@@ -44,3 +45,19 @@ Thumbs.db
 # =====================
 .vscode/
 .idea/
+
+# =====================
+# Python & AWS Layers
+# =====================
+__pycache__/
+*.pyc
+/layers/
+/psycopg2/
+/reportlab/
+
+# =====================
+# Otros / Archivos de Datos (¡Cuidado aquí!)
+# =====================
+*.xls
+*.sh
+*.txt
