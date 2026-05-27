@@ -95,16 +95,39 @@ data "aws_iam_policy_document" "ses_policy_doc" {
   }
 }
 
+data "aws_iam_policy_document" "s3_policy_doc" {
+  count = length(var.s3_bucket_arns) > 0 ? 1 : 0
+
+  statement {
+    sid = "S3BucketAccess"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+    resources = [for arn in var.s3_bucket_arns : "${arn}/*"]
+  }
+  statement {
+    sid = "S3BucketlistAccess"
+
+    actions = [
+      "s3:ListBucket"
+    ]
+
+    resources = var.s3_bucket_arns
+  }
+}
+
+
+resource "aws_iam_policy" "s3_policy" {
+  count = length(var.s3_bucket_arns) > 0 ? 1 : 0
+  name   = "${var.function_name}-s3-policy"
+  policy = data.aws_iam_policy_document.s3_policy_doc[0].json
+}
+
 resource "aws_iam_policy" "ses_policy" {
   count  = var.ses_enabled ? 1 : 0
   name   = "${var.function_name}-ses-policy"
   policy = data.aws_iam_policy_document.ses_policy_doc[0].json
-}
-
-resource "aws_iam_role_policy_attachment" "ses_attachment" {
-  count      = var.ses_enabled ? 1 : 0
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.ses_policy[0].arn
 }
 
 resource "aws_iam_policy" "sqs_policy" {
@@ -114,8 +137,14 @@ resource "aws_iam_policy" "sqs_policy" {
   policy = data.aws_iam_policy_document.sqs_policy_doc[0].json
 }
 
-### Como el recurso usa count, Terraform lo trata como una lista.
-### Si existe (count = 1), su único elemento está en índice 0.
+############### atachments ##################
+
+resource "aws_iam_role_policy_attachment" "ses_attachment" {
+  count      = var.ses_enabled ? 1 : 0
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.ses_policy[0].arn
+}
+
 resource "aws_iam_role_policy_attachment" "dynamodb_attachment" {
   count      = length(var.dynamodb_table_arns) > 0 ? 1 : 0           
   role       = aws_iam_role.lambda_role.name
@@ -126,6 +155,12 @@ resource "aws_iam_role_policy_attachment" "sqs_attachment" {
   count      = length(var.sqs_queue_arns) > 0 ? 1 : 0
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.sqs_policy[0].arn
+}
+
+resource "aws_iam_role_policy_attachment" "s3_attachment" {
+  count      = length(var.s3_bucket_arns) > 0 ? 1 : 0
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.s3_policy[0].arn
 }
 
 ### Por cada ARN de policy administrada que se pase al módulo,

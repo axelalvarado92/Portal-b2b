@@ -31,20 +31,21 @@ resource "aws_lambda_layer_version" "psycopg2_layer" {
   filename            = "${path.module}/../../build/psycopg2_layer.zip"
   layer_name          = "psycopg2-layer"
   compatible_runtimes = ["python3.12"]
+  source_code_hash = filebase64sha256("${path.module}/../../build/psycopg2_layer.zip")
 }
 
 resource "aws_lambda_layer_version" "reportlab_layer" {
   filename            = "${path.module}/../../build/reportlab_layer.zip"
   layer_name          = "reportlab-layer"
   compatible_runtimes = ["python3.12"]
-  source_code_hash = filebase64sha256("${path.module}/../../build/xlrd_layer.zip")
+  source_code_hash = filebase64sha256("${path.module}/../../build/reportlab_layer.zip")
 }
 
 resource "aws_lambda_layer_version" "openpyxl_layer" {
   filename            = "${path.module}/../../build/openpyxl_layer.zip"
   layer_name          = "openpyxl-layer"
   compatible_runtimes = ["python3.12"]
-  source_code_hash = filebase64sha256("${path.module}/../../build/xlrd_layer.zip")
+  source_code_hash = filebase64sha256("${path.module}/../../build/openpyxl_layer.zip")
 }
 
 resource "aws_lambda_layer_version" "xlrd_layer" {
@@ -54,6 +55,15 @@ resource "aws_lambda_layer_version" "xlrd_layer" {
   source_code_hash = filebase64sha256("${path.module}/../../build/xlrd_layer.zip")
 }
 
+resource "aws_lambda_layer_version" "pandas_layer" {
+  filename            = "${path.module}/../../build/pandas_layer.zip"
+  layer_name          = "pandas-layer"
+  compatible_runtimes = ["python3.12"]
+
+  source_code_hash = filebase64sha256(
+    "${path.module}/../../build/pandas_layer.zip"
+  )
+}
 ########################################################################
 #                          LAMBDA ZIPs
 ########################################################################
@@ -341,12 +351,21 @@ module "lambda_admin_import_products" {
   timeout             = 120
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers = concat(
-    local.common_layers,
-    [aws_lambda_layer_version.openpyxl_layer.arn, aws_lambda_layer_version.xlrd_layer.arn]
-  )
+  local.common_layers,
+  [
+    aws_lambda_layer_version.pandas_layer.arn,
+    aws_lambda_layer_version.openpyxl_layer.arn,
+    aws_lambda_layer_version.xlrd_layer.arn
+  ]
+)
+
+s3_bucket_arns = [
+    module.s3.imports_bucket_arn
+  ]
 
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
+    IMPORTS_BUCKET = module.s3.imports_bucket_name
   }
 }
 
@@ -570,4 +589,13 @@ module "sqs" {
 module "postgresql" {
   source       = "../../modules/postgresql"
   database_url = var.database_url
+}
+
+########################################################################
+#                            S3 BUCKET
+########################################################################
+
+module "s3" {
+  source = "../../modules/s3"
+  environment  = "dev"
 }

@@ -1,626 +1,486 @@
-# lambdas/admin_import_products/lambda_function.py
-
-import sys
-import os
 import json
 import base64
-import zipfile
+import pandas as pd
+import psycopg2
+import uuid
+import re
 
 from io import BytesIO
 from decimal import Decimal
 
-import openpyxl
-import xlrd
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# ---------------------------------------------------
+# DB
+# ---------------------------------------------------
 
-from shared.db import get_connection
+def get_connection():
 
-from shared.auth_utils import require_auth
+    import os
 
-from shared.utils import (
-    success,
-    bad_request,
-    unauthorized,
-    server_error
-)
+    return psycopg2.connect(
+        os.environ["DATABASE_URL"]
+    )
 
-# =========================================================
-# COLUMN MAPPINGS
-# =========================================================
 
-COLUMN_ALIASES = {
-
-    # CODE
-    "CODIGO": "code",
-    "CÓDIGO": "code",
-    "COD": "code",
-    "ID_PRODUCTO": "code",
-    "ID PRODUCTO": "code",
-
-    # NAME
-    "DESCRIPCION": "name",
-    "DESCRIPCIÓN": "name",
-    "PRODUCTO": "name",
-
-    # PRICE
-    "PRECIO": "price",
-    "PRECIO UNITARIO": "price",
-
-    # UNIT
-    "UNIDAD MED.": "unit_type",
-    "UNIDAD": "unit_type",
-
-    # STOCK
-    "STOCK": "stock_quantity"
-}
-
-# =========================================================
-# HEADER PATTERNS
-# =========================================================
-
-HEADER_PATTERNS = [
-
-    ["CODIGO", "DESCRIPCION"],
-    ["CODIGO", "PRECIO"],
-    ["CODIGO", "PRECIO UNITARIO"],
-    ["ID_PRODUCTO", "PRECIO"],
-    ["ID PRODUCTO", "PRECIO"]
-]
-
-# =========================================================
-# HELPERS
-# =========================================================
+# ---------------------------------------------------
+# NORMALIZAR TEXTO
+# ---------------------------------------------------
 
 def normalize_text(value):
 
     if value is None:
         return ""
 
-    return str(value).strip()
+    value = str(value).strip().lower()
+
+    replacements = {
+        "ó": "o",
+        "í": "i",
+        "á": "a",
+        "é": "e",
+        "ú": "u",
+        "ñ": "n"
+    }
+
+    for old, new in replacements.items():
+        value = value.replace(old, new)
+
+    return value
 
 
-def normalize_header(value):
+# ---------------------------------------------------
+# LIMPIAR STRING
+# ---------------------------------------------------
 
-    if not value:
-        return None
-
-    cleaned = str(value).strip().upper()
-
-    return COLUMN_ALIASES.get(cleaned)
-
-
-def parse_price(value):
+def clean_string(value):
 
     if value is None:
-        return Decimal("0")
+        return None
 
-    # Excel parseado automáticamente
-    if isinstance(value, (int, float)):
+    value = str(value).strip()
 
-        return Decimal(
-            str(round(float(value), 4))
-        )
+    if value == "":
+        return None
 
-    text = str(value).strip()
+    return value
 
-    text = text.replace("$", "")
 
-    # formato 1.234,56
-    if "," in text and "." in text:
+# ---------------------------------------------------
+# LIMPIAR PRECIO
+# ---------------------------------------------------
 
-        text = text.replace(".", "")
-        text = text.replace(",", ".")
+def clean_price(value):
 
-    # formato 1234,56
-    elif "," in text:
-
-        text = text.replace(",", ".")
+    if pd.isna(value):
+        return None
 
     try:
 
-        return Decimal(text)
+        value = str(value)
 
-    except:
+        value = value.replace("$", "")
+        value = value.replace(",", ".")
+        value = value.strip()
 
-        return Decimal("0")
+        return float(value)
 
-
-def is_empty_row(row):
-
-    return not any(
-        v is not None and str(v).strip()
-        for v in row
-    )
+    except Exception:
+        return None
 
 
-# =========================================================
+# ---------------------------------------------------
+# DETECTAR HEADER
+# ---------------------------------------------------
+
+def detect_header_row(df_preview):
+
+    keywords = [
+        "codigo",
+        "cod",
+        "sku",
+        "detalle",
+        "descripcion",
+        "precio",
+        "producto"
+    ]
+
+    for index, row in df_preview.iterrows():
+
+        row_values = [
+            normalize_text(v)
+            for v in row.tolist()
+        ]
+
+        matches = sum(
+            1 for cell in row_values
+            if any(k in cell for k in keywords)
+        )
+
+        if matches >= 2:
+            return index
+
+    return 0
+
+
+# ---------------------------------------------------
+# NORMALIZAR COLUMNAS
+# ---------------------------------------------------
+
+def normalize_columns(columns):
+
+    normalized = []
+
+    for col in columns:
+
+        col = normalize_text(col)
+
+        if any(x in col for x in ["codigo", "cod", "sku"]):
+            normalized.append("sku")
+
+        elif any(x in col for x in ["detalle", "descripcion", "producto"]):
+            normalized.append("description")
+
+        elif any(x in col for x in ["precio", "lista", "costo"]):
+            normalized.append("price")
+
+        else:
+            normalized.append(col)
+
+    return normalized
+
+
+# ---------------------------------------------------
+# MAPEO AUTOMATICO
+# ---------------------------------------------------
+
+def auto_map_columns(df):
+
+    columns = df.columns.tolist()
+
+    mapping = {}
+
+    for idx, col in enumerate(columns):
+
+        sample = df[col].dropna().head(10).tolist()
+
+        # -----------------------------------------
+        # SKU
+        # -----------------------------------------
+
+        if idx == 0:
+
+            numeric_ratio = sum(
+                1 for x in sample
+                if str(x).replace(".", "").isdigit()
+            )
+
+            if numeric_ratio >= 5:
+                mapping[col] = "sku"
+                continue
+
+        # -----------------------------------------
+        # DESCRIPTION
+        # -----------------------------------------
+
+        text_ratio = sum(
+            1 for x in sample
+            if isinstance(x, str) and len(x) > 5
+        )
+
+        if text_ratio >= 5:
+            mapping[col] = "description"
+            continue
+
+        # -----------------------------------------
+        # PRICE
+        # -----------------------------------------
+
+        price_ratio = sum(
+            1 for x in sample
+            if isinstance(x, (int, float))
+        )
+
+        if price_ratio >= 5:
+            mapping[col] = "price"
+            continue
+
+    return mapping
+
+
+# ---------------------------------------------------
+# UPSERT PRODUCT
+# ---------------------------------------------------
+
+def upsert_product(cur, company_id, sku, description, price):
+
+    cur.execute("""
+        SELECT id
+        FROM products
+        WHERE company_id = %s
+        AND sku = %s
+        LIMIT 1
+    """, [company_id, sku])
+
+    existing = cur.fetchone()
+
+    if existing:
+
+        cur.execute("""
+            UPDATE products
+            SET
+                description = %s,
+                price = %s,
+                updated_at = NOW()
+            WHERE id = %s
+        """, [
+            description,
+            price,
+            existing[0]
+        ])
+
+        return "updated"
+
+    else:
+
+        cur.execute("""
+            INSERT INTO products (
+                id,
+                company_id,
+                sku,
+                description,
+                price,
+                is_active,
+                created_at
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                true,
+                NOW()
+            )
+        """, [
+            str(uuid.uuid4()),
+            company_id,
+            sku,
+            description,
+            price
+        ])
+
+        return "created"
+
+
+# ---------------------------------------------------
 # HANDLER
-# =========================================================
+# ---------------------------------------------------
 
 def handler(event, context):
 
-    conn = None
-    cur = None
-
     try:
-
-        IS_XLS = False
-
-        method = event["requestContext"]["http"]["method"]
-
-        # =====================================================
-        # ONLY POST
-        # =====================================================
-
-        if method != "POST":
-            return bad_request("Método no permitido")
-
-        # =====================================================
-        # AUTH
-        # =====================================================
-
-        user, error = require_auth(event)
-
-        if error:
-            return error
-
-        if user["role"] != "admin":
-            return unauthorized()
-
-        # =====================================================
-        # BODY
-        # =====================================================
 
         body = json.loads(event.get("body") or "{}")
 
-        company_id = body.get("company_id")
-        file_base64 = body.get("file_base64")
-        filename = body.get("filename")
+        company_id = body["company_id"]
+        file_name = body["filename"]
+        file_base64 = body["file_base64"]
 
-        # =====================================================
-        # VALIDATIONS
-        # =====================================================
+        # ---------------------------------------------------
+        # LIMPIAR BASE64
+        # ---------------------------------------------------
 
-        if not company_id:
-            return bad_request("company_id es requerido")
+        if "," in file_base64:
+            file_base64 = file_base64.split(",")[1]
 
-        if not file_base64:
-            return bad_request("file_base64 es requerido")
+        file_bytes = base64.b64decode(file_base64)
 
-        if not filename:
-            return bad_request("filename es requerido")
+        print(f"Archivo recibido: {file_name}")
 
-        # =====================================================
-        # DECODE BASE64
-        # =====================================================
+        # ---------------------------------------------------
+        # LEER PREVIEW
+        # ---------------------------------------------------
 
         try:
 
-            file_bytes = base64.b64decode(file_base64)
+            df_preview = pd.read_excel(
+                BytesIO(file_bytes),
+                header=None,
+                engine="openpyxl"
+            )
+
+            engine_used = "openpyxl"
 
         except Exception:
 
-            return bad_request(
-                "Archivo base64 inválido"
+            df_preview = pd.read_excel(
+                BytesIO(file_bytes),
+                header=None,
+                engine="xlrd"
             )
 
-        print(f"Filename recibido: {filename}")
-        print(f"Tamaño archivo: {len(file_bytes)} bytes")
-        print(f"Primeros bytes: {file_bytes[:20]}")
+            engine_used = "xlrd"
 
-        # =====================================================
-        # DETECT EXCEL FORMAT
-        # =====================================================
+        print(f"ENGINE USADO: {engine_used}")
 
-        try:
+        # ---------------------------------------------------
+        # DETECTAR HEADER
+        # ---------------------------------------------------
 
-            is_xlsx_real = zipfile.is_zipfile(
-                BytesIO(file_bytes)
-            )
+        header_row = detect_header_row(df_preview)
 
-            # =================================================
-            # XLSX
-            # =================================================
+        print(f"HEADER DETECTADO EN FILA: {header_row}")
 
-            if is_xlsx_real:
+        # ---------------------------------------------------
+        # LEER DEFINITIVO
+        # ---------------------------------------------------
 
-                print("Archivo detectado como XLSX")
+        df = pd.read_excel(
+            BytesIO(file_bytes),
+            header=header_row,
+            engine=engine_used
+        )
 
-                IS_XLS = False
+        # ---------------------------------------------------
+        # NORMALIZAR COLUMNAS
+        # ---------------------------------------------------
 
-                workbook = openpyxl.load_workbook(
-                    BytesIO(file_bytes),
-                    data_only=True
-                )
+        normalized_columns = normalize_columns(df.columns)
 
-                sheets = workbook.worksheets
+        df.columns = normalized_columns
 
-            # =================================================
-            # XLS
-            # =================================================
+        # ---------------------------------------------------
+        # AUTO MAP
+        # ---------------------------------------------------
 
-            else:
+        if "sku" not in df.columns:
 
-                print("Archivo detectado como XLS")
+            print("NO SE DETECTARON HEADERS VALIDOS")
+            print("INTENTANDO MAPEO AUTOMATICO")
 
-                IS_XLS = True
+            auto_mapping = auto_map_columns(df)
 
-                xls_book = xlrd.open_workbook(
-                    file_contents=file_bytes
-                )
+            print(auto_mapping)
 
-                sheets = []
+            df = df.rename(columns=auto_mapping)
 
-                for sheet_name in xls_book.sheet_names():
+        print("COLUMNAS FINALES:")
+        print(df.columns.tolist())
 
-                    sheets.append(
-                        xls_book.sheet_by_name(sheet_name)
-                    )
+        # ---------------------------------------------------
+        # VALIDACIONES
+        # ---------------------------------------------------
 
-        except Exception as e:
+        required_columns = [
+            "sku",
+            "description",
+            "price"
+        ]
 
-            print(f"Error abriendo Excel: {str(e)}")
+        missing = [
+            col for col in required_columns
+            if col not in df.columns
+        ]
 
-            return bad_request(
-                "No se pudo leer el archivo Excel"
-            )
+        if missing:
 
-        # =====================================================
-        # DB CONNECTION
-        # =====================================================
+            return {
+                "statusCode": 400,
+                "body": json.dumps({
+                    "error": "Columnas requeridas faltantes",
+                    "missing": missing
+                })
+            }
+
+        # ---------------------------------------------------
+        # LIMPIAR DATAFRAME
+        # ---------------------------------------------------
+
+        df = df.dropna(how="all")
+
+        # conservar solo columnas necesarias
+        df = df[[
+            "sku",
+            "description",
+            "price"
+        ]]
+
+        # limpiar datos
+        df["sku"] = df["sku"].apply(clean_string)
+        df["description"] = df["description"].apply(clean_string)
+        df["price"] = df["price"].apply(clean_price)
+
+        # eliminar filas inválidas
+        df = df[
+            df["sku"].notna() &
+            df["description"].notna()
+        ]
+
+        # ---------------------------------------------------
+        # IMPORTAR
+        # ---------------------------------------------------
 
         conn = get_connection()
         cur = conn.cursor()
 
-        # =====================================================
-        # RESPONSE DATA
-        # =====================================================
+        created = 0
+        updated = 0
+        skipped = 0
 
-        all_preview = []
+        for _, row in df.iterrows():
 
-        total_rows = 0
+            try:
 
-        processed_sheets = []
-
-        # =====================================================
-        # PROCESS SHEETS
-        # =====================================================
-
-        for sheet in sheets:
-
-            # =================================================
-            # XLSX
-            # =================================================
-
-            if not IS_XLS:
-
-                sheet_name = sheet.title
-
-                rows = list(
-                    sheet.iter_rows(values_only=True)
-                )
-
-            # =================================================
-            # XLS
-            # =================================================
-
-            else:
-
-                sheet_name = sheet.name
-
-                rows = []
-
-                for row_idx in range(sheet.nrows):
-
-                    rows.append(
-                        sheet.row_values(row_idx)
-                    )
-
-            print(f"Procesando hoja: {sheet_name}")
-
-            # =================================================
-            # FIND HEADER ROW
-            # =================================================
-
-            header_row_index = None
-
-            for idx, row in enumerate(rows):
-
-                values = [
-                    str(v).strip().upper()
-                    for v in row
-                    if v is not None and str(v).strip()
-                ]
-
-                print(f"Fila {idx}: {values}")
-
-                for pattern in HEADER_PATTERNS:
-
-                    matches = 0
-
-                    for item in pattern:
-
-                        if item in values:
-                            matches += 1
-
-                    if matches >= 2:
-
-                        header_row_index = idx
-
-                        print(
-                            f"Header detectado en fila {idx}"
-                        )
-
-                        break
-
-                if header_row_index is not None:
-                    break
-
-            # =================================================
-            # NO HEADER
-            # =================================================
-
-            if header_row_index is None:
-
-                print(
-                    f"No se encontró header en hoja {sheet_name}"
-                )
-
-                continue
-
-            processed_sheets.append(sheet_name)
-
-            # =================================================
-            # HEADERS
-            # =================================================
-
-            header_row = rows[header_row_index]
-
-            headers = [
-                normalize_header(cell)
-                for cell in header_row
-            ]
-
-            print(f"Headers detectados: {headers}")
-
-            # =================================================
-            # REQUIRED COLUMNS
-            # =================================================
-
-            required_columns = [
-                "code",
-                "price"
-            ]
-
-            missing_columns = []
-
-            for column in required_columns:
-
-                if column not in headers:
-                    missing_columns.append(column)
-
-            if missing_columns:
-
-                return bad_request(
-                    "Faltan columnas requeridas: "
-                    + ", ".join(missing_columns)
-                )
-
-            # =================================================
-            # CATEGORY CONTEXT
-            # =================================================
-
-            current_category = "GENERAL"
-
-            # =================================================
-            # READ ROWS
-            # =================================================
-
-            for row in rows[header_row_index + 1:]:
-
-                # =============================================
-                # IGNORE EMPTY ROWS
-                # =============================================
-
-                if is_empty_row(row):
-                    continue
-
-                # =============================================
-                # DETECT CATEGORY ROW
-                # =============================================
-
-                non_empty = [
-                    v for v in row
-                    if v is not None and str(v).strip()
-                ]
-
-                if len(non_empty) == 1:
-
-                    possible_category = str(
-                        non_empty[0]
-                    ).strip()
-
-                    if len(possible_category) > 3:
-
-                        current_category = possible_category
-
-                        print(
-                            f"Categoría detectada: "
-                            f"{current_category}"
-                        )
-
-                        continue
-
-                # =============================================
-                # BUILD ROW DATA
-                # =============================================
-
-                row_data = {}
-
-                for index, value in enumerate(row):
-
-                    if index >= len(headers):
-                        continue
-
-                    field_name = headers[index]
-
-                    if not field_name:
-                        continue
-
-                    row_data[field_name] = value
-
-                # =============================================
-                # VALIDATE REQUIRED DATA
-                # =============================================
-
-                code = normalize_text(
-                    row_data.get("code")
-                )
-
-                if not code:
-                    continue
-
-                price = parse_price(
-                    row_data.get("price")
-                )
-
-                if price <= 0:
-                    continue
-
-                name = normalize_text(
-                    row_data.get("name")
-                )
-
-                if not name:
-                    name = code
-
-                # =============================================
-                # OPTIONAL FIELDS
-                # =============================================
-
-                stock_quantity = (
-                    row_data.get("stock_quantity")
-                    or 0
-                )
-
-                unit_type = normalize_text(
-                    row_data.get("unit_type")
-                )
-
-                if not unit_type:
-                    unit_type = "unit"
-
-                # =============================================
-                # UPSERT
-                # =============================================
-
-                cur.execute("""
-                    INSERT INTO products (
-                        id,
-                        company_id,
-                        code,
-                        name,
-                        category,
-                        price,
-                        stock_quantity,
-                        unit_type,
-                        has_stock,
-                        is_active
-                    )
-                    VALUES (
-                        gen_random_uuid(),
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        true,
-                        true
-                    )
-                    ON CONFLICT (company_id, code)
-                    DO UPDATE SET
-                        name = EXCLUDED.name,
-                        category = EXCLUDED.category,
-                        price = EXCLUDED.price,
-                        stock_quantity = EXCLUDED.stock_quantity,
-                        unit_type = EXCLUDED.unit_type,
-                        updated_at = NOW()
-                """, [
+                result = upsert_product(
+                    cur,
                     company_id,
-                    code,
-                    name,
-                    current_category,
-                    price,
-                    stock_quantity,
-                    unit_type
-                ])
+                    str(row["sku"]),
+                    row["description"],
+                    row["price"]
+                )
 
-                total_rows += 1
+                if result == "created":
+                    created += 1
+                else:
+                    updated += 1
 
-                # =============================================
-                # PREVIEW
-                # =============================================
+            except Exception as row_error:
 
-                if len(all_preview) < 10:
+                skipped += 1
 
-                    all_preview.append({
-
-                        "sheet": sheet_name,
-                        "category": current_category,
-                        "code": code,
-                        "name": name,
-                        "price": str(price),
-                        "stock_quantity": stock_quantity,
-                        "unit_type": unit_type
-                    })
-
-        # =====================================================
-        # VALID SHEETS
-        # =====================================================
-
-        if not processed_sheets:
-
-            return bad_request(
-                "No se encontraron hojas válidas"
-            )
-
-        # =====================================================
-        # COMMIT
-        # =====================================================
+                print("ERROR FILA:")
+                print(str(row_error))
 
         conn.commit()
 
-        # =====================================================
+        cur.close()
+        conn.close()
+
+        # ---------------------------------------------------
         # RESPONSE
-        # =====================================================
+        # ---------------------------------------------------
 
-        return success({
-
-            "filename": filename,
-            "processed_sheets": processed_sheets,
-            "rows_detected": total_rows,
-            "preview": all_preview
-        })
+        return {
+            "statusCode": 200,
+            "body": json.dumps({
+                "message": "Importacion completada",
+                "engine_used": engine_used,
+                "header_row": int(header_row),
+                "total_rows": len(df),
+                "created": created,
+                "updated": updated,
+                "skipped": skipped
+            })
+        }
 
     except Exception as e:
 
-        if conn:
-            conn.rollback()
+        print("ERROR GENERAL:")
+        print(str(e))
 
-        print(
-            f"Error en lambda_admin_import_products: "
-            f"{str(e)}"
-        )
-
-        return server_error()
-
-    finally:
-
-        if cur:
-            cur.close()
-
-        if conn:
-            conn.close()
+        return {
+            "statusCode": 500,
+            "body": json.dumps({
+                "error": str(e)
+            })
+        }

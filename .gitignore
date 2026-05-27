@@ -54,6 +54,9 @@ __pycache__/
 /layers/
 /psycopg2/
 /reportlab/
+/openpyxl/
+/xlrd/
+/pandas/
 
 # =====================
 # Otros / Archivos de Datos (¡Cuidado aquí!)

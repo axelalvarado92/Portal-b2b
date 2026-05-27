@@ -81,3 +81,9 @@ variable "ses_enabled" {
   type        = bool
   default     = false
 }
+
+variable "s3_bucket_arns" {
+  description = "ARNs de buckets S3 a los que la función necesita acceso"
+  type        = list(string)
+  default     = []
+}
