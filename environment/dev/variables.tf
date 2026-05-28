@@ -67,3 +67,8 @@ variable "bootstrap_admin_email" {
   description = "The email of the bootstrap admin user"
   type        = string
 }
+
+variable "s3_force_destroy" {
+  description = "Whether to force destroy the S3 bucket (deletes all objects)."
+  type        = bool
+}

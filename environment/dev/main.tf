@@ -6,7 +6,8 @@ locals {
   lambda_names = [
     "auth", "users", "companies", "products",
     "cart", "orders", "admin", "notifications_worker", "payments",
-    "credit_notes", "commissions", "invoices", "reports", "postconfirmation", "admin_import_products"
+    "credit_notes", "commissions", "invoices", "reports", "postconfirmation", "admin_import_products",
+    "import_products_start"
   ]
 
   lambda_defaults = {
@@ -347,8 +348,8 @@ module "lambda_admin_import_products" {
   filename            = data.archive_file.lambda_zips["admin_import_products"].output_path
   source_code_hash    = data.archive_file.lambda_zips["admin_import_products"].output_base64sha256
   handler             = local.lambda_defaults.handler
-  memory_size         = 512
-  timeout             = 120
+  memory_size         = 1024
+  timeout             = 300
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers = concat(
   local.common_layers,
@@ -366,6 +367,29 @@ s3_bucket_arns = [
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
     IMPORTS_BUCKET = module.s3.imports_bucket_name
+  }
+}
+
+module "lambda_import_products_start" {
+  source = "../../modules/lambda"
+
+  function_name       = "lambda-import-products-start"
+  filename            = data.archive_file.lambda_zips["import_products_start"].output_path
+  source_code_hash    = data.archive_file.lambda_zips["import_products_start"].output_base64sha256
+
+  handler             = local.lambda_defaults.handler
+
+  memory_size         = 128
+  timeout             = 10
+
+  managed_policy_arns = local.lambda_defaults.managed_policy_arns
+
+  lambda_invoke_arns = [
+  module.lambda_admin_import_products.lambda_arn
+]
+
+  environment_variables = {
+    WORKER_FUNCTION_NAME = module.lambda_admin_import_products.lambda_function_name
   }
 }
 
@@ -543,8 +567,8 @@ module "apigateway" {
       ]
     }
     admin_import_products = {
-      invoke_arn    = module.lambda_admin_import_products.lambda_invoke_arn
-      function_name = module.lambda_admin_import_products.lambda_function_name
+      invoke_arn    = module.lambda_import_products_start.lambda_invoke_arn
+      function_name = module.lambda_import_products_start.lambda_function_name
 
       routes = [
         { method = "POST", path = "/admin/import-products", protected = true }
@@ -598,4 +622,5 @@ module "postgresql" {
 module "s3" {
   source = "../../modules/s3"
   environment  = "dev"
+  force_destroy = var.s3_force_destroy
 }

@@ -87,3 +87,9 @@ variable "s3_bucket_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "lambda_invoke_arns" {
+  description = "ARNs of Lambda functions that can invoke this function"
+  type        = list(string)
+  default     = []
+}

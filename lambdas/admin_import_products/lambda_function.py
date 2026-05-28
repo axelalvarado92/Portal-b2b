@@ -1,13 +1,22 @@
 import json
-import base64
+import boto3
 import pandas as pd
 import psycopg2
 import uuid
-import re
+import os
 
 from io import BytesIO
-from decimal import Decimal
 
+# ---------------------------------------------------
+# CONFIG
+# ---------------------------------------------------
+
+BUCKET_NAME = os.environ.get(
+    "IMPORTS_BUCKET",
+    "portal-b2b-imports-dev-47148"
+)
+
+s3 = boto3.client("s3")
 
 # ---------------------------------------------------
 # DB
@@ -15,12 +24,9 @@ from decimal import Decimal
 
 def get_connection():
 
-    import os
-
     return psycopg2.connect(
         os.environ["DATABASE_URL"]
     )
-
 
 # ---------------------------------------------------
 # NORMALIZAR TEXTO
@@ -47,7 +53,6 @@ def normalize_text(value):
 
     return value
 
-
 # ---------------------------------------------------
 # LIMPIAR STRING
 # ---------------------------------------------------
@@ -64,7 +69,6 @@ def clean_string(value):
 
     return value
 
-
 # ---------------------------------------------------
 # LIMPIAR PRECIO
 # ---------------------------------------------------
@@ -78,15 +82,18 @@ def clean_price(value):
 
         value = str(value)
 
-        value = value.replace("$", "")
-        value = value.replace(",", ".")
-        value = value.strip()
+        value = (
+            value
+            .replace("$", "")
+            .replace(",", ".")
+            .strip()
+        )
 
         return float(value)
 
     except Exception:
-        return None
 
+        return None
 
 # ---------------------------------------------------
 # DETECTAR HEADER
@@ -112,7 +119,8 @@ def detect_header_row(df_preview):
         ]
 
         matches = sum(
-            1 for cell in row_values
+            1
+            for cell in row_values
             if any(k in cell for k in keywords)
         )
 
@@ -120,7 +128,6 @@ def detect_header_row(df_preview):
             return index
 
     return 0
-
 
 # ---------------------------------------------------
 # NORMALIZAR COLUMNAS
@@ -135,19 +142,27 @@ def normalize_columns(columns):
         col = normalize_text(col)
 
         if any(x in col for x in ["codigo", "cod", "sku"]):
-            normalized.append("sku")
+            normalized.append("code")
 
-        elif any(x in col for x in ["detalle", "descripcion", "producto"]):
-            normalized.append("description")
+        elif any(x in col for x in [
+            "detalle",
+            "descripcion",
+            "producto",
+            "nombre"
+        ]):
+            normalized.append("name")
 
-        elif any(x in col for x in ["precio", "lista", "costo"]):
+        elif any(x in col for x in [
+            "precio",
+            "lista",
+            "costo"
+        ]):
             normalized.append("price")
 
         else:
             normalized.append(col)
 
     return normalized
-
 
 # ---------------------------------------------------
 # MAPEO AUTOMATICO
@@ -163,40 +178,37 @@ def auto_map_columns(df):
 
         sample = df[col].dropna().head(10).tolist()
 
-        # -----------------------------------------
-        # SKU
-        # -----------------------------------------
+        # CODE
 
         if idx == 0:
 
             numeric_ratio = sum(
-                1 for x in sample
+                1
+                for x in sample
                 if str(x).replace(".", "").isdigit()
             )
 
             if numeric_ratio >= 5:
-                mapping[col] = "sku"
+                mapping[col] = "code"
                 continue
 
-        # -----------------------------------------
-        # DESCRIPTION
-        # -----------------------------------------
+        # NAME
 
         text_ratio = sum(
-            1 for x in sample
+            1
+            for x in sample
             if isinstance(x, str) and len(x) > 5
         )
 
         if text_ratio >= 5:
-            mapping[col] = "description"
+            mapping[col] = "name"
             continue
 
-        # -----------------------------------------
         # PRICE
-        # -----------------------------------------
 
         price_ratio = sum(
-            1 for x in sample
+            1
+            for x in sample
             if isinstance(x, (int, float))
         )
 
@@ -206,71 +218,60 @@ def auto_map_columns(df):
 
     return mapping
 
-
 # ---------------------------------------------------
 # UPSERT PRODUCT
 # ---------------------------------------------------
 
-def upsert_product(cur, company_id, sku, description, price):
+def upsert_product(
+    cur,
+    company_id,
+    code,
+    name,
+    price
+):
 
     cur.execute("""
-        SELECT id
-        FROM products
-        WHERE company_id = %s
-        AND sku = %s
-        LIMIT 1
-    """, [company_id, sku])
 
-    existing = cur.fetchone()
-
-    if existing:
-
-        cur.execute("""
-            UPDATE products
-            SET
-                description = %s,
-                price = %s,
-                updated_at = NOW()
-            WHERE id = %s
-        """, [
+        INSERT INTO products (
+            id,
+            company_id,
+            code,
+            name,
             description,
             price,
-            existing[0]
-        ])
+            is_active,
+            created_at,
+            updated_at
+        )
 
-        return "updated"
+        VALUES (
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            true,
+            NOW(),
+            NOW()
+        )
 
-    else:
+        ON CONFLICT (company_id, code)
 
-        cur.execute("""
-            INSERT INTO products (
-                id,
-                company_id,
-                sku,
-                description,
-                price,
-                is_active,
-                created_at
-            )
-            VALUES (
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                true,
-                NOW()
-            )
-        """, [
-            str(uuid.uuid4()),
-            company_id,
-            sku,
-            description,
-            price
-        ])
+        DO UPDATE SET
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            price = EXCLUDED.price,
+            updated_at = NOW()
 
-        return "created"
-
+    """, [
+        str(uuid.uuid4()),
+        company_id,
+        code,
+        name,
+        name,
+        price
+    ])
 
 # ---------------------------------------------------
 # HANDLER
@@ -278,27 +279,52 @@ def upsert_product(cur, company_id, sku, description, price):
 
 def handler(event, context):
 
+    conn = None
+    cur = None
+
     try:
 
-        body = json.loads(event.get("body") or "{}")
-
-        company_id = body["company_id"]
-        file_name = body["filename"]
-        file_base64 = body["file_base64"]
-
         # ---------------------------------------------------
-        # LIMPIAR BASE64
+        # EVENT
         # ---------------------------------------------------
 
-        if "," in file_base64:
-            file_base64 = file_base64.split(",")[1]
+        company_id = event.get("company_id")
+        s3_key = event.get("s3_key")
 
-        file_bytes = base64.b64decode(file_base64)
+        if not company_id:
 
-        print(f"Archivo recibido: {file_name}")
+            return {
+                "statusCode": 400,
+                "body": json.dumps({
+                    "error": "Company no encontrado"
+                })
+            }
+
+        if not s3_key:
+
+            return {
+                "statusCode": 400,
+                "body": json.dumps({
+                    "error": "Falta s3_key"
+                })
+            }
+
+        print(f"Company ID: {company_id}")
+        print(f"S3 Key: {s3_key}")
 
         # ---------------------------------------------------
-        # LEER PREVIEW
+        # DOWNLOAD S3
+        # ---------------------------------------------------
+
+        response = s3.get_object(
+            Bucket=BUCKET_NAME,
+            Key=s3_key
+        )
+
+        file_bytes = response["Body"].read()
+
+        # ---------------------------------------------------
+        # READ EXCEL
         # ---------------------------------------------------
 
         try:
@@ -321,19 +347,7 @@ def handler(event, context):
 
             engine_used = "xlrd"
 
-        print(f"ENGINE USADO: {engine_used}")
-
-        # ---------------------------------------------------
-        # DETECTAR HEADER
-        # ---------------------------------------------------
-
         header_row = detect_header_row(df_preview)
-
-        print(f"HEADER DETECTADO EN FILA: {header_row}")
-
-        # ---------------------------------------------------
-        # LEER DEFINITIVO
-        # ---------------------------------------------------
 
         df = pd.read_excel(
             BytesIO(file_bytes),
@@ -345,40 +359,25 @@ def handler(event, context):
         # NORMALIZAR COLUMNAS
         # ---------------------------------------------------
 
-        normalized_columns = normalize_columns(df.columns)
+        df.columns = normalize_columns(df.columns)
 
-        df.columns = normalized_columns
-
-        # ---------------------------------------------------
-        # AUTO MAP
-        # ---------------------------------------------------
-
-        if "sku" not in df.columns:
-
-            print("NO SE DETECTARON HEADERS VALIDOS")
-            print("INTENTANDO MAPEO AUTOMATICO")
+        if "code" not in df.columns:
 
             auto_mapping = auto_map_columns(df)
 
-            print(auto_mapping)
-
-            df = df.rename(columns=auto_mapping)
-
-        print("COLUMNAS FINALES:")
-        print(df.columns.tolist())
-
-        # ---------------------------------------------------
-        # VALIDACIONES
-        # ---------------------------------------------------
+            df = df.rename(
+                columns=auto_mapping
+            )
 
         required_columns = [
-            "sku",
-            "description",
+            "code",
+            "name",
             "price"
         ]
 
         missing = [
-            col for col in required_columns
+            col
+            for col in required_columns
             if col not in df.columns
         ]
 
@@ -387,62 +386,84 @@ def handler(event, context):
             return {
                 "statusCode": 400,
                 "body": json.dumps({
-                    "error": "Columnas requeridas faltantes",
+                    "error": "Columnas faltantes",
                     "missing": missing
                 })
             }
 
         # ---------------------------------------------------
-        # LIMPIAR DATAFRAME
+        # CLEAN DATAFRAME
         # ---------------------------------------------------
 
         df = df.dropna(how="all")
 
-        # conservar solo columnas necesarias
         df = df[[
-            "sku",
-            "description",
+            "code",
+            "name",
             "price"
         ]]
 
-        # limpiar datos
-        df["sku"] = df["sku"].apply(clean_string)
-        df["description"] = df["description"].apply(clean_string)
+        df["code"] = df["code"].apply(clean_string)
+        df["name"] = df["name"].apply(clean_string)
         df["price"] = df["price"].apply(clean_price)
 
-        # eliminar filas inválidas
         df = df[
-            df["sku"].notna() &
-            df["description"].notna()
+            df["code"].notna()
+            & df["name"].notna()
         ]
 
         # ---------------------------------------------------
-        # IMPORTAR
+        # DB
         # ---------------------------------------------------
 
         conn = get_connection()
         cur = conn.cursor()
 
-        created = 0
-        updated = 0
+        processed = 0
         skipped = 0
 
-        for _, row in df.iterrows():
+        print(f"TOTAL FILAS: {len(df)}")
+
+        # ---------------------------------------------------
+        # LOOP
+        # ---------------------------------------------------
+
+        for index, row in df.iterrows():
 
             try:
 
-                result = upsert_product(
+                code = str(row["code"]).strip()
+
+                if not code or code == "nan":
+
+                    skipped += 1
+                    continue
+
+                print(f"PROCESANDO CODIGO: {code}")
+
+                upsert_product(
                     cur,
                     company_id,
-                    str(row["sku"]),
-                    row["description"],
+                    code,
+                    row["name"],
                     row["price"]
                 )
 
-                if result == "created":
-                    created += 1
-                else:
-                    updated += 1
+                processed += 1
+
+                # COMMIT POR BATCH
+
+                if processed % 500 == 0:
+
+                    print(f"COMMIT BATCH: {processed}")
+
+                    conn.commit()
+
+                # LOG
+
+                if processed % 100 == 0:
+
+                    print(f"Procesados: {processed}")
 
             except Exception as row_error:
 
@@ -451,10 +472,13 @@ def handler(event, context):
                 print("ERROR FILA:")
                 print(str(row_error))
 
+        # ---------------------------------------------------
+        # FINAL COMMIT
+        # ---------------------------------------------------
+
         conn.commit()
 
-        cur.close()
-        conn.close()
+        print("IMPORT FINALIZADO")
 
         # ---------------------------------------------------
         # RESPONSE
@@ -467,9 +491,9 @@ def handler(event, context):
                 "engine_used": engine_used,
                 "header_row": int(header_row),
                 "total_rows": len(df),
-                "created": created,
-                "updated": updated,
-                "skipped": skipped
+                "processed": processed,
+                "skipped": skipped,
+                "company_id": company_id
             })
         }
 
@@ -484,3 +508,17 @@ def handler(event, context):
                 "error": str(e)
             })
         }
+
+    finally:
+
+        try:
+
+            if cur:
+                cur.close()
+
+            if conn:
+                conn.close()
+
+        except Exception:
+
+            pass

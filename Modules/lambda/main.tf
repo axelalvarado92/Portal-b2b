@@ -170,3 +170,31 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = each.value
 }
+
+data "aws_iam_policy_document" "lambda_invoke_policy_doc" {
+  count = length(var.lambda_invoke_arns) > 0 ? 1 : 0
+
+  statement {
+    sid = "LambdaInvokeAccess"
+
+    actions = [
+      "lambda:InvokeFunction"
+    ]
+
+    resources = var.lambda_invoke_arns
+  }
+}
+
+resource "aws_iam_policy" "lambda_invoke_policy" {
+  count = length(var.lambda_invoke_arns) > 0 ? 1 : 0
+
+  name   = "${var.function_name}-lambda-invoke-policy"
+  policy = data.aws_iam_policy_document.lambda_invoke_policy_doc[0].json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_invoke_attachment" {
+  count = length(var.lambda_invoke_arns) > 0 ? 1 : 0
+
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_invoke_policy[0].arn
+}
