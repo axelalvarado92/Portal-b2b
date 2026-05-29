@@ -196,6 +196,10 @@ module "lambda_admin" {
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers              = local.common_layers
 
+  enable_cognito_admin = true
+
+  cognito_user_pool_arn = module.cognito.user_pool_arn
+
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
     USER_POOL_ID = module.cognito.user_pool_id

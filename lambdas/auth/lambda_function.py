@@ -3,31 +3,21 @@ from shared.db import get_connection
 
 def handler(event, context):
 
-    sub = event["requestContext"]["authorizer"]["claims"]["sub"]
+    try:
 
-    conn = get_connection()
-    cur = conn.cursor()
+        method = event["requestContext"]["http"]["method"]
+        path = event["requestContext"]["http"]["path"]
 
-    cur.execute("""
-        SELECT id, email, full_name, role, is_active
-        FROM public.users
-        WHERE cognito_sub = %s
-    """, (sub,))
+        body = json.loads(event.get("body") or "{}")
 
-    user = cur.fetchone()
+        if path == "/auth/login":
+            return login(body)
 
-    cur.close()
-    conn.close()
+        if path == "/auth/refresh":
+            return refresh_token(body)
 
-    if not user:
-        return {
-            "statusCode": 401,
-            "body": "User not found"
-        }
+        return bad_request("Ruta inválida")
 
-    return {
-        "statusCode": 200,
-        "body": {
-            "user": user
-        }
-    }
+    except Exception as e:
+        print(str(e))
+        return server_error()

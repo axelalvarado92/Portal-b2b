@@ -1,6 +1,9 @@
 import sys
 import os
 import json
+import boto3
+
+cognito = boto3.client("cognito-idp")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -33,21 +36,31 @@ def handler(event, context):
         conn = get_connection()
         cur = conn.cursor()
 
+        # ---------------------------------------------------
+        # UPSERT USER
+        # ---------------------------------------------------
+
         cur.execute("""
             INSERT INTO users (
                 id,
+                cognito_sub,
                 email,
                 full_name,
                 role,
                 is_active
             )
-            VALUES (%s, %s, %s, %s, true)
+            VALUES (%s, %s, %s, %s, %s, true)
+
             ON CONFLICT (email)
+
             DO UPDATE SET
+                id = EXCLUDED.id,
+                cognito_sub = EXCLUDED.cognito_sub,
                 full_name = EXCLUDED.full_name,
                 role = EXCLUDED.role,
                 is_active = true
         """, [
+            cognito_sub,
             cognito_sub,
             email,
             full_name,

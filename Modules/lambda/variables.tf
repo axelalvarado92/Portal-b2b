@@ -93,3 +93,13 @@ variable "lambda_invoke_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "cognito_user_pool_arn" {
+  type    = string
+  default = null
+}
+
+variable "enable_cognito_admin" {
+  type    = bool
+  default = false
+}

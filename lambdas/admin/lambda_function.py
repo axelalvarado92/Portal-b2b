@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import json
 import boto3
+import uuid
 
 from shared.db import get_connection
 from shared.auth_utils import require_admin
@@ -360,6 +361,10 @@ def create_product(body):
     if error:
         return bad_request(error)
 
+    code = body.get("code")
+    if not code:
+        code = f"PROD-{uuid.uuid4().hex[:8]}"
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -372,7 +377,7 @@ def create_product(body):
     """, [
         body["company_id"],
         body.get("category_id"),
-        body.get("code"),
+        code,
         body["name"],
         body.get("description"),
         body.get("image_url"),
@@ -442,50 +447,83 @@ def delete_product(product_id):
 # HANDLER
 # =========================================================
 
+# =========================================================
+# HANDLER
+# =========================================================
+
 print("ADMIN LAMBDA VERSION 2026-05-22-FINAL")
 
 def handler(event, context):
+
     method = event["requestContext"]["http"]["method"]
     path = event["requestContext"]["http"]["path"]
 
+    print("METHOD:", method)
+    print("PATH:", path)
+
     user, error = require_admin(event)
+
     if error:
         return error
 
     try:
-        path_params = event.get("pathParameters") or {}
-        resource_id = path_params.get("id")
+
         body = json.loads(event.get("body") or "{}")
+        params = event.get("queryStringParameters") or {}
+        path_params = event.get("pathParameters") or {}
+
+        resource_id = path_params.get("id")
+
+        # ==========================
+        # USERS
+        # ==========================
 
         if path.startswith("/admin/users"):
+
             if method == "GET" and not resource_id:
                 return list_users()
+
             if method == "POST":
                 return create_user(body)
-            if method == "PATCH":
+
+            if method == "PATCH" and resource_id:
                 return update_user(resource_id, body)
 
+        # ==========================
+        # COMPANIES
+        # ==========================
+
         if path.startswith("/admin/companies"):
+
             if method == "GET":
                 return list_companies()
+
             if method == "POST":
                 return create_company(body)
-            if method == "PATCH":
+
+            if method == "PATCH" and resource_id:
                 return update_company(resource_id, body)
 
+        # ==========================
+        # PRODUCTS
+        # ==========================
+
         if path.startswith("/admin/products"):
+
             if method == "GET":
-                params = event.get("queryStringParameters") or {}
                 return list_products(params)
+
             if method == "POST":
                 return create_product(body)
-            if method == "PATCH":
+
+            if method == "PATCH" and resource_id:
                 return update_product(resource_id, body)
-            if method == "DELETE":
+
+            if method == "DELETE" and resource_id:
                 return delete_product(resource_id)
 
         return bad_request("Ruta no encontrada")
 
     except Exception as e:
-        print(f"Error admin lambda: {str(e)}")
+        print(str(e))
         return server_error()

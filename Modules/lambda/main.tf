@@ -198,3 +198,29 @@ resource "aws_iam_role_policy_attachment" "lambda_invoke_attachment" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_invoke_policy[0].arn
 }
+
+
+########## policy para que lambda admin ###############
+resource "aws_iam_role_policy" "admin_cognito" {
+  count = var.enable_cognito_admin ? 1 : 0
+
+  name = "admin-cognito-policy"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+
+      Action = [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminDeleteUser",
+        "cognito-idp:AdminUpdateUserAttributes",
+        "cognito-idp:AdminEnableUser",
+        "cognito-idp:AdminDisableUser"
+      ]
+
+      Resource = var.cognito_user_pool_arn
+    }]
+  })
+}

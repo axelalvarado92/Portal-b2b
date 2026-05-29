@@ -2,6 +2,13 @@ import json
 import boto3
 import os
 
+from shared.auth_utils import require_auth
+from shared.utils import (
+    bad_request,
+    server_error,
+    response
+)
+
 # ---------------------------------------------------
 # CLIENT
 # ---------------------------------------------------
@@ -15,10 +22,22 @@ lambda_client = boto3.client("lambda")
 WORKER_FUNCTION_NAME = os.environ["WORKER_FUNCTION_NAME"]
 
 # ---------------------------------------------------
+# HELPERS
+# ---------------------------------------------------
+
+def accepted(data):
+    return response(202, data=data)
+
+# ---------------------------------------------------
 # HANDLER
 # ---------------------------------------------------
 
 def handler(event, context):
+
+    user, error = require_auth(event)
+
+    if error:
+        return error
 
     try:
 
@@ -31,39 +50,19 @@ def handler(event, context):
         s3_key = body.get("s3_key")
 
         if not s3_key:
-
-            return {
-                "statusCode": 400,
-                "body": json.dumps({
-                    "error": "Falta s3_key"
-                })
-            }
+            return bad_request("Falta s3_key")
 
         # ---------------------------------------------------
-        # JWT CLAIMS
+        # COMPANY
         # ---------------------------------------------------
-
-        claims = (
-            event.get("requestContext", {})
-            .get("authorizer", {})
-            .get("jwt", {})
-            .get("claims", {})
-        )
 
         company_id = (
-            claims.get("custom:company_id")
-            or claims.get("company_id")
+            user.get("company_id")
             or body.get("company_id")
         )
 
         if not company_id:
-
-            return {
-                "statusCode": 400,
-                "body": json.dumps({
-                    "error": "Company no encontrado"
-                })
-            }
+            return bad_request("Company no encontrado")
 
         # ---------------------------------------------------
         # PAYLOAD WORKER
@@ -91,23 +90,15 @@ def handler(event, context):
         # RESPONSE
         # ---------------------------------------------------
 
-        return {
-            "statusCode": 202,
-            "body": json.dumps({
-                "message": "Importacion iniciada",
-                "company_id": company_id,
-                "s3_key": s3_key
-            })
-        }
+        return accepted({
+            "message": "Importacion iniciada",
+            "company_id": company_id,
+            "s3_key": s3_key
+        })
 
     except Exception as e:
 
         print("ERROR:")
         print(str(e))
 
-        return {
-            "statusCode": 500,
-            "body": json.dumps({
-                "error": str(e)
-            })
-        }
+        return server_error(str(e))
