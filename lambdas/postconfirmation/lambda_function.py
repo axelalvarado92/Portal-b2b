@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import boto3
+import uuid
 
 cognito = boto3.client("cognito-idp")
 
@@ -40,6 +41,8 @@ def handler(event, context):
         # UPSERT USER
         # ---------------------------------------------------
 
+        user_id = str(uuid.uuid4())
+
         cur.execute("""
             INSERT INTO users (
                 id,
@@ -50,17 +53,15 @@ def handler(event, context):
                 is_active
             )
             VALUES (%s, %s, %s, %s, %s, true)
-
+        
             ON CONFLICT (email)
-
             DO UPDATE SET
-                id = EXCLUDED.id,
                 cognito_sub = EXCLUDED.cognito_sub,
                 full_name = EXCLUDED.full_name,
                 role = EXCLUDED.role,
                 is_active = true
         """, [
-            cognito_sub,
+            user_id,
             cognito_sub,
             email,
             full_name,

@@ -26,7 +26,7 @@ describe("ADMIN - Products", () => {
       }
     );
 
-    console.log("CREATE PRODUCT:");
+    console.log("CREATE PRODUCT:", res.data.data.id);
     console.log(res.data);
 
     expect(res.status).toBe(201);

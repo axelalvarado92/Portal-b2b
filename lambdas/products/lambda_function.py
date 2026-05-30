@@ -31,8 +31,9 @@ def handler(event, context):
             return bad_request("Método no permitido")
 
     except Exception:
-        print(traceback.format_exc())
-        return server_error()
+        print("🔥 PRODUCTS ERROR FULL:")
+        print(str(e))
+        raise e
 
 
 def check_company_access(cur, user_id, company_id):
@@ -112,7 +113,7 @@ def list_products(user, params):
                 "name":           row[2],
                 "description":    row[3],
                 "image_url":      row[4],
-                "price":          float(row[5]),
+                "price":          float(row[5]) if row[5] is not None else 0.0,
                 "has_stock":      row[6],
                 "stock_quantity": row[7],
                 "unit_type":      row[8],

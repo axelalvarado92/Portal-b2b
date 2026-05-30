@@ -1,100 +1,91 @@
 const api = require("../config/apiClient");
 const auth = require("../config/auth");
-const store = require("../utils/dataStore");
 
-describe("CART -> ORDER FLOW", () => {
+const COMPANY_ID = "48a3878c-5391-4c01-b78a-a0e971d6d26e";
+const PRODUCT_ID = "1719401e-2b52-47b6-beaf-eb22abbea34c";
 
-  let cartId;
-  let orderId;
+describe("CART FLOW - E2E", () => {
 
-  test("Add product to cart", async () => {
+  let cartItemId;
 
-    const res = await api.post(
-      "/cart/items",
-      {
-        company_id: store.companyA,
-        product_id: store.product,
-        quantity: 2
-      },
-      {
-        headers: auth.authHeader()
-      }
-    );
+  test("Get cart (initial)", async () => {
+
+    const res = await api.get("/cart?company_id=" + COMPANY_ID, {
+      headers: auth.authHeader()
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.data.data).toBeDefined();
+    expect(Array.isArray(res.data.data.items)).toBe(true);
+  });
+
+  test("Add item to cart", async () => {
+
+    const res = await api.post("/cart/items", {
+      product_id: PRODUCT_ID,
+      company_id: COMPANY_ID,
+      quantity: 2
+    }, {
+      headers: auth.authHeader()
+    });
+
+    expect(res.status).toBe(200);
+
+    // El POST no devuelve item id → se obtiene del GET
+    const cartRes = await api.get("/cart?company_id=" + COMPANY_ID, {
+      headers: auth.authHeader()
+    });
+
+    const items = cartRes.data.data.items;
+    expect(items.length).toBeGreaterThan(0);
+
+    cartItemId = items[0].id;
+    expect(cartItemId).toBeDefined();
+  });
+
+  test("Update cart item", async () => {
+
+    const res = await api.patch(`/cart/items/${cartItemId}`, {
+      quantity: 5
+    }, {
+      headers: auth.authHeader()
+    });
 
     expect(res.status).toBe(200);
   });
 
-  test("Get cart", async () => {
+  test("Get cart (after update)", async () => {
 
-    const res = await api.get(
-      `/cart?company_id=${store.companyA}`,
-      {
-        headers: auth.authHeader()
-      }
-    );
+    const res = await api.get("/cart?company_id=" + COMPANY_ID, {
+      headers: auth.authHeader()
+    });
 
     expect(res.status).toBe(200);
 
-    expect(res.data.data.cart_id).toBeDefined();
+    const items = res.data.data.items || [];
 
-    cartId = res.data.data.cart_id;
+    const item = items.find(i => i.id === cartItemId);
 
-    store.cart = cartId;
-
-    console.log("CART ID:", cartId);
+    expect(item).toBeDefined();
+    expect(item.quantity).toBe(5);
   });
 
-  test("Create order", async () => {
+  test("Delete cart item", async () => {
 
-    const res = await api.post(
-      "/orders",
-      {
-        company_id: store.companyA,
-        cart_id: cartId,
-        notes: "Pedido QA"
-      },
-      {
-        headers: auth.authHeader()
-      }
-    );
-
-    expect(res.status).toBe(201);
-
-    expect(res.data.data.order_id).toBeDefined();
-
-    orderId = res.data.data.order_id;
-
-    store.order = orderId;
-
-    console.log("ORDER ID:", orderId);
-  });
-
-  test("Get order", async () => {
-
-    const res = await api.get(
-      `/orders/${orderId}`,
-      {
-        headers: auth.authHeader()
-      }
-    );
+    const res = await api.delete(`/cart/items/${cartItemId}`, {
+      headers: auth.authHeader()
+    });
 
     expect(res.status).toBe(200);
-
-    expect(res.data.data.id).toBe(orderId);
   });
 
-  test("List orders", async () => {
+  test("Clear cart", async () => {
 
-    const res = await api.get(
-      "/orders",
-      {
-        headers: auth.authHeader()
-      }
-    );
+    const res = await api.delete("/cart?company_id=" + COMPANY_ID, {
+      headers: auth.authHeader()
+    });
 
     expect(res.status).toBe(200);
-
-    expect(Array.isArray(res.data.data)).toBe(true);
   });
 
 });

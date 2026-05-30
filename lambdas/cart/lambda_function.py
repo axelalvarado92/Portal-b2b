@@ -55,8 +55,9 @@ def handler(event, context):
             return bad_request("Método no permitido")
 
     except Exception as e:
-        print(f"Error en lambda_cart: {str(e)}")
-        return server_error()
+        print("🔥 CART ERROR FULL:")
+        print(str(e))
+        raise e   
 
 
 def get_or_create_cart(cur, user_id, company_id):
