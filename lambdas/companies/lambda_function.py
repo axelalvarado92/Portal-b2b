@@ -17,8 +17,11 @@ def handler(event, context):
 
     try:
         # GET /companies/{id}
-        if method == "GET" and "{id}" in event.get("pathParameters", {}) or \
-           (event.get("pathParameters") and event["pathParameters"].get("id")):
+        if (
+            method == "GET"
+            and event.get("pathParameters")
+            and event["pathParameters"].get("id")
+        ):
             company_id = event["pathParameters"]["id"]
             return get_company(user, company_id)
 

@@ -14,7 +14,7 @@ describe("ADMIN - Products", () => {
       "/admin/products",
       {
         company_id: store.companyA,
-        name: `Producto QA ${Date.now()}`,
+        name: Producto QA ${Date.now()},
         description: "Producto creado por test",
         price: 1500,
         unit_type: "unit",
@@ -58,7 +58,7 @@ describe("ADMIN - Products", () => {
     expect(productId).toBeDefined();
 
     const res = await api.patch(
-      `/admin/products/${productId}`,
+      /admin/products/${productId},
       {
         name: "Producto QA Actualizado",
         price: 2000,
@@ -77,7 +77,7 @@ describe("ADMIN - Products", () => {
     expect(productId).toBeDefined();
 
     const res = await api.delete(
-      `/admin/products/${productId}`,
+      /admin/products/${productId},
       {
         headers: auth.authHeader()
       }
