@@ -11,7 +11,23 @@ const authHeader = () => ({
 });
 
 module.exports = {
-  setToken,
-  getToken,
-  authHeader,
+
+  adminHeader() {
+    return {
+      Authorization: `Bearer ${process.env.ADMIN_TOKEN}`
+    };
+  },
+
+  customer1Header() {
+    return {
+      Authorization: `Bearer ${process.env.CUSTOMER1_TOKEN}`
+    };
+  },
+
+  customer2Header() {
+    return {
+      Authorization: `Bearer ${process.env.CUSTOMER2_TOKEN}`
+    };
+  }
+
 };
