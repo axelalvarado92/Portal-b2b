@@ -1,5 +1,13 @@
 # shared/auth_utils.py
 import json
+print("AUTHORIZER:")
+print(
+    json.dumps(
+        event.get("requestContext", {})
+             .get("authorizer", {}),
+        default=str
+    )
+)
 from shared.db import get_connection
 from shared.utils import unauthorized
 

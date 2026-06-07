@@ -94,6 +94,7 @@ module "lambda_auth" {
 
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
+    COGNITO_CLIENT_ID = var.cognito_client_id
   }
 }
 
@@ -451,7 +452,9 @@ module "apigateway" {
       invoke_arn    = module.lambda_auth.lambda_invoke_arn
       function_name = module.lambda_auth.lambda_function_name
       routes = [
-        { method = "POST", path = "/auth/confirm", protected = false }
+        { method = "POST", path = "/auth/confirm", protected = false },
+        { method = "POST", path = "/auth/login", protected = false },
+        { method = "POST", path = "/auth/refresh", protected = false },
       ]
     }
     users = {

@@ -1,6 +1,32 @@
 resource "aws_apigatewayv2_api" "http_api" {
   name          = "${var.project_name}-${var.environment}-api"
   protocol_type = "HTTP"
+
+  cors_configuration {
+
+    allow_origins = [
+      "http://localhost:5173"
+    ]
+
+    allow_methods = [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ]
+
+    allow_headers = [
+      "*"
+    ]
+
+    expose_headers = [
+      "*"
+    ]
+
+    max_age = 300
+  }
 }
 
 resource "aws_apigatewayv2_authorizer" "jwt" {

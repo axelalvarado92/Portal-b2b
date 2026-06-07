@@ -13,6 +13,12 @@ output "cognito_user_pool_client_id" {
   value       = module.cognito.user_pool_client_id
 }
 
+data "aws_caller_identity" "current" {}
+
+output "account_id" {
+  value = data.aws_caller_identity.current.account_id
+}
+
 
 
 

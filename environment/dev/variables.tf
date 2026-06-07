@@ -72,3 +72,8 @@ variable "s3_force_destroy" {
   description = "Whether to force destroy the S3 bucket (deletes all objects)."
   type        = bool
 }
+
+variable "cognito_client_id" {
+  description = "The Cognito User Pool Client ID for authentication."
+  type        = string
+}
