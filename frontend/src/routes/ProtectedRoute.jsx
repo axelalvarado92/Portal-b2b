@@ -7,9 +7,19 @@ export default function ProtectedRoute({
 
   const { isAuthenticated } = useAuth();
 
+  console.log(
+    "PROTECTED ROUTE:",
+    isAuthenticated
+  );
+
   if (!isAuthenticated) {
+
+    console.log("REDIRECT LOGIN");
+
     return <Navigate to="/" replace />;
   }
+
+  console.log("RENDER CHILDREN");
 
   return children;
 }

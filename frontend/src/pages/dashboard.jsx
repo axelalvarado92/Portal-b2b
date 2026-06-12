@@ -1,27 +1,26 @@
-import { useAuth } from "../context/AuthContext";
+import { useAuth }
+  from "../context/AuthContext";
+
+import DashboardAdmin
+  from "./admin/DashboardAdmin";
+
+import DashboardCustomer
+  from "./customer/DashboardCustomer";
 
 export default function Dashboard() {
 
-  const { token } = useAuth();
+  const { user } = useAuth();
+
+  if (
+    user?.role === "admin"
+  ) {
+
+    return <DashboardAdmin />;
+
+  }
 
   return (
-    <div style={{ padding: "40px" }}>
-      <h1>Dashboard</h1>
-
-      <p>Usuario autenticado.</p>
-
-      <p>
-        Token cargado:
-      </p>
-
-      <textarea
-        style={{
-          width: "100%",
-          height: "150px",
-        }}
-        value={token || ""}
-        readOnly
-      />
-    </div>
+    <DashboardCustomer />
   );
+
 }

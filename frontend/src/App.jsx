@@ -6,43 +6,97 @@ import {
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Companies from "./pages/Companies";
+import Products from "./pages/Products";
+import Orders from "./pages/Orders";
 
 import AppLayout from "./layouts/AppLayout";
-
 import ProtectedRoute from "./routes/ProtectedRoute";
 
+import Users from "./pages/admin/Users";
+import Invoices from "./pages/Invoices";
+
+import AdminRoute
+  from "./routes/AdminRoute";
+
 import { AuthProvider } from "./context/AuthContext";
+
+import {
+  CompanyProvider,
+} from "./context/CompanyContext";
+
+import Cart from "./pages/Cart";
 
 function App() {
 
   return (
     <AuthProvider>
 
-      <BrowserRouter>
+      <CompanyProvider>
 
-        <Routes>
+        <BrowserRouter>
 
-          <Route
-            path="/"
-            element={<Login />}
-          />
+          <Routes>
 
-          <Route
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
             <Route
-              path="/dashboard"
-              element={<Dashboard />}
+              path="/"
+              element={<Login />}
             />
-          </Route>
 
-        </Routes>
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
 
-      </BrowserRouter>
+              <Route
+                path="/dashboard"
+                element={<Dashboard />}
+              />
+
+              <Route
+                path="/companies"
+                element={<Companies />}
+              />
+
+              <Route
+                path="/products"
+                element={<Products />}
+              />
+
+              <Route
+                path="/cart"
+                element={<Cart />}
+              />
+
+              <Route
+                path="/orders"
+                element={<Orders />}
+              />
+
+              <Route
+                path="/admin/users"
+                element={
+                  <AdminRoute>
+                    <Users />
+                  </AdminRoute>
+                }
+              />
+              
+              <Route
+                path="/invoices"
+                element={<Invoices />}
+              />
+
+            </Route>
+
+          </Routes>
+
+        </BrowserRouter>
+
+      </CompanyProvider>
 
     </AuthProvider>
   );
