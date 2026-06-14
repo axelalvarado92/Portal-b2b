@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { login as loginRequest } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 
+import logoSNB from "../assets/logo-snb.png";
+import "./Login.css";
+
 export default function Login() {
 
   const navigate = useNavigate();
@@ -12,10 +15,12 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
 
     e.preventDefault();
+    setError("");
 
     try {
 
@@ -24,9 +29,6 @@ export default function Login() {
         password
       );
 
-      console.log("LOGIN COMPLETO");
-      console.log(data);
-
       login(data.data.access_token);
 
       navigate("/dashboard");
@@ -34,47 +36,61 @@ export default function Login() {
     } catch (err) {
 
       console.error(err);
-
-      alert("Credenciales inválidas");
+      setError("Credenciales inválidas");
 
     }
 
   };
 
   return (
-    <div style={{ padding: "40px" }}>
+    <div className="login-container">
 
-      <h1>Portal B2B</h1>
+      <div className="login-image-side"></div>
 
-      <form onSubmit={handleLogin}>
+      <div className="login-form-side">
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) =>
-            setEmail(e.target.value)
-          }
+        <img
+          src={logoSNB}
+          alt="SNB"
+          className="login-logo"
         />
 
-        <br /><br />
+        <h1 className="login-title">Portal B2B</h1>
+        <p className="login-subtitle">Ingresá a tu cuenta</p>
 
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
-        />
+        <form onSubmit={handleLogin} className="login-form">
 
-        <br /><br />
+          <label className="login-label">Email</label>
+          <input
+            type="email"
+            placeholder="tu@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="login-input"
+            required
+          />
 
-        <button type="submit">
-          Ingresar
-        </button>
+          <label className="login-label">Contraseña</label>
+          <input
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="login-input"
+            required
+          />
 
-      </form>
+          {error && (
+            <p className="login-error">{error}</p>
+          )}
+
+          <button type="submit" className="login-button">
+            Ingresar
+          </button>
+
+        </form>
+
+      </div>
 
     </div>
   );

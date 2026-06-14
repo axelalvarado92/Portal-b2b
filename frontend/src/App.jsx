@@ -8,16 +8,18 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
 import Products from "./pages/Products";
+import ProductsAdmin from "./pages/admin/Products";
 import Orders from "./pages/Orders";
+import Landing from "./pages/Landing";
 
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 import Users from "./pages/admin/Users";
+import AdminCompanies from "./pages/admin/Companies";
 import Invoices from "./pages/Invoices";
 
-import AdminRoute
-  from "./routes/AdminRoute";
+import AdminRoute from "./routes/AdminRoute";
 
 import { AuthProvider } from "./context/AuthContext";
 
@@ -39,9 +41,14 @@ function App() {
           <Routes>
 
             <Route
-              path="/"
-              element={<Login />}
-            />
+                path="/"
+                element={<Landing />}
+              />
+
+              <Route
+                path="/login"
+                element={<Login />}
+              />
 
             <Route
               element={
@@ -81,6 +88,24 @@ function App() {
                 element={
                   <AdminRoute>
                     <Users />
+                  </AdminRoute>
+                }
+              />
+
+              <Route
+                path="/admin/products"
+                element={
+                  <AdminRoute>
+                    <ProductsAdmin />
+                  </AdminRoute>
+                }
+              />
+
+              <Route
+                path="/admin/companies"
+                element={
+                  <AdminRoute>
+                    <AdminCompanies />
                   </AdminRoute>
                 }
               />

@@ -1,0 +1,64 @@
+import api from "../api/api";
+
+export async function getProducts(
+  companyId = null
+) {
+
+  let url =
+    "/admin/products";
+
+  if (companyId) {
+
+    url =
+      `/admin/products?company_id=${companyId}`;
+
+  }
+
+  const response =
+    await api.get(url);
+
+  return response.data;
+
+}
+
+export async function createProduct(
+  data
+) {
+
+  const response =
+    await api.post(
+      "/admin/products",
+      data
+    );
+
+  return response.data;
+
+}
+
+export async function updateProduct(
+  productId,
+  data
+) {
+
+  const response =
+    await api.patch(
+      `/admin/products/${productId}`,
+      data
+    );
+
+  return response.data;
+
+}
+
+export async function deleteProduct(
+  productId
+) {
+
+  const response =
+    await api.delete(
+      `/admin/products/${productId}`
+    );
+
+  return response.data;
+
+}
