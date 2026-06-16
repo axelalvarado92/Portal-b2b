@@ -14,6 +14,8 @@ import {
   getCompanies,
 } from "../../services/adminCompanyService";
 
+import "./Products.css";
+
 export default function Products() {
 
   const [products, setProducts] =
@@ -266,43 +268,32 @@ export default function Products() {
       </h1>
     
       <button
+        className="snb-btn"
         onClick={() =>
           setShowForm(true)
         }
       >
-        + Nuevo Producto
+        + Nuevo producto
       </button>
     
     </div>
 
     {showForm && (
 
-      <div
-        style={{
-          background: "#fff",
-          padding: "20px",
-          marginBottom: "20px",
-          border: "1px solid #ddd",
-          borderRadius: "10px",
-        }}
-      >
+      <div className="product-form-card">
     
         <h3>
           Crear producto
         </h3>
     
         <select
+          className="product-input"
           value={selectedCompany}
           onChange={(e) =>
             setSelectedCompany(
               e.target.value
             )
           }
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "10px",
-          }}
         >
     
           <option value="">
@@ -323,18 +314,12 @@ export default function Products() {
         </select>
     
         <input
+          className="product-input"
           placeholder="Nombre"
           value={name}
           onChange={(e) =>
-            setName(
-              e.target.value
-            )
+            setName(e.target.value)
           }
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "10px",
-          }}
         />
     
         <input
@@ -385,6 +370,7 @@ export default function Products() {
         />
     
         <button
+          className="snb-btn"
           onClick={
             handleCreateProduct
           }
@@ -393,12 +379,10 @@ export default function Products() {
         </button>
     
         <button
+          className="snb-btn-secondary"
           onClick={() =>
             setShowForm(false)
           }
-          style={{
-            marginLeft: "10px",
-          }}
         >
           Cancelar
         </button>
@@ -407,16 +391,14 @@ export default function Products() {
       )}
 
       <input
+        className="product-search"
         placeholder="Buscar producto..."
         value={search}
         onChange={(e) =>
-          setSearch(e.target.value)
+          setSearch(
+            e.target.value
+          )
         }
-        style={{
-          width: "300px",
-          padding: "10px",
-          marginBottom: "20px",
-        }}
       />
 
       <p>
@@ -433,21 +415,14 @@ export default function Products() {
       
       {showEditForm && editingProduct && (
 
-        <div
-          style={{
-            background: "#fff",
-            padding: "20px",
-            marginBottom: "20px",
-            border: "1px solid #ddd",
-            borderRadius: "10px",
-          }}
-        >
+        <div className="product-form-card">
       
           <h3>
             Editar producto
           </h3>
       
           <input
+            className="product-input"
             value={editName}
             onChange={(e) =>
               setEditName(
@@ -460,6 +435,7 @@ export default function Products() {
           <br /><br />
       
           <input
+            className="product-input"
             value={editCode}
             onChange={(e) =>
               setEditCode(
@@ -472,6 +448,7 @@ export default function Products() {
           <br /><br />
       
           <input
+            className="product-input"
             type="number"
             value={editPrice}
             onChange={(e) =>
@@ -485,6 +462,7 @@ export default function Products() {
           <br /><br />
       
           <input
+            className="product-input"
             type="number"
             value={editStockQuantity}
             onChange={(e) =>
@@ -496,8 +474,18 @@ export default function Products() {
           />
       
           <br /><br />
+
+          <input
+            className="product-input"
+            placeholder="URL de imagen"
+            value={imageUrl}
+            onChange={(e) =>
+              setImageUrl(e.target.value)
+            }
+          />
       
           <button
+            className="snb-btn"
             onClick={
               handleUpdateProduct
             }
@@ -506,6 +494,7 @@ export default function Products() {
           </button>
       
           <button
+            className="snb-btn-secondary"
             onClick={() =>
               setShowEditForm(false)
             }
@@ -521,11 +510,7 @@ export default function Products() {
       )}
 
       <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          background: "#fff",
-        }}
+        className="products-table"
       >
 
         <thead>
@@ -607,6 +592,7 @@ export default function Products() {
               <td style={tdStyle}>
 
               <button
+                className="snb-btn-secondary"
                 onClick={() => {
               
                   setEditingProduct(
@@ -645,6 +631,7 @@ export default function Products() {
               </button>
             
               <button
+                className="snb-btn-danger"
                 onClick={() =>
                   handleDeleteProduct(
                     product.id

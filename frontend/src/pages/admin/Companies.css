@@ -1,0 +1,148 @@
+.admin-companies-page {
+  padding: 40px;
+}
+
+.companies-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.companies-header h1 {
+  color: #6e1423;
+}
+
+.companies-summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.companies-summary-card h3 {
+  margin: 0;
+}
+
+.companies-summary-card span {
+  font-size: 28px;
+  font-weight: 700;
+  color: #6e1423;
+}
+
+.companies-search {
+  width: 100%;
+  max-width: 450px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 25px;
+}
+
+.companies-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.companies-table th {
+  background: #6e1423;
+  color: white;
+  padding: 14px;
+  text-align: left;
+}
+
+.companies-table td {
+  padding: 14px;
+  border-bottom: 1px solid #eee;
+}
+
+.companies-table tr:hover {
+  background: #fafafa;
+}
+
+.status-active {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.status-inactive {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.snb-btn {
+  background: #6e1423;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.snb-btn:hover {
+  background: #8a1b2d;
+  transform: translateY(-1px);
+}
+
+.snb-btn:active {
+  transform: translateY(0);
+}
+
+.snb-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.snb-btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.snb-btn-small {
+  background: #6e1423;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.snb-btn-small:hover {
+  background: #8a1b2d;
+}
+
+.company-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.company-form label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.company-input {
+  width: 100%;
+  max-width: 900px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}

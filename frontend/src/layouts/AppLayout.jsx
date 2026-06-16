@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { useCompany } from "../context/CompanyContext";
+import logoSNB from "../assets/logo-snb.png";
+
+import "./AppLayout.css";
 
 export default function AppLayout() {
 
@@ -26,180 +29,78 @@ export default function AppLayout() {
   };
 
   return (
-  <div
-    style={{
-      minHeight: "100vh",
-      background: "#f5f6f8",
-    }}
-  >
 
-<header
-  style={{
-    background: "#ffffff",
-    borderBottom: "1px solid #e5e5e5",
-    padding: "20px 40px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  }}
->
+    <div className="app-layout">
 
-  <div>
+      <header className="app-header">
 
-    <h2
-      style={{
-        margin: 0,
-      }}
-    >
-      Portal B2B
-    </h2>
+        <div>
 
-    <div
-      style={{
-        display: "flex",
-        gap: "25px",
-        marginTop: "15px",
-      }}
-    >
+          <img
+            src={logoSNB}
+            alt="SNB"
+            className="app-logo"
+          />
 
-      <div
-  style={{
-    display: "flex",
-    gap: "25px",
-    marginTop: "15px",
-  }}
->
+          <nav className="app-nav">
+          
+            <Link to="/dashboard">
+              Inicio
+            </Link>
+          
+          </nav>
 
-  <Link to="/dashboard">
-    Inicio
-  </Link>
+        </div>
 
-  {user?.role === "admin" ? (
-    <>
-      <Link to="/companies">
-        Empresas
-      </Link>
+        <div className="app-user-section">
 
-      <Link to="/products">
-        Productos
-      </Link>
+          <select
+            className="app-company-select"
+            value={selectedCompany?.id || ""}
+            onChange={(e) => {
 
-      <Link to="/orders">
-        Pedidos
-      </Link>
+              const company =
+                companies.find(
+                  c => c.id === e.target.value
+                );
 
-      <Link to="/admin/users">
-        Usuarios
-      </Link>
+              setSelectedCompany(company);
 
-      <Link to="/invoices">
-        Facturas
-      </Link>
-    </>
-  ) : (
-    <>
-      <Link to="/products">
-        Productos
-      </Link>
+            }}
+          >
 
-      <Link to="/cart">
-        Carrito
-      </Link>
+            {companies.map(company => (
 
-      <Link to="/orders">
-        Mis pedidos
-      </Link>
+              <option
+                key={company.id}
+                value={company.id}
+              >
+                {company.name}
+              </option>
 
-      <Link to="/invoices">
-        Facturas
-      </Link>
-    </>
-  )}
+            ))}
 
-</div>
+          </select>
 
-    </div>
+          <button
+            className="app-logout-btn"
+            onClick={handleLogout}
+          >
+            Cerrar sesión
+          </button>
 
-  </div>
+        </div>
 
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: "20px",
-    }}
-  >
+      </header>
 
-    <select
-      value={selectedCompany?.id || ""}
-      onChange={(e) => {
-
-        const company =
-          companies.find(
-            c => c.id === e.target.value
-          );
-
-        setSelectedCompany(
-          company
-        );
-
-      }}
-      style={{
-        padding: "8px",
-        borderRadius: "8px",
-      }}
-    >
-
-      {companies.map(company => (
-
-        <option
-          key={company.id}
-          value={company.id}
-        >
-          {company.name}
-        </option>
-
-      ))}
-
-    </select>
-
-    <div>
-
-      <div>
-        {user?.email}
-      </div>
-
-      <div
-        style={{
-          fontSize: "12px",
-          color: "#666",
-        }}
-      >
-        {user?.role}
-      </div>
-
-    </div>
-
-    <button
-      onClick={handleLogout}
-      style={{
-        padding: "8px 12px",
-        cursor: "pointer",
-      }}
-    >
-      Salir
-    </button>
-
-  </div>
-
-</header>
-
-      <main>
+      <main className="app-content">
 
         <Outlet />
 
       </main>
 
     </div>
+
   );
+
 }

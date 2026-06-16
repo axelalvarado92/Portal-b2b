@@ -29,26 +29,49 @@ def list_users():
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, email, full_name, role, is_active, created_at
-        FROM users
-        ORDER BY created_at DESC
+        SELECT
+            u.id,
+            u.email,
+            u.full_name,
+            u.role,
+            u.is_active,
+            u.created_at,
+            c.id AS company_id,
+            c.name AS company_name
+        FROM users u
+        LEFT JOIN user_companies uc
+            ON uc.user_id = u.id
+        LEFT JOIN companies c
+            ON c.id = uc.company_id
+        ORDER BY u.created_at DESC
     """)
 
     rows = cur.fetchall()
     cur.close()
 
-    return success([
-        {
-            "id": str(r[0]),
-            "email": r[1],
-            "full_name": r[2],
-            "role": r[3],
-            "is_active": r[4],
-            "created_at": str(r[5])
-        }
-        for r in rows
-    ])
+    users_map = {}
 
+    for r in rows:
+        user_id = str(r[0])
+
+        if user_id not in users_map:
+            users_map[user_id] = {
+                "id": user_id,
+                "email": r[1],
+                "full_name": r[2],
+                "role": r[3],
+                "is_active": r[4],
+                "created_at": str(r[5]),
+                "companies": []
+            }
+
+        if r[6] is not None:
+            users_map[user_id]["companies"].append({
+                "id": str(r[6]),
+                "name": r[7]
+            })
+
+    return success(list(users_map.values()))
 
 def create_user(body):
     error = validate_create_user(body)
@@ -223,8 +246,18 @@ def list_companies():
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, name, logo_url, description, contact_email,
-               is_active, notification_emails, whatsapp_phone, created_at
+        SELECT
+            id,
+            name,
+            business_name,
+            tax_id,
+            logo_url,
+            description,
+            contact_email,
+            is_active,
+            notification_emails,
+            whatsapp_phone,
+            created_at
         FROM companies
         ORDER BY name ASC
     """)
@@ -236,17 +269,18 @@ def list_companies():
         {
             "id": str(r[0]),
             "name": r[1],
-            "logo_url": r[2],
-            "description": r[3],
-            "contact_email": r[4],
-            "is_active": r[5],
-            "notification_emails": r[6] or [],
-            "whatsapp_phone": r[7],
-            "created_at": str(r[8])
+            "business_name": r[2],
+            "tax_id": r[3],
+            "logo_url": r[4],
+            "description": r[5],
+            "contact_email": r[6],
+            "is_active": r[7],
+            "notification_emails": r[8] or [],
+            "whatsapp_phone": r[9],
+            "created_at": str(r[10])
         }
         for r in rows
     ])
-
 
 def create_company(body):
     error = validate_create_company(body)
@@ -258,16 +292,25 @@ def create_company(body):
 
     cur.execute("""
         INSERT INTO companies
-        (name, logo_url, description, contact_email, notification_emails, whatsapp_phone)
+        (  name,
+           business_name,
+           tax_id,
+           logo_url,
+           description,
+           contact_email,
+           notification_emails,
+           whatsapp_phone)
         VALUES (%s,%s,%s,%s,%s,%s)
         RETURNING id
     """, [
-        body["name"],
-        body.get("logo_url"),
-        body.get("description"),
-        body["contact_email"],
-        body.get("notification_emails", []),
-        body.get("whatsapp_phone")
+           body["name"],
+           body.get("business_name"),
+           body.get("tax_id"),
+           body.get("logo_url"),
+           body.get("description"),
+           body["contact_email"],
+           body.get("notification_emails", []),
+           body.get("whatsapp_phone")
     ])
 
     company_id = cur.fetchone()[0]
@@ -287,9 +330,16 @@ def update_company(company_id, body):
         return not_found("Empresa no encontrada")
 
     allowed = [
-        "name", "logo_url", "description", "contact_email",
-        "is_active", "notification_emails", "whatsapp_phone"
-    ]
+            "name",
+            "business_name",
+            "tax_id",
+            "logo_url",
+            "description",
+            "contact_email",
+            "is_active",
+            "notification_emails",
+            "whatsapp_phone"
+        ]
 
     updates = []
     args = []
@@ -448,6 +498,125 @@ def delete_product(product_id):
 
 print("ADMIN LAMBDA VERSION 2026-05-22-FINAL")
 
+# =========================================================
+# ORDERS
+# =========================================================
+
+def list_orders():
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            o.id,
+            c.name,
+            u.email,
+            o.total_amount,
+            o.status,
+            o.created_at
+        FROM orders o
+        INNER JOIN companies c
+            ON o.company_id = c.id
+        INNER JOIN users u
+            ON o.user_id = u.id
+        ORDER BY o.created_at DESC
+    """)
+
+    rows = cur.fetchall()
+
+    cur.close()
+
+    return success([
+        {
+            "id": str(r[0]),
+            "company_name": r[1],
+            "customer_email": r[2],
+            "total_amount": float(r[3]),
+            "status": r[4],
+            "created_at": str(r[5])
+        }
+        for r in rows
+    ])
+
+def get_order_admin(order_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            SELECT
+                o.id,
+                u.full_name,
+                u.email,
+                c.name,
+                o.status,
+                o.total_amount,
+                o.notes,
+                o.created_at
+            FROM orders o
+            INNER JOIN users u
+                ON o.user_id = u.id
+            INNER JOIN companies c
+                ON o.company_id = c.id
+            WHERE o.id = %s
+        """, [order_id])
+
+        order = cur.fetchone()
+
+        if not order:
+            return not_found(
+                "Pedido no encontrado"
+            )
+
+        cur.execute("""
+            SELECT
+                product_name,
+                quantity,
+                unit_price,
+                subtotal,
+                observations
+            FROM order_items
+            WHERE order_id = %s
+        """, [order_id])
+
+        rows = cur.fetchall()
+
+        items = [
+            {
+                "product_name": row[0],
+                "quantity": float(row[1]),
+                "unit_price": float(row[2]),
+                "subtotal": float(row[3]),
+                "observations": row[4]
+            }
+            for row in rows
+        ]
+
+        return success({
+            "id": str(order[0]),
+            "customer_name": order[1],
+            "customer_email": order[2],
+            "company_name": order[3],
+            "status": order[4],
+            "total_amount": float(order[5]),
+            "notes": order[6],
+            "created_at": str(order[7]),
+            "items": items
+        })
+
+    except Exception as e:
+
+        print(str(e))
+        return server_error()
+
+    finally:
+
+        cur.close()
+        conn.close()
+
 def handler(event, context):
 
     method = event["requestContext"]["http"]["method"]
@@ -516,8 +685,26 @@ def handler(event, context):
 
             if method == "DELETE" and resource_id:
                 return delete_product(resource_id)
-
-        return bad_request("Ruta no encontrada")
+        
+        # ==========================
+        # ORDERS
+        # ==========================
+        
+        if (
+            method == "GET"
+            and path_params.get("id")
+        ):
+        
+            return get_order_admin(
+                path_params["id"]
+            )
+        
+        if (
+            method == "GET"
+            and path == "/admin/orders"
+        ):
+        
+            return list_orders()
 
     except Exception as e:
         print(str(e))

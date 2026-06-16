@@ -49,13 +49,13 @@
   justify-content: space-between;
   align-items: center;
 
-  padding: 40px 80px;
+  padding: 15px 80px;
 
   background: #f7f7f7;
 }
 
 .footer-logo {
-  height: 60px;
+  height: 35px;
 }
 
 .nav-login {
@@ -86,4 +86,21 @@
   background: #6e1423;
 
   color: white !important;
+}
+
+.landing-footer p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-brand p {
+  margin: 0;
+  font-size: 14px;
 }

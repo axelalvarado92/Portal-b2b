@@ -9,8 +9,9 @@ import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
 import Products from "./pages/Products";
 import ProductsAdmin from "./pages/admin/Products";
-import Orders from "./pages/Orders";
+import Orders from "./pages/customer/Orders";
 import Landing from "./pages/Landing";
+import AdminOrders from "./pages/admin/Orders";
 
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -97,6 +98,15 @@ function App() {
                 element={
                   <AdminRoute>
                     <ProductsAdmin />
+                  </AdminRoute>
+                }
+              />
+
+              <Route
+                path="/admin/orders"
+                element={
+                  <AdminRoute>
+                    <AdminOrders />
                   </AdminRoute>
                 }
               />

@@ -4,185 +4,155 @@ import {
   useState,
 } from "react";
 
+import "./DashboardAdmin.css";
+
+import {
+  Users,
+  Building2,
+  Package,
+  ClipboardList,
+  FileText,
+} from "lucide-react";
+
 import {
   getDashboardReport,
 } from "../../services/reportService";
 
 export default function DashboardAdmin() {
 
-const [stats, setStats] =
-  useState(null);
+  const [stats, setStats] =
+    useState(null);
 
   useEffect(() => {
-  
+
     async function loadDashboard() {
-  
+
       try {
-  
+
         const response =
           await getDashboardReport();
-  
+
         setStats(
           response.data
         );
-  
+
       } catch (err) {
-  
+
         console.error(err);
-  
+
       }
-  
+
     }
-  
+
     loadDashboard();
-  
+
   }, []);
 
   return (
 
-    <div
-      style={{
-        padding: "40px",
-      }}
-    >
+    <div className="dashboard-admin">
 
-      <h1>
-        Panel de Administración
+      <h1 className="dashboard-title">
+        Hola Seba, ¿por dónde arrancamos hoy?
       </h1>
 
-      <p>
-        Gestión general del portal
-      </p>
-      
-      {stats && (
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit,minmax(220px,1fr))",
-          gap: "20px",
-          marginBottom: "30px",
-        }}
-      >
-    
-        <div style={cardStyle}>
-          <h3>Pedidos</h3>
-          <h1>{stats.total_orders}</h1>
-        </div>
-    
-        <div style={cardStyle}>
-          <h3>Clientes</h3>
-          <h1>{stats.total_clients}</h1>
-        </div>
-    
-        <div style={cardStyle}>
-          <h3>Empresas</h3>
-          <h1>{stats.total_companies}</h1>
-        </div>
-    
-        <div style={cardStyle}>
-          <h3>Facturado</h3>
-          <h1>
-            $
-            {stats.total_invoiced}
-          </h1>
-        </div>
-    
-        <div style={cardStyle}>
-          <h3>Comisiones</h3>
-          <h1>
-            $
-            {stats.total_commissions}
-          </h1>
-        </div>
-    
-      </div>
-    
-    )}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "20px",
-          marginTop: "30px",
-        }}
-      >
+      <div className="modules-grid">
 
         <Link
           to="/admin/users"
-          style={cardStyle}
+          className="module-card"
         >
 
-          <div style={iconStyle}>
-            👥
+          <div className="module-icon">
+            <Users size={38} />
           </div>
 
-          <h2>
+          <h3>
             Usuarios
-          </h2>
+          </h3>
 
-          <p>
-            Administrar usuarios y permisos
+          <p className="dashboard-card-value">
+            {stats?.total_clients || 0}
+            {" "}usuarios
           </p>
 
         </Link>
 
         <Link
           to="/admin/companies"
-          style={cardStyle}
+          className="module-card"
         >
 
-          <div style={iconStyle}>
-            🏢
+          <div className="module-icon">
+            <Building2 size={38} />
           </div>
 
-          <h2>
+          <h3>
             Empresas
-          </h2>
+          </h3>
 
-          <p>
-            Gestionar empresas clientes
+          <p className="dashboard-card-value">
+            {stats?.total_companies || 0}
+            {" "}empresas
           </p>
 
         </Link>
 
         <Link
           to="/admin/products"
-          style={cardStyle}
+          className="module-card"
         >
-        
-          <div style={iconStyle}>
-            📦
+
+          <div className="module-icon">
+            <Package size={38} />
           </div>
-        
-          <h2>
+
+          <h3>
             Productos
-          </h2>
-        
-          <p>
-            Gestionar productos
+          </h3>
+
+          <p className="dashboard-card-value">
+            Catálogo disponible
           </p>
-        
+
         </Link>
 
         <Link
-          to="/orders"
-          style={cardStyle}
+          to="/admin/orders"
+          className="module-card"
         >
 
-          <div style={iconStyle}>
-            📋
+          <div className="module-icon">
+            <ClipboardList size={38} />
           </div>
 
-          <h2>
+          <h3>
             Pedidos
-          </h2>
+          </h3>
 
-          <p>
-            Ver pedidos del sistema
+          <p className="dashboard-card-value">
+            {stats?.total_orders || 0}
+            {" "}pedidos
+          </p>
+
+        </Link>
+
+        <Link
+          to="/invoices"
+          className="module-card"
+        >
+
+          <div className="module-icon">
+            <FileText size={38} />
+          </div>
+
+          <h3>
+            Facturas
+          </h3>
+
+          <p className="dashboard-card-value">
+            $
+            {stats?.total_invoiced || 0}
           </p>
 
         </Link>
@@ -194,30 +164,3 @@ const [stats, setStats] =
   );
 
 }
-
-const cardStyle = {
-
-  background: "#fff",
-
-  borderRadius: "12px",
-
-  padding: "24px",
-
-  textDecoration: "none",
-
-  color: "#222",
-
-  border: "1px solid #ddd",
-
-  boxShadow:
-    "0 2px 8px rgba(0,0,0,0.08)",
-
-};
-
-const iconStyle = {
-
-  fontSize: "42px",
-
-  marginBottom: "10px",
-
-};
