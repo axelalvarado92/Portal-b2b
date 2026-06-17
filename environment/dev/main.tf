@@ -516,11 +516,7 @@ module "apigateway" {
         { method = "PATCH", path = "/admin/products/{id}", protected = true },
         { method = "DELETE", path = "/admin/products/{id}", protected = true },
         { method = "GET", path = "/admin/orders", protected = true },
-        { method = "GET", path = "/admin/orders/{id}", protected = true },
-        { method = "GET", path = "/admin/customers", protected = true },
-        { method = "POST", path = "/admin/customers", protected = true },
-        { method = "PATCH", path = "/admin/customers/{id}", protected = true }
-
+        { method = "GET", path = "/admin/orders/{id}", protected = true }
       ]
     }
     payments = {

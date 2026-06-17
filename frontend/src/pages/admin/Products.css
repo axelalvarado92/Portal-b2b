@@ -107,7 +107,7 @@
 
 .snb-btn-danger {
 
-  background: #d32f2f;
+  background: #6e1423;
 
   color: white;
 
@@ -124,7 +124,7 @@
 
 .snb-btn-danger:hover {
 
-  background: #b71c1c;
+  background: #6e1423;
 }
 .product-form-card {
   background: white;
@@ -155,4 +155,17 @@
 
 .snb-btn-secondary:hover {
   background: #f8f1f3;
+}
+
+.btn {
+  background: #6e1423;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  opacity: 0.9;
 }

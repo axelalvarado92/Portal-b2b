@@ -33,6 +33,7 @@ def list_users():
             u.id,
             u.email,
             u.full_name,
+            u.phone,
             u.role,
             u.is_active,
             u.created_at,
@@ -59,16 +60,17 @@ def list_users():
                 "id": user_id,
                 "email": r[1],
                 "full_name": r[2],
-                "role": r[3],
-                "is_active": r[4],
-                "created_at": str(r[5]),
+                "phone": r[3],
+                "role": r[4],
+                "is_active": r[5],
+                "created_at": str(r[6]),
                 "companies": []
             }
 
-        if r[6] is not None:
+        if r[7] is not None:
             users_map[user_id]["companies"].append({
-                "id": str(r[6]),
-                "name": r[7]
+                "id": str(r[7]),
+                "name": r[8]
             })
 
     return success(list(users_map.values()))
@@ -81,6 +83,7 @@ def create_user(body):
     email = body["email"]
     full_name = body["full_name"]
     role = body["role"]
+    phone = body.get("phone")
     companies = body.get("companies", [])
 
     if role not in ["admin", "customer"]:
@@ -123,18 +126,21 @@ def create_user(body):
                 id,
                 email,
                 full_name,
+                phone,
                 role,
                 is_active
             )
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE
             SET email = EXCLUDED.email,
                 full_name = EXCLUDED.full_name,
+                phone = EXCLUDED.phone,
                 role = EXCLUDED.role
         """, [
             cognito_sub,
             email,
             full_name,
+            phone,
             role,
             True
         ])
@@ -492,10 +498,6 @@ def delete_product(product_id):
 
     return success({"message": "Producto desactivado"})
 
-# =========================================================
-# HANDLER
-# =========================================================
-
 print("ADMIN LAMBDA VERSION 2026-05-22-FINAL")
 
 # =========================================================
@@ -618,6 +620,9 @@ def get_order_admin(order_id):
         conn.close()
 
 def handler(event, context):
+
+    print("EVENT:")
+    print(json.dumps(event))
 
     method = event["requestContext"]["http"]["method"]
     path = event["requestContext"]["http"]["path"]

@@ -1,415 +1,243 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
+import "./Users.css";
 
 import {
-  getUsers,
-  createUser,
-  updateUser,
-  toggleUserStatus,
+getUsers,
+createUser,
+updateUser,
+toggleUserStatus,
 } from "../../services/adminUserService";
 
-import {
-  useCompany,
-} from "../../context/CompanyContext";
+import { useCompany } from "../../context/CompanyContext";
 
 export default function Users() {
+const [users, setUsers] = useState([]);
+const [loading, setLoading] = useState(true);
 
-  const [users, setUsers] =
-    useState([]);
+const { companies } = useCompany();
 
-  const [loading, setLoading] =
-    useState(true);
+const [showForm, setShowForm] = useState(false);
+const [email, setEmail] = useState("");
+const [fullName, setFullName] = useState("");
+const [role, setRole] = useState("customer");
+const [selectedCompanies, setSelectedCompanies] = useState([]);
+const [phone, setPhone] = useState("");
 
-  const {
-    companies,
-  } = useCompany();
+const [showEditForm, setShowEditForm] = useState(false);
+const [editingUser, setEditingUser] = useState(null);
+const [editRole, setEditRole] = useState("customer");
+const [editCompanies, setEditCompanies] = useState([]);
 
-  const [showForm, setShowForm] =
-    useState(false);
+async function loadUsers() {
+try {
+const response = await getUsers();
+setUsers(response.data || []);
+} catch (err) {
+console.error(err);
+} finally {
+setLoading(false);
+}
+}
 
-  const [email, setEmail] =
-    useState("");
+useEffect(() => {
+loadUsers();
+}, []);
 
-  const [fullName, setFullName] =
-    useState("");
+async function handleCreateUser() {
+try {
+await createUser({
+email,
+full_name: fullName,
+phone,
+role,
+companies: selectedCompanies,
+});
 
-  const [role, setRole] =
-    useState("customer");
 
-  const [showEditForm, setShowEditForm] =
-  useState(false);
+  await loadUsers();
 
-  const [editingUser, setEditingUser] =
-    useState(null);
+  setShowForm(false);
+  setEmail("");
+  setFullName("");
+  setPhone("");
+  setRole("customer");
+  setSelectedCompanies([]);
+} catch (err) {
+  console.error(err);
+}
 
-  const [editRole, setEditRole] =
-    useState("customer");
-
-  const [
-    editCompanies,
-    setEditCompanies,
-  ] = useState([]);
-
-  const [
-    selectedCompanies,
-    setSelectedCompanies,
-  ] = useState([]);
-
-  const thStyle = {
-
-    textAlign: "left",
-
-    padding: "12px",
-
-    borderBottom:
-      "1px solid #ddd",
-
-    background: "#f5f5f5",
-
-  };
-
-  const tdStyle = {
-
-    padding: "12px",
-
-    borderBottom:
-      "1px solid #eee",
-
-  };
-
-  useEffect(() => {
-
-    async function loadUsers() {
-
-      try {
-
-        const response =
-          await getUsers();
-
-        console.log(
-          "USERS:",
-          response
-        );
-
-        setUsers(
-          response.data || []
-        );
-
-      } catch (err) {
-
-        console.error(err);
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    }
-
-    loadUsers();
-
-  }, []);
-  async function handleCreateUser() {
-
-  try {
-
-    await createUser({
-
-      email,
-
-      full_name: fullName,
-
-      role,
-
-      companies:
-        selectedCompanies,
-
-    });
-
-    alert(
-      "Usuario creado"
-    );
-
-    window.location.reload();
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(
-      "Error al crear usuario"
-    );
-
-  }
-  }
-  
-  async function handleUpdateUser() {
-
-  try {
-
-    await updateUser(
-      editingUser.id,
-      {
-        role: editRole,
-        companies: editCompanies,
-      }
-    );
-
-    alert(
-      "Usuario actualizado"
-    );
-
-    window.location.reload();
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(
-      "Error al actualizar"
-    );
-
-  }
 
 }
-  async function handleToggleUser(
-  user
-) {
 
-  try {
+async function handleUpdateUser() {
+try {
+await updateUser(editingUser.id, {
+role: editRole,
+companies: editCompanies,
+});
 
-    await toggleUserStatus(
-      user.id,
-      !user.is_active
-    );
 
-    alert(
-      "Estado actualizado"
-    );
+  await loadUsers();
+  setShowEditForm(false);
+} catch (err) {
+  console.error(err);
+}
 
-    window.location.reload();
-
-  } catch (err) {
-
-    console.error(err);
-
-    alert(
-      "Error al actualizar"
-    );
-
-  }
 
 }
-  
-  if (loading) {
 
-    return (
-      <p>
-        Cargando usuarios...
-      </p>
-    );
+async function handleToggleUser(user) {
+try {
+await toggleUserStatus(
+user.id,
+!user.is_active
+);
 
-  }
 
-  return (
+  await loadUsers();
+} catch (err) {
+  console.error(err);
+}
 
-<div
-  style={{
-    padding: "40px",
-  }}
->
 
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: "20px",
-    }}
-  >
+}
 
-    <h1>
-      Usuarios
-    </h1>
+if (loading) {
+return ( <div className="users-loading">
+Cargando usuarios... </div>
+);
+}
+
+return ( <div className="users-page"> <div className="users-header"> <h1>Usuarios</h1>
+
 
     <button
-      onClick={() =>
-        setShowForm(true)
-      }
+      className="btn-primary"
+      onClick={() => setShowForm(true)}
     >
-      + Nuevo Usuario
+      + Nuevo usuario
     </button>
-
   </div>
 
   {showForm && (
+    <div className="card">
+      <h3>Crear usuario</h3>
 
-    <div
-      style={{
-        background: "#fff",
-        padding: "20px",
-        marginBottom: "20px",
-        border: "1px solid #ddd",
-        borderRadius: "10px",
-      }}
-    >
+      <div className="form-grid">
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) =>
+            setEmail(e.target.value)
+          }
+        />
 
-      <h3>
-        Crear usuario
-      </h3>
+        <input
+          placeholder="Nombre"
+          value={fullName}
+          onChange={(e) =>
+            setFullName(e.target.value)
+          }
+        />
 
-      <input
-        placeholder="Email"
-        value={email}
-        onChange={(e) =>
-          setEmail(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "10px",
-        }}
-      />
+        <input
+          placeholder="Teléfono"
+          value={phone}
+          onChange={(e) =>
+            setPhone(e.target.value)
+          }
+        />
 
-      <input
-        placeholder="Nombre"
-        value={fullName}
-        onChange={(e) =>
-          setFullName(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "10px",
-        }}
-      />
+        <select
+          value={role}
+          onChange={(e) =>
+            setRole(e.target.value)
+          }
+        >
+          <option value="customer">
+            Customer
+          </option>
 
-      <select
-        value={role}
-        onChange={(e) =>
-          setRole(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-        }}
-      >
+          <option value="admin">
+            Admin
+          </option>
+        </select>
+      </div>
 
-        <option value="customer">
-          Customer
-        </option>
+      <div className="companies-box">
+        <h4>Empresas</h4>
 
-        <option value="admin">
-          Admin
-        </option>
-
-      </select>
-
-      <h4>
-        Empresas
-      </h4>
-
-      {companies.map(company => (
-
-        <div key={company.id}>
-
-          <label>
-
-            <input
-              type="checkbox"
-              checked={
-                selectedCompanies.includes(
-                  company.id
-                )
-              }
-              onChange={(e) => {
-
-                if (
-                  e.target.checked
-                ) {
-
-                  setSelectedCompanies(
-                    prev => [
-                      ...prev,
-                      company.id,
-                    ]
-                  );
-
-                } else {
-
-                  setSelectedCompanies(
-                    prev =>
-                      prev.filter(
-                        id =>
-                          id !== company.id
-                      )
-                  );
-
-                }
-
-              }}
-            />
-
-            {" "}
-            {company.name}
-
-          </label>
-
+        <div className="companies-grid">
+          {companies.map((c) => (
+            <label
+              key={c.id}
+              className="company-item"
+            >
+              <input
+                type="checkbox"
+                checked={selectedCompanies.includes(
+                  c.id
+                )}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedCompanies(
+                      (p) => [...p, c.id]
+                    );
+                  } else {
+                    setSelectedCompanies(
+                      (p) =>
+                        p.filter(
+                          (id) => id !== c.id
+                        )
+                    );
+                  }
+                }}
+              />
+              {c.name}
+            </label>
+          ))}
         </div>
+      </div>
 
-      ))}
+      <div className="actions-row">
+        <button
+          className="btn"
+          onClick={handleCreateUser}
+        >
+          Crear
+        </button>
 
-      <br />
-
-      <button
-        onClick={handleCreateUser}
-      >
-        Crear usuario
-      </button>
-
+        <button
+          className="btn"
+          onClick={() => {
+            setShowForm(false);
+            setEmail("");
+            setFullName("");
+            setPhone("");
+            setRole("customer");
+            setSelectedCompanies([]);
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
-
   )}
 
   {showEditForm && editingUser && (
+    <div className="card">
+      <h3>Editar usuario</h3>
 
-    <div
-      style={{
-        background: "#fff",
-        padding: "20px",
-        marginBottom: "20px",
-        border: "1px solid #ddd",
-        borderRadius: "10px",
-      }}
-    >
-
-      <h3>
-        Editar usuario
-      </h3>
-
-      <p>
+      <p className="muted">
         {editingUser.email}
       </p>
 
       <select
         value={editRole}
         onChange={(e) =>
-          setEditRole(
-            e.target.value
-          )
+          setEditRole(e.target.value)
         }
       >
-
         <option value="customer">
           Customer
         </option>
@@ -417,171 +245,122 @@ export default function Users() {
         <option value="admin">
           Admin
         </option>
-
       </select>
 
-      <h4>
-        Empresas
-      </h4>
-
-      {companies.map(company => (
-
-        <div key={company.id}>
-
-          <label>
-
+      <div className="companies-grid">
+        {companies.map((c) => (
+          <label
+            key={c.id}
+            className="company-item"
+          >
             <input
               type="checkbox"
-              checked={
-                editCompanies.includes(
-                  company.id
-                )
-              }
+              checked={editCompanies.includes(
+                c.id
+              )}
               onChange={(e) => {
-
                 if (e.target.checked) {
-
                   setEditCompanies(
-                    prev => [
-                      ...prev,
-                      company.id,
-                    ]
+                    (p) => [...p, c.id]
                   );
-
                 } else {
-
                   setEditCompanies(
-                    prev =>
-                      prev.filter(
-                        id =>
-                          id !== company.id
+                    (p) =>
+                      p.filter(
+                        (id) => id !== c.id
                       )
                   );
-
                 }
-
               }}
             />
-
-            {" "}
-            {company.name}
-
+            {c.name}
           </label>
+        ))}
+      </div>
 
-        </div>
+      <div className="actions-row">
+        <button
+          className="btn"
+          onClick={handleUpdateUser}
+        >
+          Guardar
+        </button>
 
-      ))}
-      <br />
-
-      <button
-        onClick={
-          handleUpdateUser
-        }
-      >
-        Guardar cambios
-      </button>
-      
-      <button
-        onClick={() =>
-          setShowEditForm(false)
-        }
-        style={{
-          marginLeft: "10px",
-        }}
-      >
-        Cancelar
-      </button>
-
-      <br />
-
+        <button
+          className="btn"
+          onClick={() =>
+            setShowEditForm(false)
+          }
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
-
   )}
 
-  <br />
+  <div className="table-wrapper">
+    <table className="users-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Nombre</th>
+          <th>Rol</th>
+          <th>Teléfono</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
 
-  <table
-    style={{
-      width: "100%",
-      borderCollapse: "collapse",
-      background: "#fff",
-    }}
-  >
+      <tbody>
+        {users.map((user) => (
+          <tr key={user.id}>
+            <td>{user.email}</td>
 
-    <thead>
+            <td>
+              {user.full_name || "-"}
+            </td>
 
-      <tr>
+            <td>
+              <span
+                className={`role ${user.role}`}
+              >
+                {user.role}
+              </span>
+            </td>
 
-        <th style={thStyle}>
-          Email
-        </th>
+            <td>
+              {user.phone || "-"}
+            </td>
 
-        <th style={thStyle}>
-          Nombre
-        </th>
+            <td>
+              <span
+                className={`status ${
+                  user.is_active
+                    ? "active"
+                    : "inactive"
+                }`}
+              >
+                {user.is_active
+                  ? "Activo"
+                  : "Inactivo"}
+              </span>
+            </td>
 
-        <th style={thStyle}>
-          Rol
-        </th>
-
-        <th style={thStyle}>
-          Activo
-        </th>
-
-        <th style={thStyle}>
-          Acciones
-        </th>
-
-      </tr>
-
-    </thead>
-
-    <tbody>
-
-      {users.map(user => (
-
-        <tr key={user.id}>
-
-          <td style={tdStyle}>
-            {user.email}
-          </td>
-
-          <td style={tdStyle}>
-            {user.full_name || "-"}
-          </td>
-
-          <td style={tdStyle}>
-            {user.role}
-          </td>
-
-          <td style={tdStyle}>
-            {user.is_active
-              ? "✅"
-              : "❌"}
-          </td>
-
-          <td style={tdStyle}>
-
-            <button
-              onClick={() => {
-
-                setEditingUser(user);
-
-                setEditRole(user.role);
-
-                setEditCompanies([]);
-
-                setShowEditForm(true);
-
-              }}
-            >
-              Editar
-            </button>
+            <td className="actions">
+              <button
+                className="btn-small"
+                onClick={() => {
+                  setEditingUser(user);
+                  setEditRole(user.role);
+                  setEditCompanies([]);
+                  setShowEditForm(true);
+                }}
+              >
+                Editar
+              </button>
 
               <button
-                style={{
-                  marginLeft: "10px",
-                }}
+                className="btn-small"
                 onClick={() =>
                   handleToggleUser(user)
                 }
@@ -590,20 +369,14 @@ export default function Users() {
                   ? "Desactivar"
                   : "Activar"}
               </button>
-            
             </td>
-
-        </tr>
-
-      ))}
-
-    </tbody>
-
-  </table>
-
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 </div>
+
+
 );
-
 }
-
-
