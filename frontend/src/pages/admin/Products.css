@@ -169,3 +169,11 @@
 .btn:hover {
   opacity: 0.9;
 }
+
+.products-page-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #6e1423;
+  text-align: center;
+  margin-bottom: 32px;
+}

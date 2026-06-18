@@ -5,13 +5,14 @@ import {
 } from "react-router-dom";
 
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/Customer/DashboardCustomer";
 import Companies from "./pages/Companies";
-import Products from "./pages/Products";
+import Products from "./pages/customer/Products";
 import ProductsAdmin from "./pages/admin/Products";
 import Orders from "./pages/customer/Orders";
 import Landing from "./pages/Landing";
 import AdminOrders from "./pages/admin/Orders";
+import DashboardAdmin from "./pages/admin/DashboardAdmin";
 
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -28,7 +29,8 @@ import {
   CompanyProvider,
 } from "./context/CompanyContext";
 
-import Cart from "./pages/Cart";
+import Cart from "./pages/customer/Cart";
+import DashboardCustomer from "./pages/customer/DashboardCustomer";
 
 function App() {
 
@@ -61,7 +63,7 @@ function App() {
 
               <Route
                 path="/dashboard"
-                element={<Dashboard />}
+                element={<DashboardCustomer />}
               />
 
               <Route
@@ -89,6 +91,15 @@ function App() {
                 element={
                   <AdminRoute>
                     <Users />
+                  </AdminRoute>
+                }
+              />
+
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <AdminRoute>
+                    <DashboardAdmin />
                   </AdminRoute>
                 }
               />

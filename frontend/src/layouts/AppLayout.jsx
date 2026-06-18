@@ -44,7 +44,7 @@ export default function AppLayout() {
 
           <nav className="app-nav">
           
-            <Link to="/dashboard">
+            <Link to={user?.role === "admin" ? "/admin/dashboard" : "/dashboard"}>
               Inicio
             </Link>
           
@@ -53,34 +53,6 @@ export default function AppLayout() {
         </div>
 
         <div className="app-user-section">
-
-          <select
-            className="app-company-select"
-            value={selectedCompany?.id || ""}
-            onChange={(e) => {
-
-              const company =
-                companies.find(
-                  c => c.id === e.target.value
-                );
-
-              setSelectedCompany(company);
-
-            }}
-          >
-
-            {companies.map(company => (
-
-              <option
-                key={company.id}
-                value={company.id}
-              >
-                {company.name}
-              </option>
-
-            ))}
-
-          </select>
 
           <button
             className="app-logout-btn"

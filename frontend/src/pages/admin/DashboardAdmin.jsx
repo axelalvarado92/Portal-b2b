@@ -19,6 +19,7 @@ import {
 } from "../../services/reportService";
 
 export default function DashboardAdmin() {
+  console.log("DASHBOARD ADMIN MOUNTED");
 
   const [stats, setStats] =
     useState(null);
@@ -31,14 +32,15 @@ export default function DashboardAdmin() {
 
         const response =
           await getDashboardReport();
+          console.log("DASHBOARD RESPONSE:", response);
+        
 
         setStats(
           response.data
         );
 
       } catch (err) {
-
-        console.error(err);
+        console.error("DASHBOARD ERROR:", err);
 
       }
 

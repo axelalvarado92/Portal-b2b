@@ -27,6 +27,8 @@ const [showEditForm, setShowEditForm] = useState(false);
 const [editingUser, setEditingUser] = useState(null);
 const [editRole, setEditRole] = useState("customer");
 const [editCompanies, setEditCompanies] = useState([]);
+const [editFullName, setEditFullName] = useState("");
+const [editPhone, setEditPhone] = useState("");
 
 async function loadUsers() {
 try {
@@ -72,8 +74,10 @@ companies: selectedCompanies,
 async function handleUpdateUser() {
 try {
 await updateUser(editingUser.id, {
-role: editRole,
-companies: editCompanies,
+  full_name: editFullName,
+  phone: editPhone,
+  role: editRole,
+  companies: editCompanies,
 });
 
 
@@ -254,6 +258,25 @@ return ( <div className="users-page"> <div className="users-header"> <h1>Usuario
             className="company-item"
           >
             <input
+              placeholder="Nombre"
+              value={editFullName}
+              onChange={(e) =>
+                setEditFullName(
+                  e.target.value
+                )
+              }
+            />
+            
+            <input
+              placeholder="Teléfono"
+              value={editPhone}
+              onChange={(e) =>
+                setEditPhone(
+                  e.target.value
+                )
+              }
+            />
+            <input
               type="checkbox"
               checked={editCompanies.includes(
                 c.id
@@ -351,8 +374,21 @@ return ( <div className="users-page"> <div className="users-header"> <h1>Usuario
                 className="btn-small"
                 onClick={() => {
                   setEditingUser(user);
+                  
                   setEditRole(user.role);
-                  setEditCompanies([]);
+                  
+                  setEditFullName(
+                    user.full_name || ""
+                  );
+                  
+                  setEditPhone(
+                    user.phone || ""
+                  );
+                  
+                  setEditCompanies(
+                    user.companies?.map(c => c.id) || []
+                  );
+                  
                   setShowEditForm(true);
                 }}
               >

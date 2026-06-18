@@ -78,6 +78,8 @@ export default function Products() {
   const [editUnitType, setEditUnitType] =
     useState("unit");
 
+  const [imageUrl, setImageUrl] = useState("");
+
   useEffect(() => {
 
     async function loadProducts() {
@@ -263,7 +265,7 @@ export default function Products() {
       }}
     >
     
-      <h1>
+      <h1 className="products-page-title">
         Productos
       </h1>
     
@@ -622,6 +624,8 @@ export default function Products() {
                   setEditUnitType(
                     product.unit_type || "unit"
                   );
+
+                  setImageUrl(product.image_url || "");
               
                   setShowEditForm(true);
               

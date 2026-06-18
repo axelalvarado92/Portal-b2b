@@ -1,166 +1,102 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { Link } from "react-router-dom";
+
+import "./DashboardCustomer.css";
 
 import {
-  getAccountSummary,
-} from "../../services/reportService";
-
-import {
-  Link,
-} from "react-router-dom";
+  ShoppingCart,
+  Package,
+  ClipboardList,
+  FileText,
+  User,
+} from "lucide-react";
 
 export default function DashboardCustomer() {
-
-  const [summary, setSummary] =
-    useState(null);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  useEffect(() => {
-
-    async function loadSummary() {
-
-      try {
-
-        const response =
-          await getAccountSummary();
-
-        console.log(
-          "SUMMARY:",
-          response
-        );
-
-        setSummary(
-          response.data
-        );
-
-      } catch (err) {
-
-        console.error(err);
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    }
-
-    loadSummary();
-
-  }, []);
-
-  if (loading) {
-
-    return (
-      <p>
-        Cargando dashboard...
-      </p>
-    );
-
-  }
-
   return (
+    <div className="dashboard-admin">
 
-    <div
-      style={{
-        padding: "40px",
-      }}
-    >
-
-      <h1>
-        Bienvenido
+      <h1 className="dashboard-title">
+        Bienvenido, ¿qué necesitas hacer hoy?
       </h1>
 
-      <p>
-        {summary?.full_name}
-      </p>
-
-      <div
-        style={{
-          marginTop: "30px",
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(250px, 1fr))",
-          gap: "20px",
-        }}
-      >
-
-        <div style={cardStyle}>
-
-          <h3>
-            Saldo actual
-          </h3>
-
-          <h2>
-            $
-            {summary?.current_balance || 0}
-          </h2>
-
-        </div>
-
-        <div style={cardStyle}>
-
-          <h3>
-            Movimientos
-          </h3>
-
-          <h2>
-            {
-              summary?.movements?.length || 0
-            }
-          </h2>
-
-        </div>
-
-      </div>
-
-      <div
-        style={{
-          marginTop: "40px",
-          display: "flex",
-          gap: "15px",
-        }}
-      >
+      <div className="modules-grid">
 
         <Link
           to="/products"
+          className="module-card"
         >
-          Ver Productos
+          <div className="module-icon">
+            <Package size={38} />
+          </div>
+
+          <h3>Catálogo</h3>
+
+          <p className="dashboard-card-value">
+            Ver productos disponibles
+          </p>
         </Link>
 
         <Link
           to="/cart"
+          className="module-card"
         >
-          Ver Carrito
+          <div className="module-icon">
+            <ShoppingCart size={38}/>
+          </div>
+
+          <h3>Carrito</h3>
+
+          <p className="dashboard-card-value">
+            Ver carrito
+          </p>
         </Link>
 
         <Link
           to="/orders"
+          className="module-card"
         >
-          Mis Pedidos
+          <div className="module-icon">
+            <ClipboardList size={38} />
+          </div>
+
+          <h3>Mis Pedidos</h3>
+
+          <p className="dashboard-card-value">
+            Consultar historial
+          </p>
+        </Link>
+
+        <Link
+          to="/customer/invoices"
+          className="module-card"
+        >
+          <div className="module-icon">
+            <FileText size={38} />
+          </div>
+
+          <h3>Facturas</h3>
+
+          <p className="dashboard-card-value">
+            Ver documentos
+          </p>
+        </Link>
+
+        <Link
+          to="/customer/profile"
+          className="module-card"
+        >
+          <div className="module-icon">
+            <User size={38} />
+          </div>
+
+          <h3>Mi Perfil</h3>
+
+          <p className="dashboard-card-value">
+            Datos de usuario
+          </p>
         </Link>
 
       </div>
 
     </div>
-
   );
-
 }
-
-const cardStyle = {
-
-  background: "#fff",
-
-  padding: "20px",
-
-  borderRadius: "10px",
-
-  border:
-    "1px solid #ddd",
-
-};
