@@ -10,6 +10,12 @@
 
 }
 
+.products-title {
+  font-size: 2rem; /* O podés usar píxeles, por ejemplo: 26px */
+  color: #6b1426;    /* Tu color bordó por si querés mantener la línea */
+  margin: 0;
+}
+
 .new-product-btn {
 
   background: #6e1423;

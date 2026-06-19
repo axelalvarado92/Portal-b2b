@@ -108,30 +108,54 @@ export default function Companies() {
 
   return (
     <div className="admin-companies-page" style={{ padding: "20px" }}>
-      <div className="companies-header" style={{ marginBottom: "20px" }}>
-        <div className="companies-summary-card">
-          <h3>Total empresas</h3>
-          <span>{companies.length}</span>
+      {/* 🛠️ HEADER OPTIMIZADO Y ALINEADO */}
+      <div className="companies-header" style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center", 
+        marginBottom: "25px",
+        flexWrap: "wrap",
+        gap: "15px"
+      }}>
+        
+        <h1 style={{ margin: 0 }}>Empresas</h1>
+      
+        {/* Contenedor alineado para el Buscador y el Botón */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <input
+            className="companies-search"
+            placeholder="Buscar empresa por nombre..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ 
+              padding: "10px 15px", 
+              width: "280px", 
+              height: "42px", 
+              borderRadius: "8px", 
+              border: "1px solid #ccc",
+              boxSizing: "border-box",
+              fontSize: "14px",
+              margin: 0
+            }}
+          />
+      
+          <button
+            className="snb-btn"
+            onClick={() => setShowForm(true)}
+            style={{ 
+              height: "42px", 
+              padding: "0 20px",
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              whiteSpace: "nowrap",
+              margin: 0
+            }}
+          >
+            + Nueva Empresa
+          </button>
         </div>
-
-        <h1>Empresas</h1>
-
-        <input
-          className="companies-search"
-          placeholder="Buscar empresa por nombre..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: "8px", marginRight: "10px", width: "250px" }}
-        />
-
-        <button
-          className="snb-btn"
-          onClick={() =>
-            setShowForm(true)
-          }
-        >
-          + Nueva Empresa
-        </button>
+      
       </div>
 
       {/* FORMULARIO DE CREACIÓN */}
@@ -157,18 +181,14 @@ export default function Companies() {
             style={inputStyle}
             placeholder="Razón Social"
             value={businessName}
-            onChange={(e) =>
-              setBusinessName(e.target.value)
-            }
+            onChange={(e) => setBusinessName(e.target.value)}
           />
 
           <input
             style={inputStyle}
             placeholder="CUIT"
             value={taxId}
-            onChange={(e) =>
-              setTaxId(e.target.value)
-            }
+            onChange={(e) => setTaxId(e.target.value)}
           />
 
           <input
@@ -184,10 +204,7 @@ export default function Companies() {
             style={inputStyle}
           />
 
-          <button
-            className="snb-btn"
-            onClick={handleCreateCompany}
-          >
+          <button className="snb-btn" onClick={handleCreateCompany}>
             Crear empresa
           </button>
           <button
@@ -197,7 +214,10 @@ export default function Companies() {
               setName("");
               setContactEmail("");
               setWhatsappPhone("");
+              setBusinessName("");
+              setTaxId("");
             }}
+            style={{ marginLeft: "10px" }}
           >
             Cancelar
           </button>
@@ -217,84 +237,46 @@ export default function Companies() {
         >
           <h3>Editar empresa</h3>
           <div className="company-form">
-
-            <label>
-              Nombre Comercial
-            </label>
-          
+            <label>Nombre Comercial</label>
             <input
               className="company-input"
               value={editName}
-              onChange={(e) =>
-                setEditName(e.target.value)
-              }
+              onChange={(e) => setEditName(e.target.value)}
             />
           
-            <label>
-              Razón Social
-            </label>
-          
+            <label>Razón Social</label>
             <input
               className="company-input"
               value={editBusinessName}
-              onChange={(e) =>
-                setEditBusinessName(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setEditBusinessName(e.target.value)}
             />
           
-            <label>
-              CUIT
-            </label>
-          
+            <label>CUIT</label>
             <input
               className="company-input"
               value={editTaxId}
-              onChange={(e) =>
-                setEditTaxId(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setEditTaxId(e.target.value)}
             />
           
-            <label>
-              Email
-            </label>
-          
+            <label>Email</label>
             <input
               className="company-input"
               value={editEmail}
-              onChange={(e) =>
-                setEditEmail(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setEditEmail(e.target.value)}
             />
           
-            <label>
-              WhatsApp
-            </label>
-          
+            <label>WhatsApp</label>
             <input
               className="company-input"
               value={editWhatsapp}
-              onChange={(e) =>
-                setEditWhatsapp(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setEditWhatsapp(e.target.value)}
             />
-          
           </div>
-          <button
-            className="snb-btn"
-            onClick={handleUpdateCompany}
-          >
+          <button className="snb-btn" onClick={handleUpdateCompany}>
             Guardar cambios
           </button>
           <button
-            className="snb-btn"
+            className="snb-btn-secondary"
             onClick={() => {
               setShowEditForm(false);
               setEditingCompany(null);
@@ -332,11 +314,7 @@ export default function Companies() {
               <td style={tdStyle}>{company.tax_id || "-"}</td>
               <td style={tdStyle}>{company.contact_email || "-"}</td>
               <td style={tdStyle}>
-                <span
-                  className={
-                    company.is_active ? "status-active" : "status-inactive"
-                  }
-                >
+                <span className={company.is_active ? "status-active" : "status-inactive"}>
                   {company.is_active ? "Activa" : "Inactiva"}
                 </span>
               </td>
@@ -348,7 +326,7 @@ export default function Companies() {
                     setEditName(company.name || "");
                     setEditEmail(company.contact_email || "");
                     setEditWhatsapp(company.whatsapp_phone || "");
-                    setEditTaxId(company.tax_id || "" );
+                    setEditTaxId(company.tax_id || "");
                     setShowEditForm(true);
                   }}
                 >

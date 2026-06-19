@@ -108,7 +108,7 @@ export default function Products() {
     <div style={{ padding: "40px" }}>
       {/* CABECERA CON ICONO LUCIDE */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-      <h1 className="products-page-title" style={{ color: "#6b1426" }}>Productos</h1>
+      <h1 className="products-title">Productos</h1>
       <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
         
         {/* Botón de Importar alineado y corregido */}

@@ -275,3 +275,124 @@
 .order-items-table tbody tr:hover {
   background-color: #f9f9f9;
 }
+
+/* ==========================================================================
+   1. CONTENEDOR PRINCIPAL
+   ========================================================================== */
+.profile-wrapper {
+  max-width: 700px; /* Mantiene la vista contenida y elegante */
+  margin: 2rem auto;
+  padding: 0 1rem;
+  text-align: center; /* Centra los títulos principales */
+}
+
+.profile-header h1 {
+  color: #6b1426; /* Tu color bordó característico */
+  margin-bottom: 2rem;
+  font-size: 2rem;
+}
+
+/* ==========================================================================
+   2. TARJETA PRINCIPAL (Flexbox para alinear Avatar y Textos)
+   ========================================================================== */
+.profile-card {
+  display: flex;
+  align-items: center; /* Centra el avatar verticalmente con los textos */
+  justify-content: flex-start;
+  gap: 3rem; /* Espacio respirable entre avatar y datos */
+  background-color: #ffffff;
+  padding: 2.5rem 3rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* Sombra suave */
+  margin-bottom: 3rem;
+  text-align: left; /* Forzamos a que todo el texto vaya a la izquierda */
+}
+
+/* 👤 Avatar Circular */
+.profile-avatar {
+  width: 100px;
+  height: 100px;
+  background-color: #6b1426;
+  color: #ffffff;
+  font-size: 3rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0; /* Evita que el círculo se deforme si hay mucho texto */
+}
+
+/* 📝 Columna de Datos */
+.profile-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Separación vertical entre los campos */
+  flex: 1;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Etiquetas grises pequeñas */
+.profile-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Valor de los datos (Nombre, Mail) */
+.profile-value {
+  font-size: 1.1rem;
+  color: #333333;
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   3. SECCIÓN DE EMPRESAS ASOCIADAS
+   ========================================================================== */
+.profile-section h2 {
+  color: #6b1426;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-companies {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+.profile-company-card {
+  background-color: #ffffff;
+  padding: 1.2rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 400px; /* Evita que la tarjeta sea ridículamente ancha */
+  font-weight: 600;
+  color: #333333;
+  font-size: 1.1rem;
+}
+
+/* ==========================================================================
+   4. RESPONSIVE DESIGN (Para celulares)
+   ========================================================================== */
+@media (max-width: 600px) {
+  .profile-card {
+    flex-direction: column; /* Apila el avatar arriba y los textos abajo */
+    text-align: center;     /* En móvil sí queda bien el texto centrado */
+    gap: 2rem;
+    padding: 2rem 1.5rem;
+  }
+  
+  .profile-fields {
+    align-items: center;
+  }
+}

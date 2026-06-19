@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ClipboardList, History } from "lucide-react"; // Importamos los íconos
 import { getOrders, getOrder } from "../../services/ordersService";
 import { useCompany } from "../../context/CompanyContext";
 import "./Orders.css";
 
+// 💡 Agregamos "COMPLETED" explícitamente para que renderice un badge verde
 const STATUS_LABELS = {
   PENDING:   { label: "Pendiente",  color: "#f59e0b" },
   CONFIRMED: { label: "Confirmado", color: "#3b82f6" },
   SHIPPED:   { label: "Enviado",    color: "#8b5cf6" },
   DELIVERED: { label: "Entregado",  color: "#10b981" },
+  COMPLETED: { label: "Completado", color: "#2e7d32" }, 
   CANCELLED: { label: "Cancelado",  color: "#ef4444" },
 };
 
@@ -20,6 +23,9 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // 🗂️ Estado para controlar la pestaña activa
+  const [activeTab, setActiveTab] = useState("actives"); // "actives" o "closed"
 
   useEffect(() => {
     if (!selectedCompany) return;
@@ -52,21 +58,59 @@ export default function Orders() {
 
   if (loading) return <p className="orders-loading">Cargando pedidos...</p>;
 
+  // 🔍 Filtrado dinámico según la pestaña seleccionada
+  const filteredOrders = orders.filter(order => {
+    const isCompleted = order.status?.toUpperCase() === "COMPLETED";
+    
+    if (activeTab === "closed") {
+      return isCompleted; // Pestaña historial: solo completados
+    } else {
+      return !isCompleted; // Pestaña activos: todos menos los completados
+    }
+  });
+
   return (
     <div className="orders-wrapper">
-      <div className="orders-header">
+      
+      {/* 🛠️ HEADER CON SELECTOR DE PESTAÑAS */}
+      <div className="orders-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
         <h1>Mis pedidos</h1>
-      </div>
-
-      {orders.length === 0 ? (
-        <div className="orders-empty">
-          <p>Todavía no tenés pedidos.</p>
-          <button className="snb-btn" onClick={() => navigate("/products")}>
-            Ver catálogo
+        
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button 
+            className={activeTab === "actives" ? "snb-btn" : "snb-btn-secondary"}
+            onClick={() => { setActiveTab("actives"); setSelectedOrder(null); }}
+            style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 15px", height: "42px" }}
+          >
+            <ClipboardList size={16} />
+            En curso
+          </button>
+          <button 
+            className={activeTab === "closed" ? "snb-btn" : "snb-btn-secondary"}
+            onClick={() => { setActiveTab("closed"); setSelectedOrder(null); }}
+            style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 15px", height: "42px" }}
+          >
+            <History size={16} />
+            Historial
           </button>
         </div>
+      </div>
+
+      {filteredOrders.length === 0 ? (
+        <div className="orders-empty">
+          <p>
+            {activeTab === "actives" 
+              ? "No tenés pedidos activos en este momento." 
+              : "Todavía no tenés compras finalizadas en el historial."}
+          </p>
+          {activeTab === "actives" && (
+            <button className="snb-btn" onClick={() => navigate("/products")}>
+              Ver catálogo
+            </button>
+          )}
+        </div>
       ) : (
-        /* 📊 TABLA PRINCIPAL DE PEDIDOS */
+        /* 📊 TABLA PRINCIPAL DE PEDIDOS (Mantiene tu alineación CSS) */
         <table className="orders-table">
           <thead>
             <tr>
@@ -78,8 +122,8 @@ export default function Orders() {
             </tr>
           </thead>
           <tbody>
-            {orders.map(order => {
-              const status = STATUS_LABELS[order.status] || { label: order.status, color: "#888" };
+            {filteredOrders.map(order => {
+              const status = STATUS_LABELS[order.status?.toUpperCase()] || { label: order.status, color: "#888" };
               return (
                 <tr key={order.id}>
                   <td className="ord-col-date">{new Date(order.created_at).toLocaleDateString("es-AR")}</td>
@@ -105,7 +149,7 @@ export default function Orders() {
         </table>
       )}
 
-      {/* 🔍 PANEL DE DETALLE INFERIOR */}
+      {/* 🔍 PANEL DE DETALLE INFERIOR (Mantiene tu alineación CSS) */}
       {selectedOrder && (
         <div className="order-detail">
           <div className="order-detail-header">
@@ -119,16 +163,15 @@ export default function Orders() {
               <strong>Estado:</strong>{" "}
               <span
                 className="status-badge"
-                style={{ background: (STATUS_LABELS[selectedOrder.status] || {}).color || "#888" }}
+                style={{ background: (STATUS_LABELS[selectedOrder.status?.toUpperCase()] || {}).color || "#888" }}
               >
-                {(STATUS_LABELS[selectedOrder.status] || {}).label || selectedOrder.status}
+                {(STATUS_LABELS[selectedOrder.status?.toUpperCase()] || {}).label || selectedOrder.status}
               </span>
             </span>
             <span><strong>Fecha:</strong> {new Date(selectedOrder.created_at).toLocaleDateString("es-AR")}</span>
             {selectedOrder.notes && <span><strong>Notas:</strong> {selectedOrder.notes}</span>}
           </div>
 
-          {/* 🧾 TABLA INTERNA DE ITEMS COMPRADOS */}
           <table className="order-items-table">
             <thead>
               <tr>
