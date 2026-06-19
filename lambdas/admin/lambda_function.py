@@ -190,56 +190,53 @@ def update_user(user_id, body):
     if not cur.fetchone():
         return not_found("Usuario no encontrado")
 
-    # is_active
+    # 1. Actualizar campos en Postgres (SQL Dinámico)
+    # Lista de campos permitidos que vienen en el body
+    allowed_fields = ["is_active", "role", "full_name", "phone"]
+    updates = []
+    args = []
+
+    for field in allowed_fields:
+        if field in body:
+            updates.append(f"{field} = %s")
+            args.append(body[field])
+    
+    if updates:
+        args.append(user_id)
+        query = f"UPDATE users SET {', '.join(updates)} WHERE id = %s"
+        cur.execute(query, args)
+
+    # 2. Sincronizar atributos con Cognito
+    cognito_attributes = []
+    if "full_name" in body:
+        cognito_attributes.append({"Name": "name", "Value": body["full_name"]})
+    if "phone" in body:
+        cognito_attributes.append({"Name": "phone_number", "Value": body["phone"]})
+    if "role" in body:
+        cognito_attributes.append({"Name": "custom:role", "Value": body["role"]})
+
+    if cognito_attributes:
+        cognito.admin_update_user_attributes(
+            UserPoolId=USER_POOL_ID,
+            Username=user_id,
+            UserAttributes=cognito_attributes
+        )
+
+    # 3. Lógica específica de estados (disable/enable)
     if "is_active" in body:
-        is_active = body["is_active"]
-
-        cur.execute("""
-            UPDATE users SET is_active = %s WHERE id = %s
-        """, [is_active, user_id])
-
-        if is_active:
+        if body["is_active"]:
             cognito.admin_enable_user(UserPoolId=USER_POOL_ID, Username=user_id)
         else:
             cognito.admin_disable_user(UserPoolId=USER_POOL_ID, Username=user_id)
 
-    # role
-    if "role" in body:
-        role = body["role"]
-
-        if role not in ["admin", "customer"]:
-            return bad_request("Rol inválido")
-
-        cur.execute("""
-            UPDATE users SET role = %s WHERE id = %s
-        """, [role, user_id])
-
-        cognito.admin_update_user_attributes(
-            UserPoolId=USER_POOL_ID,
-            Username=user_id,
-            UserAttributes=[
-                {"Name": "custom:role", "Value": role}
-            ]
-        )
-
-    # companies
+    # 4. Lógica de empresas (esto ya lo tenías)
     if "companies" in body:
-        companies = body["companies"]
-
-        cur.execute("""
-            DELETE FROM user_companies WHERE user_id = %s
-        """, [user_id])
-
-        for company_id in companies:
-            cur.execute("""
-                INSERT INTO user_companies (user_id, company_id)
-                VALUES (%s, %s)
-                ON CONFLICT DO NOTHING
-            """, [user_id, company_id])
+        cur.execute("DELETE FROM user_companies WHERE user_id = %s", [user_id])
+        for company_id in body["companies"]:
+            cur.execute("INSERT INTO user_companies (user_id, company_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", [user_id, company_id])
 
     conn.commit()
     cur.close()
-
     return success({"message": "Usuario actualizado"})
 
 
@@ -669,9 +666,8 @@ def update_order_status(order_id, status):
 
 def handler(event, context):
 
-    print("EVENT:")
-    print(json.dumps(event))
-
+    print(f"DEBUG: Evento completo recibido: {json.dumps(event)}")
+    
     method = event["requestContext"]["http"]["method"]
     path = event["requestContext"]["http"]["path"]
 
@@ -686,6 +682,7 @@ def handler(event, context):
     try:
 
         body = json.loads(event.get("body") or "{}")
+        print(f"DEBUG: El cuerpo (body) que la Lambda procesará es: {body}")
         params = event.get("queryStringParameters") or {}
         path_params = event.get("pathParameters") or {}
 

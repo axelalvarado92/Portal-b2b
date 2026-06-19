@@ -24,19 +24,14 @@ export async function createUser(
 
 }
 
-export async function updateUser(
-  userId,
-  data
-) {
+export async function updateUser(userId, data) {
+  console.log("🛠️ ANTES de enviar al API, datos recibidos:", data);
 
-  const response =
-    await api.patch(
-      `/admin/users/${userId}`,
-      data
-    );
-
+  // Enviamos el objeto 'data' tal cual viene, sin modificar nada
+  const response = await api.patch(`/admin/users/${userId}`, data);
+  
+  console.log("✅ Respuesta del API:", response.data);
   return response.data;
-
 }
 
 export async function toggleUserStatus(
