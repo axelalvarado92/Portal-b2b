@@ -105,3 +105,34 @@
   align-items: center;
   gap: 16px;
 }
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-subtitle {
+  font-size: 15px;
+  color: #888;
+  letter-spacing: 0.3px;
+  border-left: 2px solid #ececec;
+  padding-left: 16px;
+}
+
+.app-nav-link {
+  color: #6e1423;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-nav-link:hover {
+  text-decoration: underline;
+}
+
+.app-user-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}

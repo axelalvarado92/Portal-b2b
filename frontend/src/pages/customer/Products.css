@@ -130,3 +130,90 @@
   80%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* Contenedor de la barra de herramientas nueva */
+.catalog-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-search {
+  flex: 1;
+  min-width: 250px;
+}
+
+.toolbar-filters {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.filter-group select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* 🔥 ALINEACIÓN ESTRICTA DE LA TABLA */
+.catalog-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  text-align: left; /* Todo alineado a la izquierda por defecto */
+}
+
+.catalog-table th, 
+.catalog-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+/* Definición de anchos fijos proporcionales para evitar saltos */
+.col-code {
+  width: 15%;
+}
+
+.col-name {
+  width: 45%;
+  text-align: left; /* Nombres largos bien tirados a la izquierda */
+}
+
+.col-price {
+  width: 15%;
+  text-align: left;
+}
+
+.col-stock {
+  width: 12%;
+  text-align: center; /* El número de stock o guión queda mejor centrado */
+}
+
+.col-action {
+  width: 13%;
+  text-align: center;
+}
+
+/* Estilo para las filas */
+.catalog-table tbody tr:hover {
+  background-color: #f9f9f9;
+}

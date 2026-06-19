@@ -32,38 +32,26 @@ export default function AppLayout() {
 
     <div className="app-layout">
 
-      <header className="app-header">
+<header className="app-header">
 
-        <div>
+  <div className="app-brand">
+    <img src={logoSNB} alt="SNB" className="app-logo" />
+    <span className="app-subtitle">Representaciones Comerciales</span>
+  </div>
 
-          <img
-            src={logoSNB}
-            alt="SNB"
-            className="app-logo"
-          />
+  <div className="app-user-section">
+    <Link
+      className="app-nav-link"
+      to={user?.role === "admin" ? "/admin/dashboard" : "/dashboard"}
+    >
+      Inicio
+    </Link>
+    <button className="app-logout-btn" onClick={handleLogout}>
+      Cerrar sesión
+    </button>
+  </div>
 
-          <nav className="app-nav">
-          
-            <Link to={user?.role === "admin" ? "/admin/dashboard" : "/dashboard"}>
-              Inicio
-            </Link>
-          
-          </nav>
-
-        </div>
-
-        <div className="app-user-section">
-
-          <button
-            className="app-logout-btn"
-            onClick={handleLogout}
-          >
-            Cerrar sesión
-          </button>
-
-        </div>
-
-      </header>
+</header>
 
       <main className="app-content">
 

@@ -184,3 +184,107 @@
   80%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* Estructura general de la Tabla */
+.cart-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.cart-table th, 
+.cart-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.cart-table thead tr {
+  background-color: #f8f9fa;
+}
+
+.cart-table thead th {
+  font-weight: 600;
+  color: #495057;
+}
+
+/* 📊 Distribución estricta de anchos fijos */
+.cart-col-code {
+  width: 12%;
+}
+
+.cart-col-name {
+  width: 38%;
+  text-align: left;
+}
+
+.cart-col-price {
+  width: 12%;
+  text-align: left;
+}
+
+.cart-col-qty {
+  width: 15%;
+  text-align: center;
+}
+
+.cart-col-subtotal {
+  width: 13%;
+  text-align: left;
+}
+
+.cart-col-action {
+  width: 10%;
+  text-align: center;
+}
+
+/* 🔘 Controles de Cantidad (+ y -) alineados */
+.qty-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #f1f3f5;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.qty-control button {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #495057;
+  cursor: pointer;
+  padding: 2px 8px;
+  transition: color 0.2s;
+}
+
+.qty-control button:hover {
+  color: #b21f1f; /* Combina con tus botones oscuros */
+}
+
+.qty-number {
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+  display: inline-block;
+}
+
+/* Botón Eliminar Estilizado */
+.cart-delete-btn {
+  background-color: transparent;
+  color: #6e1423;
+  border: 1px solid #6e1423;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.cart-delete-btn:hover {
+  background-color: #6e1423;
+  color: #fff;
+}

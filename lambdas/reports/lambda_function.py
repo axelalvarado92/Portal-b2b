@@ -277,6 +277,7 @@ def dashboard_report():
     cur.execute("""
         SELECT COUNT(*)
         FROM orders
+        WHERE status NOT IN ('COMPLETED', 'CANCELLED')
     """)
 
     total_orders = int(cur.fetchone()[0])

@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 
 import { login as loginRequest } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
+import { fetchCurrentUser } from "../services/userService";
+
+import { Mail, Phone } from "lucide-react";
 
 import logoSNB from "../assets/logo-snb.png";
 
@@ -25,40 +28,31 @@ const [error, setError] =
 useState("");
 
 const handleLogin = async (e) => {
+  e.preventDefault();
+  setError("");
 
+  try {
+    const data = await loginRequest(email, password);
+    login(data.data.access_token);
 
-e.preventDefault();
+    // Obtener el usuario para saber el rol
+    const { fetchCurrentUser } = await import("../services/userService");
+    const userData = await fetchCurrentUser();
 
-setError("");
+    if (userData?.role === "admin") {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/dashboard");
+    }
 
-try {
-
-  const data =
-    await loginRequest(
-      email,
-      password
-    );
-
-  login(
-    data.data.access_token
-  );
-
-  navigate(
-    "/dashboard"
-  );
-
-} catch (err) {
-
-  console.error(err);
-
-  setError(
-    "Credenciales inválidas"
-  );
-
-}
-
-
+  } catch (err) {
+    console.error(err);
+    setError("Credenciales inválidas");
+  }
 };
+
+
+
 
 return (
 
@@ -109,7 +103,7 @@ return (
 
         <input
           type="email"
-          placeholder="Mail"
+          placeholder="e-mail"
           value={email}
           onChange={(e) =>
             setEmail(
@@ -122,7 +116,7 @@ return (
 
         <input
           type="password"
-          placeholder="Contraseña"
+          placeholder="contraseña"
           value={password}
           onChange={(e) =>
             setPassword(
@@ -150,13 +144,9 @@ return (
 
         <div className="login-links">
 
-          <a href="#">
-            ¿Olvidaste tu contraseña?
-          </a>
-
-          <a href="#">
-            ¿No tenés usuario? Solicitalo acá
-          </a>
+        <Link to="/forgot-password">¿Olvidaste tu contraseña?</Link>
+        
+        <Link to="/register">¿No tenés usuario? Solicitalo acá</Link>
 
         </div>
 
@@ -166,38 +156,27 @@ return (
 
   </main>
 
-  <footer className="landing-footer">
+<footer className="landing-footer">
 
-    <div className="footer-brand">
+  <div className="footer-brand">
+    <img src={logoSNB} alt="SNB" className="footer-logo" />
+    <p>Ventas mayoristas</p>
+  </div>
 
-      <img
-        src={logoSNB}
-        alt="SNB"
-        className="footer-logo"
-      />
+  <div>
+    <p>
+      <Mail size={16} style={{ marginRight: "8px", verticalAlign: "middle", color: "#6e1423" }} />
+      sebabranca@gmail.com
+    </p>
+    <p>
+      <Phone size={16} style={{ marginRight: "8px", verticalAlign: "middle", color: "#6e1423" }} />
+      +54 9 221 611-6321
+    </p>
+  </div>
 
-      <p>
-        Ventas mayoristas
-      </p>
-
-    </div>
-
-    <div>
-
-      <p>
-        📧 sebabranca@gmail.com
-      </p>
-
-      <p>
-        📱 +54 9 221 611-6321
-      </p>
-
-    </div>
-
-  </footer>
-
+</footer>
 </div>
 
 );
 
-}
+};

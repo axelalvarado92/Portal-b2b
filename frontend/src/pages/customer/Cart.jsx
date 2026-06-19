@@ -104,32 +104,32 @@ async function handleConfirmOrder() {
         </div>
       ) : (
         <>
-          <table className="cart-table">
+         <table className="cart-table">
             <thead>
               <tr>
-                <th>Código</th>
-                <th>Producto</th>
-                <th>Precio</th>
-                <th>Cantidad</th>
-                <th>Subtotal</th>
-                <th>Acción</th>
+                <th className="cart-col-code">Código</th>
+                <th className="cart-col-name">Producto</th>
+                <th className="cart-col-price">Precio</th>
+                <th className="cart-col-qty">Cantidad</th>
+                <th className="cart-col-subtotal">Subtotal</th>
+                <th className="cart-col-action">Acción</th>
               </tr>
             </thead>
             <tbody>
               {cart.items.map(item => (
                 <tr key={item.id}>
-                  <td>{item.product_code}</td>
-                  <td>{item.product_name}</td>
-                  <td>${item.price.toFixed(2)}</td>
-                  <td>
+                  <td className="cart-col-code">{item.product_code}</td>
+                  <td className="cart-col-name">{item.product_name}</td>
+                  <td className="cart-col-price">${Number(item.price).toFixed(2)}</td>
+                  <td className="cart-col-qty">
                     <div className="qty-control">
                       <button onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}>−</button>
-                      <span>{item.quantity}</span>
+                      <span className="qty-number">{item.quantity}</span>
                       <button onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}>+</button>
                     </div>
                   </td>
-                  <td>${item.subtotal.toFixed(2)}</td>
-                  <td>
+                  <td className="cart-col-subtotal">${Number(item.subtotal).toFixed(2)}</td>
+                  <td className="cart-col-action">
                     <button className="cart-delete-btn" onClick={() => handleDelete(item.id)}>
                       Eliminar
                     </button>

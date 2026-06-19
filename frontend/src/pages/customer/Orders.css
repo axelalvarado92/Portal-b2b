@@ -169,3 +169,109 @@
 .snb-btn:hover {
   background: #8a1b2d;
 }
+
+/* ==========================================================================
+   1. TABLA PRINCIPAL DE PEDIDOS (orders-table)
+   ========================================================================== */
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.orders-table thead tr {
+  background-color: #f8f9fa;
+}
+
+/* Distribución de anchos de la grilla principal */
+.ord-col-date {
+  width: 15%;
+}
+
+.ord-col-comp {
+  width: 40%;
+  text-align: left;
+}
+
+.ord-col-status {
+  width: 15%;
+  text-align: center; /* Los badges lucen mejor centrados */
+}
+
+.ord-col-total {
+  width: 15%;
+  text-align: left;
+}
+
+.ord-col-action {
+  width: 15%;
+  text-align: center;
+}
+
+/* Badge estilizado para los estados */
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   2. TABLA INTERNA DE DETALLES (order-items-table)
+   ========================================================================== */
+.order-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.order-items-table th,
+.order-items-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef0f2;
+  vertical-align: middle;
+}
+
+.order-items-table thead tr {
+  background-color: #f1f3f5;
+}
+
+/* Distribución de anchos de la subtabla */
+.item-col-name {
+  width: 50%;
+  text-align: left; /* Nombres largos bien tirados a la izquierda */
+}
+
+.item-col-price {
+  width: 18%;
+  text-align: left;
+}
+
+.item-col-qty {
+  width: 14%;
+  text-align: center; /* Los números de cantidad quedan simétricos en el centro */
+}
+
+.item-col-sub {
+  width: 18%;
+  text-align: left;
+}
+
+/* Efecto hover general de filas */
+.orders-table tbody tr:hover,
+.order-items-table tbody tr:hover {
+  background-color: #f9f9f9;
+}

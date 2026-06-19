@@ -13,6 +13,9 @@ import Orders from "./pages/customer/Orders";
 import Landing from "./pages/Landing";
 import AdminOrders from "./pages/admin/Orders";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
+import Profile from "./pages/customer/Profile";
+import ForgotPassword from "./pages/ForgotPassword";
+import Register from "./pages/Register";
 
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -53,6 +56,10 @@ function App() {
                 element={<Login />}
               />
 
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+
+              <Route path="/register" element={<Register />} />
+
             <Route
               element={
                 <ProtectedRoute>
@@ -85,6 +92,10 @@ function App() {
                 path="/orders"
                 element={<Orders />}
               />
+
+              <Route 
+                path="/profile" 
+                element={<Profile />} />
 
               <Route
                 path="/admin/users"

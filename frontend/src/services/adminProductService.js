@@ -62,3 +62,11 @@ export async function deleteProduct(
   return response.data;
 
 }
+
+export async function importProductsExcel(companyId, s3Key) {
+  const response = await api.post("/admin/products/import", {
+    company_id: companyId,
+    s3_key: s3Key
+  });
+  return response.data;
+}

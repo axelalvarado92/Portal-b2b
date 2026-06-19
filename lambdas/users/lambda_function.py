@@ -33,16 +33,31 @@ def get_profile(user):
     cur  = conn.cursor()
 
     cur.execute("""
-        SELECT id, email, full_name, role, is_active, created_at
+        SELECT id, email, full_name, role, is_active, created_at, phone
         FROM users
         WHERE id = %s
     """, [user["id"]])
 
     row = cur.fetchone()
-    cur.close()
 
     if not row:
+        cur.close()
         return not_found("Usuario no encontrado")
+
+    # Traer empresas asociadas
+    cur.execute("""
+        SELECT c.id, c.name
+        FROM user_companies uc
+        INNER JOIN companies c ON uc.company_id = c.id
+        WHERE uc.user_id = %s AND uc.is_enabled = true
+    """, [user["id"]])
+
+    companies = [
+        {"id": str(r[0]), "name": r[1]}
+        for r in cur.fetchall()
+    ]
+
+    cur.close()
 
     return success({
         "id":         str(row[0]),
@@ -50,9 +65,10 @@ def get_profile(user):
         "full_name":  row[2],
         "role":       row[3],
         "is_active":  row[4],
-        "created_at": str(row[5])
+        "created_at": str(row[5]),
+        "phone":      row[6],
+        "companies":  companies
     })
-
 
 def update_profile(user, body):
     full_name = body.get("full_name", "").strip()

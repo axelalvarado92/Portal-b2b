@@ -66,22 +66,7 @@ export default function DashboardCustomer() {
         </Link>
 
         <Link
-          to="/customer/invoices"
-          className="module-card"
-        >
-          <div className="module-icon">
-            <FileText size={38} />
-          </div>
-
-          <h3>Facturas</h3>
-
-          <p className="dashboard-card-value">
-            Ver documentos
-          </p>
-        </Link>
-
-        <Link
-          to="/customer/profile"
+          to="/profile"
           className="module-card"
         >
           <div className="module-icon">

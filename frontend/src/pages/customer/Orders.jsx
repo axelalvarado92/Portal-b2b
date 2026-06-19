@@ -13,7 +13,6 @@ const STATUS_LABELS = {
 };
 
 export default function Orders() {
-
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
 
@@ -55,7 +54,6 @@ export default function Orders() {
 
   return (
     <div className="orders-wrapper">
-
       <div className="orders-header">
         <h1>Mis pedidos</h1>
       </div>
@@ -68,14 +66,15 @@ export default function Orders() {
           </button>
         </div>
       ) : (
+        /* 📊 TABLA PRINCIPAL DE PEDIDOS */
         <table className="orders-table">
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Empresa</th>
-              <th>Estado</th>
-              <th>Total</th>
-              <th>Acción</th>
+              <th className="ord-col-date">Fecha</th>
+              <th className="ord-col-comp">Empresa</th>
+              <th className="ord-col-status">Estado</th>
+              <th className="ord-col-total">Total</th>
+              <th className="ord-col-action">Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -83,15 +82,15 @@ export default function Orders() {
               const status = STATUS_LABELS[order.status] || { label: order.status, color: "#888" };
               return (
                 <tr key={order.id}>
-                  <td>{new Date(order.created_at).toLocaleDateString("es-AR")}</td>
-                  <td>{order.company_name}</td>
-                  <td>
+                  <td className="ord-col-date">{new Date(order.created_at).toLocaleDateString("es-AR")}</td>
+                  <td className="ord-col-comp">{order.company_name}</td>
+                  <td className="ord-col-status">
                     <span className="status-badge" style={{ background: status.color }}>
                       {status.label}
                     </span>
                   </td>
-                  <td>${order.total_amount.toFixed(2)}</td>
-                  <td>
+                  <td className="ord-col-total">${Number(order.total_amount).toFixed(2)}</td>
+                  <td className="ord-col-action">
                     <button
                       className="orders-detail-btn"
                       onClick={() => handleViewOrder(order.id)}
@@ -106,10 +105,9 @@ export default function Orders() {
         </table>
       )}
 
-      {/* Panel de detalle */}
+      {/* 🔍 PANEL DE DETALLE INFERIOR */}
       {selectedOrder && (
         <div className="order-detail">
-
           <div className="order-detail-header">
             <h2>Detalle del pedido</h2>
             <button className="order-detail-close" onClick={() => setSelectedOrder(null)}>✕</button>
@@ -130,34 +128,33 @@ export default function Orders() {
             {selectedOrder.notes && <span><strong>Notas:</strong> {selectedOrder.notes}</span>}
           </div>
 
+          {/* 🧾 TABLA INTERNA DE ITEMS COMPRADOS */}
           <table className="order-items-table">
             <thead>
               <tr>
-                <th>Producto</th>
-                <th>Precio unit.</th>
-                <th>Cantidad</th>
-                <th>Subtotal</th>
+                <th className="item-col-name">Producto</th>
+                <th className="item-col-price">Precio unit.</th>
+                <th className="item-col-qty">Cantidad</th>
+                <th className="item-col-sub">Subtotal</th>
               </tr>
             </thead>
             <tbody>
               {selectedOrder.items.map((item, i) => (
                 <tr key={i}>
-                  <td>{item.product_name}</td>
-                  <td>${item.unit_price.toFixed(2)}</td>
-                  <td>{item.quantity}</td>
-                  <td>${item.subtotal.toFixed(2)}</td>
+                  <td className="item-col-name">{item.product_name}</td>
+                  <td className="item-col-price">${Number(item.unit_price).toFixed(2)}</td>
+                  <td className="item-col-qty">{item.quantity}</td>
+                  <td className="item-col-sub">${Number(item.subtotal).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
           <div className="order-detail-total">
-            Total: <strong>${selectedOrder.total_amount.toFixed(2)}</strong>
+            Total: <strong>${Number(selectedOrder.total_amount).toFixed(2)}</strong>
           </div>
-
         </div>
       )}
-
     </div>
   );
 }

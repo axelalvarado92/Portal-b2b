@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
       try {
 
         const userData = await fetchCurrentUser();
-
+        console.log("AUTH USER:", userData);
         setUser(userData);
 
       } catch (error) {

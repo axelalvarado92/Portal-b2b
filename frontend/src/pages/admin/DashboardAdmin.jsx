@@ -134,7 +134,7 @@ export default function DashboardAdmin() {
 
           <p className="dashboard-card-value">
             {stats?.total_orders || 0}
-            {" "}pedidos
+            {" "}pendientes
           </p>
 
         </Link>
@@ -149,12 +149,11 @@ export default function DashboardAdmin() {
           </div>
 
           <h3>
-            Facturas
+            Comisiones
           </h3>
 
           <p className="dashboard-card-value">
-            $
-            {stats?.total_invoiced || 0}
+            Total $
           </p>
 
         </Link>

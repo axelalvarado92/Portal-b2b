@@ -619,6 +619,54 @@ def get_order_admin(order_id):
         cur.close()
         conn.close()
 
+def update_order_status(order_id, status):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # 💡 Dejamos order_id como el string que viene de Axios, 
+        # y le agregamos '::uuid' en el SQL para que Postgres lo convierta nativamente.
+        cur.execute("""
+            UPDATE orders
+            SET status = %s
+            WHERE id = %s::uuid
+        """, [status, order_id])
+
+        conn.commit()
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type,Authorization",
+                "Access-Control-Allow-Methods": "OPTIONS,GET,PUT"
+            },
+            "body": json.dumps({
+                "message": "Estado del pedido actualizado correctamente",
+                "status": status
+            })
+        }
+
+    except Exception as e:
+        print("ERROR EN ENRUTAMIENTO O POSTGRESQL:", str(e))
+        conn.rollback()
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type,Authorization",
+                "Access-Control-Allow-Methods": "OPTIONS,GET,PUT"
+            },
+            "body": json.dumps({"error": str(e)})
+        }
+
+    finally:
+        cur.close()
+        conn.close()
+
+
 def handler(event, context):
 
     print("EVENT:")
@@ -695,21 +743,20 @@ def handler(event, context):
         # ORDERS
         # ==========================
         
-        if (
-            method == "GET"
-            and path_params.get("id")
-        ):
+        if path.startswith("/admin/orders"):
+
+            # 1. Actualizar el estado de un pedido (PUT /admin/orders/{id})
+            if method == "PUT" and resource_id:
+                nuevo_estado = body.get("status", "Cerrado")
+                return update_order_status(resource_id, nuevo_estado)
+
+            # 2. Obtener el detalle de un pedido específico (GET /admin/orders/{id})
+            if method == "GET" and resource_id:
+                return get_order_admin(resource_id)
         
-            return get_order_admin(
-                path_params["id"]
-            )
-        
-        if (
-            method == "GET"
-            and path == "/admin/orders"
-        ):
-        
-            return list_orders()
+            # 3. Listar todos los pedidos (GET /admin/orders)
+            if method == "GET" and not resource_id:
+                return list_orders()
 
     except Exception as e:
         print(str(e))

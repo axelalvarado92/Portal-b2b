@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import logoSNB from "../assets/logo-snb.png";
 import heroImage from "../assets/login-hero.png";
+import { Mail, Phone } from "lucide-react";
 
 import "./Landing.css";
 
@@ -48,33 +49,24 @@ export default function Landing() {
 
       <footer className="landing-footer">
 
-        <div>
+  <div>
+    <img src={logoSNB} alt="SNB" className="footer-logo" />
+    <p>Ventas mayoristas</p>
+  </div>
 
-          <img
-            src={logoSNB}
-            alt="SNB"
-            className="footer-logo"
-          />
+  <div>
+    <p>
+      <Mail size={16} style={{ marginRight: "8px", verticalAlign: "middle", color: "#6e1423" }} />
 
-          <p>
-            Ventas mayoristas
-          </p>
+      sebabranca@gmail.com
+    </p>
+    <p>
+      <Phone size={16} style={{ marginRight: "8px", verticalAlign: "middle", color: "#6e1423" }} />
+      +54 9 221 611-6321
+    </p>
+  </div>
 
-        </div>
-
-        <div>
-
-          <p>
-            📧 sebabranca@gmail.com
-          </p>
-
-          <p>
-            📱 +54 9 221 611-6321
-          </p>
-
-        </div>
-
-      </footer>
+</footer>
 
     </div>
 

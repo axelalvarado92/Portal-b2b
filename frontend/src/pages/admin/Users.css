@@ -11,6 +11,14 @@
   margin-bottom: 20px;
 }
 
+.users-header h1 {
+  color: #6b1426; /* El tono bordó característico de tus botones */
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
 .card {
   background: white;
   padding: 20px;
@@ -129,4 +137,108 @@
 
 .muted {
   color: #6b7280;
+}
+
+/* Contenedor del componente */
+.custom-multiselect {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fff;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 100%;
+}
+
+/* Caja superior donde se acumulan las empresas seleccionadas (Chips) */
+.chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 38px;
+  align-items: center;
+  padding: 4px;
+  border-bottom: 1px solid #eee;
+}
+
+.placeholder {
+  color: #aaa;
+  font-size: 14px;
+  padding-left: 4px;
+}
+
+/* Estilo de cada etiqueta/chip */
+.chip {
+  background-color: #f0f4f8;
+  color: #1e293b;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #cbd5e1;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 0;
+  line-height: 1;
+}
+
+.chip-remove:hover {
+  color: #b91c1c;
+}
+
+/* Contenedor con Scroll para la lista de opciones */
+.dropdown-options {
+  max-height: 160px; /* Limita la altura para que no empuje todo el diseño */
+  overflow-y: auto;  /* Activa el scroll vertical */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+/* Cada fila/opción dentro de la lista */
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.option-item:hover {
+  background-color: #f8fafc;
+}
+
+/* Destacar las que ya están seleccionadas */
+.option-item.selected {
+  background-color: #f1f5f9;
+  font-weight: 500;
+}
+
+.option-item input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+/* Personalización de la barra de scroll para que se vea sutil */
+.dropdown-options::-webkit-scrollbar {
+  width: 6px;
+}
+.dropdown-options::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
 }
