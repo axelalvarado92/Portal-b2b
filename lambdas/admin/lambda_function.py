@@ -186,9 +186,12 @@ def update_user(user_id, body):
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT id FROM users WHERE id = %s", [user_id])
-    if not cur.fetchone():
+    cur.execute("SELECT id, cognito_sub FROM users WHERE id = %s", [user_id])
+    row = cur.fetchone()
+    if not row:
         return not_found("Usuario no encontrado")
+    
+    cognito_sub = row[1]
 
     # 1. Actualizar campos en Postgres (SQL Dinámico)
     # Lista de campos permitidos que vienen en el body
@@ -216,18 +219,18 @@ def update_user(user_id, body):
         cognito_attributes.append({"Name": "custom:role", "Value": body["role"]})
 
     if cognito_attributes:
-        cognito.admin_update_user_attributes(
+      cognito.admin_update_user_attributes(
             UserPoolId=USER_POOL_ID,
-            Username=user_id,
+            Username=cognito_sub,
             UserAttributes=cognito_attributes
         )
 
     # 3. Lógica específica de estados (disable/enable)
     if "is_active" in body:
         if body["is_active"]:
-            cognito.admin_enable_user(UserPoolId=USER_POOL_ID, Username=user_id)
+            cognito.admin_enable_user(UserPoolId=USER_POOL_ID, Username=cognito_sub)
         else:
-            cognito.admin_disable_user(UserPoolId=USER_POOL_ID, Username=user_id)
+            cognito.admin_disable_user(UserPoolId=USER_POOL_ID, Username=cognito_sub)
 
     # 4. Lógica de empresas (esto ya lo tenías)
     if "companies" in body:

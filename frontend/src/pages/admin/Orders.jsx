@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ClipboardList, History, CheckCircle2 } from "lucide-react";
 import {
   getAdminOrders,
@@ -18,6 +18,13 @@ export default function OrdersAdmin() {
   const [activeTab, setActiveTab] = useState("actives"); // "actives" o "closed"
   const [orderToClose, setOrderToClose] = useState(null); // Almacena el ID del pedido a cerrar para abrir el modal
   const [isClosing, setIsClosing] = useState(false);
+  const detailRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedOrder && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedOrder]);
 
   async function loadOrders() {
     try {
@@ -51,40 +58,39 @@ export default function OrdersAdmin() {
 
   // Ejecuta la llamada al backend al confirmar en el modal
   async function handleConfirmClose() {
-  if (!orderToClose) return;
-  
-  try {
-    setIsClosing(true);
+    if (!orderToClose) return;
     
-    // 1. Enviamos el término exacto en inglés y mayúsculas que PostgreSQL acepta
-    await updateAdminOrderStatus(orderToClose, "COMPLETED");
-    
-    // 2. Actualizamos el estado local en memoria con el mismo término
-    setOrders(prevOrders => 
-      prevOrders.map(o => o.id === orderToClose ? { ...o, status: "COMPLETED" } : o)
-    );
-    
-    // 3. Limpiamos los estados de control del modal
-    setSelectedOrder(null);
-    setOrderToClose(null);   
-    
-    // 4. Sincronizamos la lista trayendo los datos frescos desde el backend
-    await loadOrders();      
-    
-  } catch (err) {
-    console.error("Error al cerrar el pedido:", err);
-    alert("Hubo un error al intentar cerrar el pedido en el servidor.");
-  } finally {
-    setIsClosing(false);
+    try {
+      setIsClosing(true);
+      
+      // 1. Enviamos el término exacto en inglés y mayúsculas que PostgreSQL acepta
+      await updateAdminOrderStatus(orderToClose, "COMPLETED");
+      
+      // 2. Actualizamos el estado local en memoria con el mismo término
+      setOrders(prevOrders => 
+        prevOrders.map(o => o.id === orderToClose ? { ...o, status: "COMPLETED" } : o)
+      );
+      
+      // 3. Limpiamos los estados de control del modal
+      setSelectedOrder(null);
+      setOrderToClose(null);   
+      
+      // 4. Sincronizamos la lista trayendo los datos frescos desde el backend
+      await loadOrders();      
+      
+    } catch (err) {
+      console.error("Error al cerrar el pedido:", err);
+      alert("Hubo un error al intentar cerrar el pedido en el servidor.");
+    } finally {
+      setIsClosing(false);
+    }
   }
-}
 
   if (loading) {
     return <div className="admin-orders-page">Cargando pedidos...</div>;
   }
 
   // Filtrado por pestaña ("Activos" vs "Cerrados") y barra de búsqueda
-// Filtrado por pestaña ("Activos" vs "Cerrados") y barra de búsqueda
   const filteredOrders = orders.filter(order => {
     const isCompleted = order.status?.toUpperCase() === "COMPLETED";
     
@@ -102,8 +108,6 @@ export default function OrdersAdmin() {
 
     return matchesTab && matchesSearch;
   });
-
-  console.log("Pestaña Actual:", activeTab, "Pedidos Filtrados:", filteredOrders);
 
   return (
     <div className="admin-orders-page">
@@ -169,8 +173,8 @@ export default function OrdersAdmin() {
               <td>{order.company_name}</td>
               <td>{order.customer_email}</td>
               <td>
-                <span className={`status-badge ${order.status?.toLowerCase() === "cerrado" ? "status-closed" : "status-active"}`}>
-                  {order.status}
+                <span className={`status-badge ${order.status?.toUpperCase() === "COMPLETED" ? "status-closed" : "status-active"}`}>
+                  {order.status?.toUpperCase() === "COMPLETED" ? "COMPLETED" : order.status}
                 </span>
               </td>
               <td>${order.total_amount}</td>
@@ -194,10 +198,12 @@ export default function OrdersAdmin() {
 
       {/* DETALLE COMPLETO DEL PEDIDO SELECCIONADO */}
       {selectedOrder && (
-        <div className="order-detail-card" style={{ marginTop: "30px", borderTop: "4px solid #6b1426" }}>
+         <div ref={detailRef} className="order-detail-card" style={{ marginTop: "30px", borderTop: "4px solid #6b1426" }}>
           <div className="order-detail-header">
             <div className="order-number">Pedido #{selectedOrder.id.slice(0,8)}</div>
-            <div className="order-status">{selectedOrder.status}</div>
+            <div className="order-status">
+              {selectedOrder.status?.toUpperCase() === "COMPLETED" ? "COMPLETED" : selectedOrder.status}
+            </div>
           </div>
         
           <div className="order-info-grid">
@@ -247,7 +253,7 @@ export default function OrdersAdmin() {
             </div>
 
             {/* BOTÓN NATIVO PARA EJECUTAR EL CIERRE PROPIO */}
-            {selectedOrder.status?.toLowerCase() !== "cerrado" && (
+            {selectedOrder.status?.toUpperCase() !== "COMPLETED" && (
               <button 
                 className="snb-btn" 
                 onClick={() => triggerCloseModal(selectedOrder.id)}
@@ -286,7 +292,9 @@ export default function OrdersAdmin() {
             padding: "30px", 
             textAlign: "center",
             boxShadow: "0px 4px 20px rgba(0,0,0,0.15)",
-            borderTop: "4px solid #6b1426"
+            borderTop: "4px solid #6b1426",
+            backgroundColor: "#fff",
+            borderRadius: "8px"
           }}>
             <h3 style={{ color: "#6b1426", marginBottom: "15px" }}>¿Cerrar este pedido?</h3>
             <p style={{ fontSize: "14px", color: "#555", marginBottom: "25px", lineHeight: "1.5" }}>

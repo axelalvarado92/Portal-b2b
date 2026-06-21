@@ -232,3 +232,20 @@
   color: #B11F24;
 
 }
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-active {
+  color: #856404;
+}
+
+.status-closed {
+  background: #d4edda;
+  color: #155724;
+}

@@ -29,3 +29,9 @@ variable "lambda_integrations" {
     }))
   }))
 }
+
+variable "allow_origins" {
+  description = "lista de origenes permitidos"
+  type = list(string)
+  default = ["http://localhost:5173"]
+}

@@ -389,12 +389,21 @@ module "lambda_import_products_start" {
 
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
 
+  s3_bucket_arns = [
+  module.s3.imports_bucket_arn
+]
+
+  layers = local.common_layers
+  
   lambda_invoke_arns = [
   module.lambda_admin_import_products.lambda_arn
 ]
 
   environment_variables = {
     WORKER_FUNCTION_NAME = module.lambda_admin_import_products.lambda_function_name
+    DATABASE_URL          = module.postgresql.database_url
+    IMPORTS_BUCKET         = module.s3.imports_bucket_name
+
   }
 }
 
@@ -441,11 +450,13 @@ resource "aws_lambda_event_source_mapping" "notifications_trigger" {
 module "apigateway" {
   source = "../../modules/apigateway"
 
-  project_name = var.project_name
-  environment  = var.environment
-  region       = var.region
-  user_pool    = module.cognito.user_pool_id
-  app_client   = module.cognito.user_pool_client_id
+  project_name  = var.project_name
+  environment   = var.environment
+  region        = var.region
+  user_pool     = module.cognito.user_pool_id
+  app_client    = module.cognito.user_pool_client_id
+
+  allow_origins = ["http://localhost:5173","https://d1pijo2eponbrv.cloudfront.net"]
 
   lambda_integrations = {
     auth = {
@@ -581,7 +592,8 @@ module "apigateway" {
       function_name = module.lambda_import_products_start.lambda_function_name
 
       routes = [
-        { method = "POST", path = "/admin/import-products", protected = true }
+        { method = "POST", path = "/admin/import-products", protected = true },
+        { method = "POST", path = "/admin/import-products/presign", protected = true }
       ]
     }
   }
@@ -631,6 +643,18 @@ module "postgresql" {
 
 module "s3" {
   source = "../../modules/s3"
-  environment  = "dev"
+  environment  = var.environment
   force_destroy = var.s3_force_destroy
+}
+
+########################################################################
+#                           Frontend
+########################################################################
+
+module "frontend" {
+  source = "../../modules/frontend"
+
+  project_name = var.project_name
+  environment = var.environment
+  force_destroy = var.s3_frontend_destroy
 }

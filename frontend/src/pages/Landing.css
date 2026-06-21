@@ -36,10 +36,12 @@
 }
 
 .landing-hero {
-  height: 75vh;
+  height: 70vh;
+  min-height: 500px;
+  max-height: 650px;
 
   background-size: cover;
-  background-position: center;
+  background-position: center 30%;
 
   position: relative;
 }

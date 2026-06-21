@@ -28,10 +28,10 @@ export default function DashboardCustomer() {
             <Package size={38} />
           </div>
 
-          <h3>Catálogo</h3>
+          <h3>Productos</h3>
 
           <p className="dashboard-card-value">
-            Ver productos disponibles
+            Comprar productos 
           </p>
         </Link>
 

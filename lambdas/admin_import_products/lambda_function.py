@@ -127,7 +127,7 @@ def detect_header_row(df_preview):
         if matches >= 2:
             return index
 
-    return 0
+    return None  # ← antes devolvía 0, ahora None si no encuentra header real
 
 # ---------------------------------------------------
 # NORMALIZAR COLUMNAS
@@ -323,6 +323,8 @@ def handler(event, context):
 
         file_bytes = response["Body"].read()
 
+        print("INICIO LECTURA EXCEL")  # ← agregar acá
+
         # ---------------------------------------------------
         # READ EXCEL
         # ---------------------------------------------------
@@ -347,27 +349,75 @@ def handler(event, context):
 
             engine_used = "xlrd"
 
+            print("EXCEL LEIDO OK, engine:", engine_used)
+
         header_row = detect_header_row(df_preview)
 
-        df = pd.read_excel(
-            BytesIO(file_bytes),
-            header=header_row,
-            engine=engine_used
-        )
+        print("HEADER ROW DETECTADO:", header_row)
 
-        # ---------------------------------------------------
-        # NORMALIZAR COLUMNAS
-        # ---------------------------------------------------
+        if header_row is None:
 
-        df.columns = normalize_columns(df.columns)
+            # No se detectó ningún header de texto: el archivo arranca
+            # directo con datos. Leemos sin header y mapeamos por posición.
 
-        if "code" not in df.columns:
-
-            auto_mapping = auto_map_columns(df)
-
-            df = df.rename(
-                columns=auto_mapping
+            df = pd.read_excel(
+                BytesIO(file_bytes),
+                header=None,
+                engine=engine_used
             )
+
+            print("SIN HEADER DETECTADO - usando mapeo posicional")
+            print("DF COLUMNAS ORIGINALES:", df.columns.tolist())
+
+            # Mapeo posicional fijo: primera columna = code,
+            # última columna numérica = price, columna de texto más larga = name
+            mapping = {}
+            mapping[df.columns[0]] = "code"
+
+            # Buscamos la columna con más texto largo para "name"
+            text_col = None
+            best_text_score = -1
+            for col in df.columns[1:]:
+                sample = df[col].dropna().head(10).tolist()
+                score = sum(1 for x in sample if isinstance(x, str) and len(x) > 5)
+                if score > best_text_score:
+                    best_text_score = score
+                    text_col = col
+
+            if text_col is not None:
+                mapping[text_col] = "name"
+
+            # Buscamos la última columna numérica para "price"
+            price_col = None
+            for col in df.columns:
+                sample = df[col].dropna().head(10).tolist()
+                if sample and all(isinstance(x, (int, float)) for x in sample):
+                    price_col = col
+
+            if price_col is not None:
+                mapping[price_col] = "price"
+
+            df = df.rename(columns=mapping)
+
+        else:
+
+            df = pd.read_excel(
+                BytesIO(file_bytes),
+                header=header_row,
+                engine=engine_used
+            )
+
+            print("DF COLUMNAS ORIGINALES:", df.columns.tolist())
+
+            df.columns = normalize_columns(df.columns)
+
+            if "code" not in df.columns:
+
+                auto_mapping = auto_map_columns(df)
+
+                df = df.rename(
+                    columns=auto_mapping
+                )
 
         required_columns = [
             "code",
@@ -489,7 +539,7 @@ def handler(event, context):
             "body": json.dumps({
                 "message": "Importacion completada",
                 "engine_used": engine_used,
-                "header_row": int(header_row),
+                "header_row": header_row if header_row is not None else "sin_header",
                 "total_rows": len(df),
                 "processed": processed,
                 "skipped": skipped,

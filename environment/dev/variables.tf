@@ -6,14 +6,12 @@ variable "aws_region" {
 
 variable "project_name" {
   description = "The name of the project"
-  default     = "ecommerce"
   type        = string
 
 }
 
 variable "environment" {
   description = "The environment to deploy to"
-  default     = "dev"
   type        = string
 
 }
@@ -76,4 +74,10 @@ variable "s3_force_destroy" {
 variable "cognito_client_id" {
   description = "The Cognito User Pool Client ID for authentication."
   type        = string
+}
+
+variable "s3_frontend_destroy" {
+  description = "bucket frontend destroy"
+  type        = bool
+  
 }

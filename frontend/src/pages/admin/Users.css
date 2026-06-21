@@ -380,3 +380,15 @@ button {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(239, 68, 68, 0.25);
 }
+
+.btn-secondary {
+  background-color: #6e1423;
+  color: white;
+  border: none;
+}
+
+.btn-secondary:hover {
+  background-color: #8b1a2e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(110, 20, 35, 0.25);
+}

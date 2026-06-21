@@ -19,6 +19,21 @@ output "account_id" {
   value = data.aws_caller_identity.current.account_id
 }
 
+output "cloudfront_domain" {
+  description = "dominio del frontend "
+  value = module.frontend.cloudfront_domain
+}
+
+output "bucket_name" {
+    description = "nombre del bucket"
+    value = module.frontend.bucket_name
+}
+
+output "cloudfront_id" {
+    description = "id de la distribucion cloudfront"
+    value = module.frontend.cloudfront_id
+  
+}
 
 
 

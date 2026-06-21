@@ -4,9 +4,7 @@ resource "aws_apigatewayv2_api" "http_api" {
 
   cors_configuration {
 
-    allow_origins = [
-      "http://localhost:5173"
-    ]
+    allow_origins = var.allow_origins
 
     allow_methods = [
       "GET",

@@ -33,3 +33,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "imports" {
     }
   }
 }
+
+resource "aws_s3_bucket_cors_configuration" "imports" {
+  bucket = aws_s3_bucket.imports.id
+
+  cors_rule {
+    allowed_origins = [
+      "http://localhost:5173",
+      "https://d1pijo2eponbrv.cloudfront.net"
+    ]
+
+    allowed_methods = ["PUT", "GET"]
+    allowed_headers = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}

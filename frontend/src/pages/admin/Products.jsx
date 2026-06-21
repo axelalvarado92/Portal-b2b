@@ -4,7 +4,8 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-  importProductsExcel // Tu nuevo servicio de integración
+  importProductsExcel, 
+  getPresignedUploadUrl
 } from "../../services/adminProductService";
 
 import { getCompanies } from "../../services/adminCompanyService";
@@ -41,6 +42,7 @@ export default function Products() {
   const [editPrice, setEditPrice] = useState("");
   const [editStockQuantity, setEditStockQuantity] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [toast, setToast] = useState("");
 
   async function loadProducts() {
     try {
@@ -67,40 +69,52 @@ export default function Products() {
   };
 
   // Enviar parámetros a la arquitectura S3 + Lambda
-  const handleProcessImport = async () => {
-    if (!importCompanyId) {
-      alert("Por favor, selecciona la empresa para esta lista de precios.");
-      return;
-    }
-    if (!excelFile) {
-      alert("Por favor, selecciona un archivo Excel (.xlsx o .xls).");
-      return;
-    }
+const handleProcessImport = async () => {
+  if (!importCompanyId) {
+    setToast("⚠️ Seleccioná la empresa para esta lista de precios.");
+    setTimeout(() => setToast(""), 3000);
+    return;
+  }
+  if (!excelFile) {
+    setToast("⚠️ Seleccioná un archivo Excel (.xlsx o .xls).");
+    setTimeout(() => setToast(""), 3000);
+    return;
+  }
 
-    setIsImporting(true);
+  setIsImporting(true);
 
-    try {
-      // 1. PASO CRÍTICO: Definir la S3 Key de forma dinámica
-      const timestamp = Date.now();
-      const cleanFileName = excelFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
-      const generatedS3Key = `uploads/companies/${importCompanyId}/${timestamp}_${cleanFileName}`;
+  try {
+    const presignResponse = await getPresignedUploadUrl(importCompanyId, excelFile.name);
+    const { upload_url, s3_key } = presignResponse.data;
 
-      // 3. Ejecución del trigger para tu Lambda procesadora
-      const result = await importProductsExcel(importCompanyId, generatedS3Key);
+   await fetch(upload_url, {
+      method: "PUT",
+      body: excelFile,
+      headers: {
+        "Content-Type": ""
+      }
+    });
 
-      alert(`¡Importación procesada! Servidor usó: ${result.engine_used || 'Pandas'}. Filas totales: ${result.total_rows || 0}`);
-      
-      setShowImportForm(false);
-      setExcelFile(null);
-      setImportCompanyId("");
-      loadProducts(); // Refrescar la grilla de productos
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || "Error al solicitar la importación masiva.");
-    } finally {
-      setIsImporting(false);
-    }
-  };
+    await importProductsExcel(importCompanyId, s3_key);
+
+    setToast("✓ Importación iniciada. Los productos van a aparecer en unos segundos.");
+    setTimeout(() => setToast(""), 4000);
+
+    setShowImportForm(false);
+    setExcelFile(null);
+    setImportCompanyId("");
+
+    // Refrescar la tabla después de un pequeño delay, dándole tiempo al worker
+    setTimeout(() => loadProducts(), 5000);
+
+  } catch (err) {
+    console.error(err);
+    setToast("✗ Error al procesar la importación.");
+    setTimeout(() => setToast(""), 3000);
+  } finally {
+    setIsImporting(false);
+  }
+};
 
   if (loading) return <p>Cargando productos...</p>;
 
@@ -183,6 +197,90 @@ export default function Products() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+      
+      {showForm && (
+        <div className="product-form-card">
+          <h3>Crear producto</h3>
+      
+          <select
+            className="product-input"
+            value={selectedCompany}
+            onChange={(e) => setSelectedCompany(e.target.value)}
+          >
+            <option value="">Seleccionar empresa</option>
+            {companies.map(company => (
+              <option key={company.id} value={company.id}>{company.name}</option>
+            ))}
+          </select>
+      
+          <input
+            className="product-input"
+            placeholder="Nombre"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+      
+          <input
+            className="product-input"
+            placeholder="Código"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+      
+          <input
+            className="product-input"
+            type="number"
+            placeholder="Precio"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+          />
+      
+          <input
+            className="product-input"
+            type="number"
+            placeholder="Stock"
+            value={stockQuantity}
+            onChange={(e) => setStockQuantity(e.target.value)}
+          />
+      
+          <button
+            className="snb-btn"
+            onClick={async () => {
+              try {
+                await createProduct({
+                  company_id: selectedCompany,
+                  name,
+                  code,
+                  price: Number(price),
+                  has_stock: true,
+                  stock_quantity: Number(stockQuantity),
+                  unit_type: "unit",
+                });
+                setShowForm(false);
+                setSelectedCompany("");
+                setName("");
+                setCode("");
+                setPrice("");
+                setStockQuantity("");
+                loadProducts();
+              } catch (err) {
+                console.error(err);
+                alert("Error al crear producto");
+              }
+            }}
+          >
+            Crear producto
+          </button>
+      
+          <button
+            className="snb-btn-secondary"
+            onClick={() => setShowForm(false)}
+            style={{ marginLeft: "10px" }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
 
       {showEditForm && editingProduct && (
         <div className="product-form-card">
@@ -326,6 +424,7 @@ export default function Products() {
             ))}
         </tbody>
       </table>
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
