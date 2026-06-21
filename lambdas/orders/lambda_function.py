@@ -33,6 +33,8 @@ def handler(event, context):
 
         path_params = event.get("pathParameters") or {}
         order_id    = path_params.get("id")
+        path        = event["requestContext"]["http"]["path"]
+
 
         # POST /orders
         if method == "POST":
@@ -40,6 +42,12 @@ def handler(event, context):
             body = json.loads(event.get("body") or "{}")
 
             return create_order(user, body)
+        
+        # PATCH /orders/{id}/request-cancel
+        elif method == "PATCH" and order_id and path.endswith("/request-cancel"):
+            
+            return request_cancel_order(user, order_id)
+
 
         # GET /orders/{id}
         elif method == "GET" and order_id:
@@ -343,4 +351,44 @@ def get_order(user, order_id):
 
     finally:
 
+        cur.close()
+
+def request_cancel_order(user, order_id):
+
+    conn = get_connection()
+    cur  = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            SELECT status FROM orders
+            WHERE id = %s AND user_id = %s
+        """, [order_id, user["id"]])
+
+        row = cur.fetchone()
+
+        if not row:
+            return not_found("Pedido no encontrado")
+
+        current_status = row[0]
+
+        if current_status != "PENDING":
+            return bad_request("Solo se puede solicitar cancelación de pedidos pendientes")
+
+        cur.execute("""
+            UPDATE orders
+            SET status = 'CANCEL_REQUESTED'
+            WHERE id = %s
+        """, [order_id])
+
+        conn.commit()
+
+        return success({"message": "Cancelación solicitada"})
+
+    except Exception:
+        conn.rollback()
+        print(traceback.format_exc())
+        return server_error()
+
+    finally:
         cur.close()

@@ -18,14 +18,12 @@ export async function createOrder(
   return response.data;
 }
 
-export async function getOrders(
-  companyId
-) {
+export async function getOrders(companyId) {
+  const url = companyId
+    ? `/orders?company_id=${companyId}`
+    : "/orders";
 
-  const response = await api.get(
-    `/orders?company_id=${companyId}`
-  );
-
+  const response = await api.get(url);
   return response.data;
 }
 
@@ -37,5 +35,10 @@ export async function getOrder(
     `/orders/${orderId}`
   );
 
+  return response.data;
+}
+
+export async function requestCancelOrder(orderId) {
+  const response = await api.patch(`/orders/${orderId}/request-cancel`);
   return response.data;
 }

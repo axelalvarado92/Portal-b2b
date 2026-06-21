@@ -496,6 +496,7 @@ module "apigateway" {
       invoke_arn    = module.lambda_cart.lambda_invoke_arn
       function_name = module.lambda_cart.lambda_function_name
       routes = [
+        { method = "GET", path = "/cart/all", protected = true },
         { method = "GET", path = "/cart", protected = true },
         { method = "POST", path = "/cart/items", protected = true },
         { method = "PATCH", path = "/cart/items/{id}", protected = true },
@@ -509,7 +510,8 @@ module "apigateway" {
       routes = [
         { method = "POST", path = "/orders", protected = true },
         { method = "GET", path = "/orders", protected = true },
-        { method = "GET", path = "/orders/{id}", protected = true }
+        { method = "GET", path = "/orders/{id}", protected = true },
+        { method = "PATCH", path = "/orders/{id}/request-cancel", protected = true }
       ]
     }
     admin = {

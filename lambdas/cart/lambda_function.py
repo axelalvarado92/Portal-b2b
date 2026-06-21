@@ -21,6 +21,10 @@ def handler(event, context):
         path_params = event.get("pathParameters") or {}
         item_id     = path_params.get("id")
 
+        # GET /cart/all
+        if method == "GET" and path.endswith("/cart/all"):
+            return get_all_carts(user)
+
         # GET /cart
         if method == "GET":
             params     = event.get("queryStringParameters") or {}
@@ -57,7 +61,7 @@ def handler(event, context):
     except Exception as e:
         print("🔥 CART ERROR FULL:")
         print(str(e))
-        raise e   
+        raise e
 
 
 def get_or_create_cart(cur, user_id, company_id):
@@ -139,6 +143,86 @@ def get_cart(user, company_id):
         "company_id": company_id,
         "items":      items,
         "total":      round(total, 2)
+    })
+
+def get_all_carts(user):
+    conn = get_connection()
+    cur  = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            c.id,
+            c.company_id,
+            co.name
+        FROM carts c
+        INNER JOIN companies co ON c.company_id = co.id
+        WHERE c.user_id = %s
+          AND c.status  = 'OPEN'
+        ORDER BY co.name ASC
+    """, [user["id"]])
+
+    cart_rows = cur.fetchall()
+
+    carts = []
+
+    for cart_id, company_id, company_name in cart_rows:
+
+        cur.execute("""
+            SELECT 
+                ci.id,
+                ci.product_id,
+                p.name,
+                p.code,
+                p.price,
+                p.unit_type,
+                p.has_stock,
+                p.stock_quantity,
+                ci.quantity,
+                ci.observations
+            FROM cart_items ci
+            INNER JOIN products p ON ci.product_id = p.id
+            WHERE ci.cart_id = %s
+            ORDER BY ci.created_at ASC
+        """, [cart_id])
+
+        item_rows = cur.fetchall()
+
+        items = [
+            {
+                "id":             str(row[0]),
+                "product_id":     str(row[1]),
+                "product_name":   row[2],
+                "product_code":   row[3],
+                "price":          float(row[4]),
+                "unit_type":      row[5],
+                "has_stock":      row[6],
+                "stock_quantity": row[7],
+                "quantity":       float(row[8]),
+                "observations":   row[9],
+                "subtotal":       float(row[4]) * float(row[8])
+            }
+            for row in item_rows
+        ]
+
+        # Solo incluimos carritos que tengan al menos un item
+        if items:
+            total = sum(item["subtotal"] for item in items)
+
+            carts.append({
+                "cart_id":      str(cart_id),
+                "company_id":   str(company_id),
+                "company_name": company_name,
+                "items":        items,
+                "total":        round(total, 2)
+            })
+
+    cur.close()
+
+    grand_total = sum(c["total"] for c in carts)
+
+    return success({
+        "carts": carts,
+        "grand_total": round(grand_total, 2)
     })
 
 

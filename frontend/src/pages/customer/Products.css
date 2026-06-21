@@ -51,12 +51,20 @@
 
 .catalog-search {
   width: 100%;
-  max-width: 500px;
-  padding: 12px 16px;
+  max-width: 700px;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 16px;
   border: 1px solid #ddd;
   border-radius: 10px;
   font-size: 15px;
   outline: none;
+}
+
+.toolbar-search {
+  flex: 1;
+  min-width: 100px;
+  max-width: 500px;
 }
 
 .catalog-search:focus {
@@ -141,11 +149,6 @@
   flex-wrap: wrap;
 }
 
-.toolbar-search {
-  flex: 1;
-  min-width: 250px;
-}
-
 .toolbar-filters {
   display: flex;
   gap: 1rem;
@@ -156,21 +159,38 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.filter-group label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #555;
+  height: 44px;
 }
 
 .filter-group select {
-  padding: 0.5rem 1rem;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 36px 0 14px;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: 8px;
   background-color: #fff;
-  font-size: 0.9rem;
+  font-size: 14px;
   cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236e1423' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #6e1423;
+  box-shadow: 0 0 0 3px rgba(110, 20, 35, 0.1);
+}
+
+.filter-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6e1423;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 /* 🔥 ALINEACIÓN ESTRICTA DE LA TABLA */

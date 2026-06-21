@@ -63,3 +63,8 @@ export async function clearCart(
 
   return response.data;
 }
+
+export async function getAllCarts() {
+  const response = await api.get("/cart/all");
+  return response.data;
+}

@@ -1,38 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, History } from "lucide-react"; // Importamos los íconos
-import { getOrders, getOrder } from "../../services/ordersService";
-import { useCompany } from "../../context/CompanyContext";
+import { getOrders, getOrder, requestCancelOrder } from "../../services/ordersService";
 import "./Orders.css";
 
 // 💡 Agregamos "COMPLETED" explícitamente para que renderice un badge verde
 const STATUS_LABELS = {
-  PENDING:   { label: "Pendiente",  color: "#f59e0b" },
-  CONFIRMED: { label: "Confirmado", color: "#3b82f6" },
-  SHIPPED:   { label: "Enviado",    color: "#8b5cf6" },
-  DELIVERED: { label: "Entregado",  color: "#10b981" },
-  COMPLETED: { label: "Completado", color: "#2e7d32" }, 
-  CANCELLED: { label: "Cancelado",  color: "#ef4444" },
+  PENDING:          { label: "Pendiente",             color: "#f59e0b" },
+  CONFIRMED:        { label: "Confirmado",            color: "#3b82f6" },
+  SHIPPED:          { label: "Enviado",               color: "#8b5cf6" },
+  DELIVERED:        { label: "Entregado",             color: "#10b981" },
+  COMPLETED:        { label: "Completado",            color: "#2e7d32" },
+  CANCEL_REQUESTED: { label: "Cancelación solicitada", color: "#f97316" },
+  CANCELLED:        { label: "Cancelado",             color: "#ef4444" },
 };
 
 export default function Orders() {
-  const { selectedCompany } = useCompany();
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [cancelingId, setCancelingId] = useState(null);
+  const detailRef = useRef(null);
 
   // 🗂️ Estado para controlar la pestaña activa
   const [activeTab, setActiveTab] = useState("actives"); // "actives" o "closed"
 
+  // Primer useEffect: Cargar pedidos
   useEffect(() => {
-    if (!selectedCompany) return;
-
     async function loadOrders() {
       try {
-        const response = await getOrders(selectedCompany.id);
+        const response = await getOrders(); // sin company_id
         setOrders(response.data || []);
       } catch (err) {
         console.error(err);
@@ -42,7 +42,14 @@ export default function Orders() {
     }
 
     loadOrders();
-  }, [selectedCompany]);
+  }, []); // sin dependencia de selectedCompany
+
+  // Segundo useEffect: Scroll hacia el detalle cuando selectedOrder cambie
+  useEffect(() => {
+    if (selectedOrder && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedOrder]);
 
   async function handleViewOrder(orderId) {
     setLoadingDetail(true);
@@ -53,6 +60,24 @@ export default function Orders() {
       console.error(err);
     } finally {
       setLoadingDetail(false);
+    }
+  }
+
+  async function handleRequestCancel(orderId) {
+    setCancelingId(orderId);
+    try {
+      await requestCancelOrder(orderId);
+      setOrders(prev =>
+        prev.map(o => o.id === orderId ? { ...o, status: "CANCEL_REQUESTED" } : o)
+      );
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => ({ ...prev, status: "CANCEL_REQUESTED" }));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al solicitar la cancelación");
+    } finally {
+      setCancelingId(null);
     }
   }
 
@@ -151,6 +176,7 @@ export default function Orders() {
 
       {/* 🔍 PANEL DE DETALLE INFERIOR (Mantiene tu alineación CSS) */}
       {selectedOrder && (
+       <div ref={detailRef} className="order-detail">
         <div className="order-detail">
           <div className="order-detail-header">
             <h2>Detalle del pedido</h2>
@@ -196,7 +222,20 @@ export default function Orders() {
           <div className="order-detail-total">
             Total: <strong>${Number(selectedOrder.total_amount).toFixed(2)}</strong>
           </div>
+
+          {selectedOrder.status?.toUpperCase() === "PENDING" && (
+            <div style={{ marginTop: "20px", textAlign: "right" }}>
+              <button
+                className="cart-delete-btn"
+                onClick={() => handleRequestCancel(selectedOrder.id)}
+                disabled={cancelingId === selectedOrder.id}
+              >
+                {cancelingId === selectedOrder.id ? "Solicitando..." : "Solicitar cancelación"}
+              </button>
+            </div>
+          )}
         </div>
+       </div>
       )}
     </div>
   );

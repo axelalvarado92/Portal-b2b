@@ -86,6 +86,36 @@ export default function OrdersAdmin() {
     }
   }
 
+  async function handleApproveCancel(orderId) {
+  try {
+    await updateAdminOrderStatus(orderId, "CANCELLED");
+    setOrders(prev =>
+      prev.map(o => o.id === orderId ? { ...o, status: "CANCELLED" } : o)
+    );
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder(prev => ({ ...prev, status: "CANCELLED" }));
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error al aprobar la cancelación");
+  }
+}
+
+async function handleRejectCancel(orderId) {
+  try {
+    await updateAdminOrderStatus(orderId, "PENDING");
+    setOrders(prev =>
+      prev.map(o => o.id === orderId ? { ...o, status: "PENDING" } : o)
+    );
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder(prev => ({ ...prev, status: "PENDING" }));
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error al rechazar la cancelación");
+  }
+}
+
   if (loading) {
     return <div className="admin-orders-page">Cargando pedidos...</div>;
   }
@@ -173,9 +203,23 @@ export default function OrdersAdmin() {
               <td>{order.company_name}</td>
               <td>{order.customer_email}</td>
               <td>
-                <span className={`status-badge ${order.status?.toUpperCase() === "COMPLETED" ? "status-closed" : "status-active"}`}>
-                  {order.status?.toUpperCase() === "COMPLETED" ? "COMPLETED" : order.status}
-                </span>
+              <span
+                className="status-badge"
+                style={{
+                  background:
+                    order.status?.toUpperCase() === "CANCEL_REQUESTED" ? "#f97316" :
+                    order.status?.toUpperCase() === "COMPLETED" ? "#2e7d32" :
+                    order.status?.toUpperCase() === "CANCELLED" ? "#ef4444" :
+                    "#6b7280",
+                  color: "white",
+                  padding: "4px 12px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: 600
+                }}
+              >
+                {order.status}
+              </span>
               </td>
               <td>${order.total_amount}</td>
               <td>{new Date(order.created_at).toLocaleDateString()}</td>
@@ -253,21 +297,39 @@ export default function OrdersAdmin() {
             </div>
 
             {/* BOTÓN NATIVO PARA EJECUTAR EL CIERRE PROPIO */}
-            {selectedOrder.status?.toUpperCase() !== "COMPLETED" && (
-              <button 
-                className="snb-btn" 
-                onClick={() => triggerCloseModal(selectedOrder.id)}
-                style={{ 
-                  backgroundColor: "#2e7d32", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: "8px",
-                  padding: "10px 20px"
-                }}
-              >
-                <CheckCircle2 size={16} />
-                Cerrar Pedido
-              </button>
+            {selectedOrder.status?.toUpperCase() === "CANCEL_REQUESTED" ? (
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  className="snb-btn"
+                  onClick={() => handleApproveCancel(selectedOrder.id)}
+                  style={{ backgroundColor: "#ef4444", display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  Aprobar cancelación
+                </button>
+                <button
+                  className="snb-btn-secondary"
+                  onClick={() => handleRejectCancel(selectedOrder.id)}
+                >
+                  Rechazar solicitud
+                </button>
+              </div>
+            ) : (
+              selectedOrder.status?.toUpperCase() !== "COMPLETED" && (
+                <button 
+                  className="snb-btn" 
+                  onClick={() => triggerCloseModal(selectedOrder.id)}
+                  style={{ 
+                    backgroundColor: "#2e7d32", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "8px",
+                    padding: "10px 20px"
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  Cerrar Pedido
+                </button>
+              )
             )}
           </div>
         </div>
