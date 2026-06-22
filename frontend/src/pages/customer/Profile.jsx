@@ -57,6 +57,32 @@ export default function Profile() {
             <span className="profile-value">{profile.phone || "—"}</span>
           </div>
 
+          {/* Nuevos datos de envío y facturación */}
+          <div className="profile-field">
+            <span className="profile-label">Razón Social</span>
+            <span className="profile-value">{profile.business_name || "—"}</span>
+          </div>
+
+          <div className="profile-field">
+            <span className="profile-label">Forma de Entrega</span>
+            <span className="profile-value">{profile.delivery_method || "—"}</span>
+          </div>
+
+          <div className="profile-field">
+            <span className="profile-label">Transporte</span>
+            <span className="profile-value">{profile.carrier_name || "—"}</span>
+          </div>
+
+          <div className="profile-field">
+            <span className="profile-label">Teléfono Transporte</span>
+            <span className="profile-value">{profile.carrier_phone || "—"}</span>
+          </div>
+
+          <div className="profile-field">
+            <span className="profile-label">Dirección Entrega</span>
+            <span className="profile-value">{profile.delivery_address || "—"}</span>
+          </div>
+
         </div>
 
       </div>
