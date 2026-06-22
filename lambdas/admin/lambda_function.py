@@ -34,6 +34,11 @@ def list_users():
             u.email,
             u.full_name,
             u.phone,
+            u.business_name,
+            u.delivery_method,
+            u.carrier_name,
+            u.carrier_phone,
+            u.delivery_address,
             u.role,
             u.is_active,
             u.created_at,
@@ -61,16 +66,21 @@ def list_users():
                 "email": r[1],
                 "full_name": r[2],
                 "phone": r[3],
-                "role": r[4],
-                "is_active": r[5],
-                "created_at": str(r[6]),
+                "business_name": r[4],
+                "delivery_method": r[5],
+                "carrier_name": r[6],
+                "carrier_phone": r[7],
+                "delivery_address": r[8],
+                "role": r[9],
+                "is_active": r[10],
+                "created_at": str(r[11]),
                 "companies": []
             }
 
-        if r[7] is not None:
+        if r[12] is not None:
             users_map[user_id]["companies"].append({
-                "id": str(r[7]),
-                "name": r[8]
+                "id": str(r[12]),
+                "name": r[13]
             })
 
     return success(list(users_map.values()))
@@ -84,6 +94,11 @@ def create_user(body):
     full_name = body["full_name"]
     role = body["role"]
     phone = body.get("phone")
+    business_name = body.get("business_name")
+    delivery_method = body.get("delivery_method")
+    carrier_name = body.get("carrier_name")
+    carrier_phone = body.get("carrier_phone")
+    delivery_address = body.get("delivery_address")
     companies = body.get("companies", [])
 
     if role not in ["admin", "customer"]:
@@ -127,20 +142,37 @@ def create_user(body):
                 email,
                 full_name,
                 phone,
+                business_name,
+                delivery_method,
+                carrier_name,
+                carrier_phone,
+                delivery_address,
                 role,
                 is_active
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (
+                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+            )
             ON CONFLICT (id) DO UPDATE
             SET email = EXCLUDED.email,
                 full_name = EXCLUDED.full_name,
                 phone = EXCLUDED.phone,
+                business_name = EXCLUDED.business_name,
+                delivery_method = EXCLUDED.delivery_method,
+                carrier_name = EXCLUDED.carrier_name,
+                carrier_phone = EXCLUDED.carrier_phone,
+                delivery_address = EXCLUDED.delivery_address,
                 role = EXCLUDED.role
         """, [
             cognito_sub,
             email,
             full_name,
             phone,
+            business_name,
+            delivery_method,
+            carrier_name,
+            carrier_phone,
+            delivery_address,
             role,
             True
         ])
@@ -195,7 +227,17 @@ def update_user(user_id, body):
 
     # 1. Actualizar campos en Postgres (SQL Dinámico)
     # Lista de campos permitidos que vienen en el body
-    allowed_fields = ["is_active", "role", "full_name", "phone"]
+    allowed_fields = [
+        "is_active",
+        "role",
+        "full_name",
+        "phone",
+        "business_name",
+        "delivery_method",
+        "carrier_name",
+        "carrier_phone",
+        "delivery_address"
+    ]
     updates = []
     args = []
 

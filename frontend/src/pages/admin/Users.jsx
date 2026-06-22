@@ -25,6 +25,12 @@ export default function Users() {
   const [selectedCompanies, setSelectedCompanies] = useState([]);
   const [phone, setPhone] = useState("");
   const [toast, setToast] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState("");
+  const [carrierName, setCarrierName] = useState("");
+  const [carrierPhone, setCarrierPhone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -32,6 +38,11 @@ export default function Users() {
   const [editCompanies, setEditCompanies] = useState([]);
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editBusinessName, setEditBusinessName] = useState("");
+  const [editDeliveryMethod, setEditDeliveryMethod] = useState("");
+  const [editCarrierName, setEditCarrierName] = useState("");
+  const [editCarrierPhone, setEditCarrierPhone] = useState("");
+  const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
 
   // 3. Cargamos tanto los usuarios como las empresas de administración en paralelo
   async function loadInitialData() {
@@ -63,6 +74,11 @@ export default function Users() {
         full_name: fullName,
         phone,
         role,
+        business_name: businessName,
+        delivery_method: deliveryMethod,
+        carrier_name: carrierName,
+        carrier_phone: carrierPhone,
+        delivery_address: deliveryAddress,
         companies: selectedCompanies,
       });
 
@@ -72,6 +88,11 @@ export default function Users() {
       setPhone("");
       setRole("customer");
       setSelectedCompanies([]);
+      setBusinessName("");
+      setDeliveryMethod("");
+      setCarrierName("");
+      setCarrierPhone("");
+      setDeliveryAddress("");
 
       await loadInitialData(); // Recarga en segundo plano
     } catch (err) {
@@ -80,33 +101,61 @@ export default function Users() {
     }
   }
 
-async function handleUpdateUser() {
-  try {
-    // Aseguramos capturar el ID más reciente
-    const userId = editingUser.id; 
+  // NUEVO: Función para cargar los datos en el form de edición
+  function handleEditUser(user) {
+    setEditingUser(user);
+    setEditRole(user.role || "customer");
+    setEditFullName(user.full_name || "");
+    setEditPhone(user.phone || "");
+    setEditBusinessName(user.business_name || "");
+    setEditDeliveryMethod(user.delivery_method || "");
+    setEditCarrierName(user.carrier_name || "");
+    setEditCarrierPhone(user.carrier_phone || "");
+    setEditDeliveryAddress(user.delivery_address || "");
     
-    const updatedData = {
-      role: editRole,
-      companies: editCompanies,
-      full_name: editFullName.trim(),
-      phone: editPhone.trim()
-    };
-
-    console.log(`🚀 Intentando actualizar al usuario: ${userId}`);
-    console.log("🛠️ Con los datos:", updatedData);
-
-    await updateUser(userId, updatedData); // Usamos el ID del estado actual
-
-    setShowEditForm(false);
-    setEditingUser(null);
-    await loadInitialData(); // Recarga la lista limpia
-    setToast("✓ Usuario actualizado con éxito");
-    setTimeout(() => setToast(""), 3000); // Se oculta a los 3 segundos
-  } catch (err) {
-    console.error("Error al actualizar:", err);
-    alert("Revisa la consola para ver el error del servidor.");
+    // Mapear las empresas para obtener solo los IDs
+    const userCompanyIds = user.companies?.map((c) => c.id || c) || [];
+    setEditCompanies(userCompanyIds);
+    
+    setShowEditForm(true);
+    
+    // Opcional: hacer scroll suave hacia arriba para ver el formulario
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
-}
+
+  async function handleUpdateUser() {
+    try {
+      // Aseguramos capturar el ID más reciente
+      const userId = editingUser.id; 
+      
+      const updatedData = {
+        role: editRole,
+        companies: editCompanies,
+        full_name: editFullName.trim(),
+        phone: editPhone.trim(),
+      
+        business_name: editBusinessName.trim(),
+        delivery_method: editDeliveryMethod.trim(),
+        carrier_name: editCarrierName.trim(),
+        carrier_phone: editCarrierPhone.trim(),
+        delivery_address: editDeliveryAddress.trim()
+      };
+
+      console.log(`🚀 Intentando actualizar al usuario: ${userId}`);
+      console.log("🛠️ Con los datos:", updatedData);
+
+      await updateUser(userId, updatedData); // Usamos el ID del estado actual
+
+      setShowEditForm(false);
+      setEditingUser(null);
+      await loadInitialData(); // Recarga la lista limpia
+      setToast("✓ Usuario actualizado con éxito");
+      setTimeout(() => setToast(""), 3000); // Se oculta a los 3 segundos
+    } catch (err) {
+      console.error("Error al actualizar:", err);
+      alert("Revisa la consola para ver el error del servidor.");
+    }
+  }
 
   async function handleToggleUser(user) {
     try {
@@ -163,6 +212,76 @@ async function handleUpdateUser() {
                 placeholder="Ej: +54 9 ..."
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Razón Social
+              </label>
+            
+              <input
+                className="form-input"
+                value={businessName}
+                onChange={(e) =>
+                  setBusinessName(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Forma de Entrega
+              </label>
+            
+              <input
+                className="form-input"
+                value={deliveryMethod}
+                onChange={(e) =>
+                  setDeliveryMethod(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Transporte
+              </label>
+            
+              <input
+                className="form-input"
+                value={carrierName}
+                onChange={(e) =>
+                  setCarrierName(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Teléfono Transporte
+              </label>
+            
+              <input
+                className="form-input"
+                value={carrierPhone}
+                onChange={(e) =>
+                  setCarrierPhone(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Dirección Entrega
+              </label>
+            
+              <input
+                className="form-input"
+                value={deliveryAddress}
+                onChange={(e) =>
+                  setDeliveryAddress(e.target.value)
+                }
               />
             </div>
 
@@ -270,6 +389,76 @@ async function handleUpdateUser() {
             </div>
 
             <div className="form-group">
+              <label className="form-label">
+                Razón Social
+              </label>
+            
+              <input
+                className="form-input"
+                value={editBusinessName}
+                onChange={(e) =>
+                  setEditBusinessName(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Forma de Entrega
+              </label>
+            
+              <input
+                className="form-input"
+                value={editDeliveryMethod}
+                onChange={(e) =>
+                  setEditDeliveryMethod(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Transporte
+              </label>
+            
+              <input
+                className="form-input"
+                value={editCarrierName}
+                onChange={(e) =>
+                  setEditCarrierName(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Teléfono Transporte
+              </label>
+            
+              <input
+                className="form-input"
+                value={editCarrierPhone}
+                onChange={(e) =>
+                  setEditCarrierPhone(e.target.value)
+                }
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">
+                Dirección Entrega
+              </label>
+            
+              <input
+                className="form-input"
+                value={editDeliveryAddress}
+                onChange={(e) =>
+                  setEditDeliveryAddress(e.target.value)
+                }
+              />
+            </div>
+
+            <div className="form-group">
               <label className="form-label">Tipo de Usuario</label>
               <select className="form-select" value={editRole} onChange={(e) => setEditRole(e.target.value)}>
                 <option value="customer">Customer</option>
@@ -341,53 +530,155 @@ async function handleUpdateUser() {
       {/* TABLA DE USUARIOS */}
       <div className="table-wrapper">
         <table className="users-table">
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Nombre</th>
-              <th>Rol</th>
-              <th>Teléfono</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Nombre</th>
+            <th>Empresas</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
           <tbody>
             {users.map((user) => (
               <tr key={user.id}>
-                <td>{user.email}</td>
-                <td>{user.full_name || "-"}</td>
-                <td>
-                  <span className={`role ${user.role}`}>{user.role}</span>
-                </td>
-                <td>{user.phone || "-"}</td>
-                <td>
-                  <span className={`status ${user.is_active ? "active" : "inactive"}`}>
-                    {user.is_active ? "Activo" : "Inactivo"}
-                  </span>
-                </td>
-                <td className="actions">
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setEditingUser(user);
-                      setEditRole(user.role);
-                      setEditFullName(user.full_name || "");
-                      setEditPhone(user.phone || "");
-                      setEditCompanies(user.companies?.map((c) => c.id) || []);
-                      setShowEditForm(true);
-                    }}
-                  >
-                    Editar
-                  </button>
-                  <button className={`btn ${user.is_active ? 'btn-danger' : 'btn-primary'}`} // Cambia de color según el estado
-                    onClick={() => handleToggleUser(user)}>
-                    {user.is_active ? "Desactivar" : "Activar"}
-                  </button>
-                </td>
-              </tr>
+              <td>{user.email}</td>
+            
+              <td>
+                {user.full_name || "-"}
+              </td>
+            
+              <td>
+                {
+                  user.companies?.length
+                    ? user.companies
+                        .map(company => company.name)
+                        .join(", ")
+                    : "-"
+                }
+              </td>
+            
+              <td>
+                <span
+                  className={`status ${
+                    user.is_active
+                      ? "active"
+                      : "inactive"
+                  }`}
+                >
+                  {user.is_active
+                    ? "Activo"
+                    : "Inactivo"}
+                </span>
+              </td>
+            
+              <td className="actions">
+            
+                <button
+                  className="snb-btn-secondary"
+                  onClick={() =>
+                    handleEditUser(user)
+                  }
+                >
+                  Editar
+                </button>
+            
+                <button
+                  className="snb-btn-secondary"
+                  onClick={() => {
+            
+                    setSelectedUser(user);
+            
+                    setTimeout(() => {
+            
+                      document
+                        .getElementById(
+                          "user-detail-card"
+                        )
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+            
+                    }, 100);
+            
+                  }}
+                >
+                  Ver detalle
+                </button>
+            
+                <button
+                  className="snb-btn-danger"
+                  onClick={() =>
+                    handleToggleUser(user)
+                  }
+                >
+                  {user.is_active
+                    ? "Desactivar"
+                    : "Activar"}
+                </button>
+            
+              </td>
+            </tr>
             ))}
           </tbody>
         </table>
+        {selectedUser && (
+
+        <div
+          id="user-detail-card"
+          className="user-detail-card"
+        >
+      
+          <h2>
+            Detalle del usuario
+          </h2>
+      
+          <p>
+            <strong>Email:</strong>
+            {" "}
+            {selectedUser.email}
+          </p>
+      
+          <p>
+            <strong>Nombre:</strong>
+            {" "}
+            {selectedUser.full_name || "-"}
+          </p>
+      
+          <p>
+            <strong>Razón Social:</strong>
+            {" "}
+            {selectedUser.business_name || "-"}
+          </p>
+      
+          <p>
+            <strong>Forma de Entrega:</strong>
+            {" "}
+            {selectedUser.delivery_method || "-"}
+          </p>
+      
+          <p>
+            <strong>Transporte:</strong>
+            {" "}
+            {selectedUser.carrier_name || "-"}
+          </p>
+      
+          <p>
+            <strong>Teléfono Transporte:</strong>
+            {" "}
+            {selectedUser.carrier_phone || "-"}
+          </p>
+      
+          <p>
+            <strong>Teléfono:</strong>
+            {" "}
+            {selectedUser.phone || "-"}
+          </p>
+      
+        </div>
+      
+      )}
         {toast && <div className="toast">{toast}</div>}
       </div>
     </div>
