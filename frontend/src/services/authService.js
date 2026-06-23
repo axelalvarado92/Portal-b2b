@@ -45,13 +45,21 @@ export async function confirmForgotPassword(email, code, newPassword) {
   return response.json();
 }
 
-// Registro de nuevo usuario
-export async function register(email, password, fullName) {
-  const response = await fetch(`${API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, full_name: fullName })
-  });
-  if (!response.ok) throw new Error("Error al registrarse");
+export async function createAccountRequest(data) {
+  const response = await fetch(
+    `${API_URL}/account-requests`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Error enviando solicitud");
+  }
+
   return response.json();
 }

@@ -708,6 +708,54 @@ def update_order_status(order_id, status):
         cur.close()
         conn.close()
 
+def list_account_requests():
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+
+        cur.execute("""
+            SELECT
+                id,
+                full_name,
+                email,
+                phone,
+                business_name,
+                delivery_method,
+                carrier_name,
+                carrier_phone,
+                delivery_address,
+                status,
+                created_at
+            FROM account_requests
+            ORDER BY created_at DESC
+        """)
+
+        rows = cur.fetchall()
+
+        requests = []
+
+        for row in rows:
+            requests.append({
+                "id": str(row[0]),
+                "full_name": row[1],
+                "email": row[2],
+                "phone": row[3],
+                "business_name": row[4],
+                "delivery_method": row[5],
+                "carrier_name": row[6],
+                "carrier_phone": row[7],
+                "delivery_address": row[8],
+                "status": row[9],
+                "created_at": row[10].isoformat() if row[10] else None
+            })
+
+        return success(requests)
+
+    finally:
+        cur.close()
+        conn.close()
 
 def handler(event, context):
 
@@ -747,6 +795,18 @@ def handler(event, context):
 
             if method == "PATCH" and resource_id:
                 return update_user(resource_id, body)
+            
+
+        # ==========================
+        # ACCOUNT REQUESTS
+        # ==========================
+        
+        if (
+            method == "GET"
+            and path == "/admin/account-requests"
+        ):
+            return list_account_requests()
+    
 
         # ==========================
         # COMPANIES

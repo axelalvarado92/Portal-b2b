@@ -16,6 +16,7 @@ import DashboardAdmin from "./pages/admin/DashboardAdmin";
 import Profile from "./pages/customer/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
+import AccountRequests from "./pages/admin/AccountRequests";
 
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -138,6 +139,15 @@ function App() {
                 element={
                   <AdminRoute>
                     <AdminCompanies />
+                  </AdminRoute>
+                }
+              />
+
+              <Route
+                path="/admin/account-requests"
+                element={
+                  <AdminRoute>
+                    <AccountRequests />
                   </AdminRoute>
                 }
               />

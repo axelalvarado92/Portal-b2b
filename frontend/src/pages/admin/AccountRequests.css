@@ -1,0 +1,190 @@
+/* 📄 src/pages/admin/AccountRequests.css */
+
+/* Variables globales de diseño para mantener tus colores de "Empresas" */
+:root {
+  --brand-burgundy: #5A1221;
+  --text-header: #5A5C69;
+  --text-body: #4A4A4A;
+  --border-light: #EAECF4;
+  --bg-light: #F8F9FC;
+  --input-border: #d1d3e2;
+  --label-blue: #4e73df;
+}
+
+.account-container {
+  padding: 30px;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-body);
+}
+
+.account-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.account-main-title {
+  margin: 0;
+  font-size: 28px;
+  get-weight: 700;
+  color: var(--brand-burgundy);
+}
+
+.account-badge-count {
+  background-color: var(--brand-burgundy);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Estilos de la Tabla (Igual al de Empresas) */
+.account-table-wrapper {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  overflow-x: auto;
+}
+
+.account-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+}
+
+.account-table th {
+  color: var(--text-header);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 16px 12px;
+  border-bottom: 2px solid var(--border-light);
+  text-align: left;
+}
+
+.account-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 15px;
+}
+
+.account-table td.actions-cell {
+  text-align: right;
+  padding-right: 25px;
+}
+
+.status-pending {
+  color: #f6c23e;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Botones con tu Identidad Visual */
+.btn-burgundy-primary {
+  background-color: var(--brand-burgundy);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+
+.btn-burgundy-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-burgundy-primary:disabled, 
+.btn-burgundy-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-burgundy-secondary {
+  background-color: transparent;
+  color: var(--brand-burgundy);
+  border: 1px solid var(--brand-burgundy);
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.btn-burgundy-secondary:hover {
+  background-color: rgba(90, 18, 33, 0.05);
+}
+
+/* Estilos del Formulario de Alta */
+.account-form-card {
+  background: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-light);
+  max-width: 800px;
+  margin-top: 10px;
+}
+
+.account-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 24px;
+  row-gap: 16px;
+}
+
+.account-input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--label-blue);
+}
+
+.account-input {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  font-size: 14px;
+  outline: none;
+  color: var(--text-body);
+}
+
+.account-input:focus {
+  border-color: var(--label-blue);
+}
+
+.account-section-divider {
+  grid-column: 1 / -1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand-burgundy);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 6px;
+  margin-top: 15px;
+  margin-bottom: 5px;
+}
+
+.account-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 20px;
+}
+
+.account-form-actions .btn-burgundy-primary,
+.account-form-actions .btn-burgundy-secondary {
+  height: 45px;
+  padding: 0 25px;
+  font-size: 15px;
+}

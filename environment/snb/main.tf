@@ -7,7 +7,7 @@ locals {
     "auth", "users", "companies", "products",
     "cart", "orders", "admin", "notifications_worker", "payments",
     "credit_notes", "commissions", "invoices", "reports", "postconfirmation", "admin_import_products",
-    "import_products_start", "account_requests"
+    "import_products_start"
   ]
 
   lambda_defaults = {
@@ -95,26 +95,6 @@ module "lambda_auth" {
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
     COGNITO_CLIENT_ID = var.cognito_client_id
-  }
-}
-
-module "lambda_account_requests" {
-  source = "../../modules/lambda"
-
-  function_name       = "lambda-account-requests"
-
-  filename         = data.archive_file.lambda_zips["account_requests"].output_path
-  source_code_hash = data.archive_file.lambda_zips["account_requests"].output_base64sha256
-
-  handler             = local.lambda_defaults.handler
-  memory_size         = local.lambda_defaults.memory_size
-  timeout             = local.lambda_defaults.timeout
-
-  managed_policy_arns = local.lambda_defaults.managed_policy_arns
-  layers              = local.common_layers
-
-  environment_variables = {
-    DATABASE_URL = module.postgresql.database_url
   }
 }
 
@@ -476,7 +456,7 @@ module "apigateway" {
   user_pool     = module.cognito.user_pool_id
   app_client    = module.cognito.user_pool_client_id
 
-  allow_origins = ["http://localhost:5173","https://d1pijo2eponbrv.cloudfront.net"]
+  allow_origins = ["http://localhost:5173","https://d1pijo2eponbrv.cloudfront.net","https://snbrepresentaciones.com.ar"]
 
   lambda_integrations = {
     auth = {
@@ -486,17 +466,11 @@ module "apigateway" {
         { method = "POST", path = "/auth/confirm", protected = false },
         { method = "POST", path = "/auth/login", protected = false },
         { method = "POST", path = "/auth/refresh", protected = false },
+        { method = "POST", path = "/auth/register", protected = false },
+        { method = "POST", path = "/auth/forgot-password", protected = false },
+        { method = "POST", path = "/auth/confirm-forgot-password", protected = false }
       ]
     }
-    
-    account_requests = {
-      invoke_arn    = module.lambda_account_requests.lambda_invoke_arn
-      function_name = module.lambda_account_requests.lambda_function_name
-      routes = [
-        { method = "POST", path = "/account-requests", protected = false }
-      ]
-    }
-
     users = {
       invoke_arn    = module.lambda_users.lambda_invoke_arn
       function_name = module.lambda_users.lambda_function_name
@@ -559,8 +533,7 @@ module "apigateway" {
         { method = "DELETE", path = "/admin/products/{id}", protected = true },
         { method = "GET", path = "/admin/orders", protected = true },
         { method = "GET", path = "/admin/orders/{id}", protected = true },
-        { method = "PUT", path = "/admin/orders/{id}", protected = true },
-        { method = "GET", path = "/admin/account-requests", protected = true }
+        { method = "PUT", path = "/admin/orders/{id}", protected = true }
       ]
     }
     payments = {
@@ -689,5 +662,32 @@ module "frontend" {
   project_name = var.project_name
   environment = var.environment
   force_destroy = var.s3_frontend_destroy
+  domain_name     = "snbrepresentaciones.com.ar"
+  certificate_arn = aws_acm_certificate_validation.frontend.certificate_arn
+}
+
+########################################################################
+#                             ROUTE 53
+########################################################################
+
+resource "aws_route53_zone" "main" {
+  name = "snbrepresentaciones.com.ar"
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_route53_record" "frontend" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "snbrepresentaciones.com.ar"
+  type    = "A"
+
+  alias {
+    name                   = module.frontend.cloudfront_domain_name
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
 }
 

@@ -12,6 +12,7 @@ import {
   Package,
   ClipboardList,
   FileText,
+  UserPlus,
 } from "lucide-react";
 
 import {
@@ -137,6 +138,22 @@ export default function DashboardAdmin() {
             {" "}pendientes
           </p>
 
+        </Link>
+
+        <Link
+          to="/admin/account-requests"
+          className="module-card"
+        >
+          <div className="module-icon">
+            <UserPlus size={38} />
+          </div>
+          <h3>
+            Solicitudes
+          </h3>
+          <p className="dashboard-card-value">
+            {/* 💡 Si en el futuro agregás 'pending_requests' a tu endpoint de dashboard, lo mostramos acá. Si no, dice "Nuevas" */}
+            {stats?.pending_requests !== undefined ? `${stats.pending_requests} pendientes` : "Nuevas solicitudes"}
+          </p>
         </Link>
 
         <Link
