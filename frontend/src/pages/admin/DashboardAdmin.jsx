@@ -19,11 +19,15 @@ import {
   getDashboardReport,
 } from "../../services/reportService";
 
+import { getAccountRequests } from "../../services/accountRequestsService";
+
 export default function DashboardAdmin() {
   console.log("DASHBOARD ADMIN MOUNTED");
 
   const [stats, setStats] =
     useState(null);
+
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
 
@@ -50,6 +54,23 @@ export default function DashboardAdmin() {
     loadDashboard();
 
   }, []);
+
+  useEffect(() => {
+  async function fetchCount() {
+    try {
+      const data = await getAccountRequests();
+      // Si es un array, contamos los elementos. Si viene dentro de .data, también.
+      if (Array.isArray(data)) {
+        setPendingCount(data.length);
+      } else if (data && Array.isArray(data.data)) {
+        setPendingCount(data.data.length);
+      }
+    } catch (err) {
+      console.error("No se pudo cargar el contador de solicitudes", err);
+    }
+  }
+  fetchCount();
+}, []);
 
   return (
 
@@ -120,6 +141,16 @@ export default function DashboardAdmin() {
 
         </Link>
 
+        <Link to="/admin/account-requests" className="module-card">
+          <div className="module-icon">
+            <UserPlus size={38} />
+          </div>
+          <h3>Solicitudes</h3>
+          <p className="dashboard-card-value">
+            {pendingCount > 0 ? `${pendingCount} pendientes` : "Sin solicitudes pendientes"}
+          </p>
+        </Link>
+
         <Link
           to="/admin/orders"
           className="module-card"
@@ -136,41 +167,6 @@ export default function DashboardAdmin() {
           <p className="dashboard-card-value">
             {stats?.total_orders || 0}
             {" "}pendientes
-          </p>
-
-        </Link>
-
-        <Link
-          to="/admin/account-requests"
-          className="module-card"
-        >
-          <div className="module-icon">
-            <UserPlus size={38} />
-          </div>
-          <h3>
-            Solicitudes
-          </h3>
-          <p className="dashboard-card-value">
-            {/* 💡 Si en el futuro agregás 'pending_requests' a tu endpoint de dashboard, lo mostramos acá. Si no, dice "Nuevas" */}
-            {stats?.pending_requests !== undefined ? `${stats.pending_requests} pendientes` : "Nuevas solicitudes"}
-          </p>
-        </Link>
-
-        <Link
-          to="/invoices"
-          className="module-card"
-        >
-
-          <div className="module-icon">
-            <FileText size={38} />
-          </div>
-
-          <h3>
-            Comisiones
-          </h3>
-
-          <p className="dashboard-card-value">
-            Total $
           </p>
 
         </Link>

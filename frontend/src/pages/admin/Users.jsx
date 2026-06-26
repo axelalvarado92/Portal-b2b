@@ -94,6 +94,10 @@ export default function Users() {
       setCarrierPhone("");
       setDeliveryAddress("");
 
+      await sendInvitationEmail(email); 
+      alert("Usuario creado y correo de invitación enviado exitosamente.");
+      setShowForm(false);
+
       await loadInitialData(); // Recarga en segundo plano
     } catch (err) {
       console.error(err);

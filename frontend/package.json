@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:snb": "vite --mode snb",
     "build": "vite build",
+    "build:snb": "vite build --mode snb",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -54,17 +54,20 @@ export default function Landing() {
     <p>Ventas mayoristas</p>
   </div>
 
-  <div>
-    <p>
+<div>
+  <p>
+    <a href="mailto:sebabranca@gmail.com" style={{ textDecoration: "none", color: "inherit", display: "inline-flex", alignItems: "center" }}>
       <Mail size={16} style={{ marginRight: "8px", verticalAlign: "middle", color: "#6e1423" }} />
-
       sebabranca@gmail.com
-    </p>
-    <p>
+    </a>
+  </p>
+  <p>
+    <a href="https://wa.me/5492216116321" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit", display: "inline-flex", alignItems: "center" }}>
       <Phone size={16} style={{ marginRight: "8px", verticalAlign: "middle", color: "#6e1423" }} />
       +54 9 221 611-6321
-    </p>
-  </div>
+    </a>
+  </p>
+</div>
 
 </footer>
 

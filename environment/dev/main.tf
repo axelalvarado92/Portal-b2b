@@ -493,7 +493,8 @@ module "apigateway" {
       invoke_arn    = module.lambda_account_requests.lambda_invoke_arn
       function_name = module.lambda_account_requests.lambda_function_name
       routes = [
-        { method = "POST", path = "/account-requests", protected = false }
+        { method = "POST", path = "/account-requests", protected = false },
+        { method    = "POST", path      = "/admin/account-requests/{id}/reject", protected = true }
       ]
     }
 

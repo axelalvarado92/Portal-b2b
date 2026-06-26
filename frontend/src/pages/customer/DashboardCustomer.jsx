@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   User,
+  Building2,
 } from "lucide-react";
 
 export default function DashboardCustomer() {
@@ -19,19 +20,19 @@ export default function DashboardCustomer() {
       </h1>
 
       <div className="modules-grid">
-
+        
         <Link
-          to="/products"
+          to="/companies"
           className="module-card"
         >
           <div className="module-icon">
-            <Package size={38} />
+            <Building2 size={38} />
           </div>
 
-          <h3>Productos</h3>
+          <h3>Proveedores</h3>
 
           <p className="dashboard-card-value">
-            Comprar productos 
+            Ver productos 
           </p>
         </Link>
 

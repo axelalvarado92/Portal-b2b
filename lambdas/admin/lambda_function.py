@@ -757,6 +757,32 @@ def list_account_requests():
         cur.close()
         conn.close()
 
+def reject_account_request(request_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # Actualizamos el estado a 'rejected' usando cast nativo a UUID
+        cur.execute("""
+            UPDATE account_requests
+            SET status = 'rejected'
+            WHERE id = %s::uuid
+        """, [request_id])
+
+        conn.commit()
+
+        # Usamos tu helper "success" que ya inyecta los headers correctos
+        return success({"message": "Solicitud rechazada con éxito", "id": request_id})
+
+    except Exception as e:
+        print("❌ ERROR AL RECHAZAR SOLICITUD EN BD:", str(e))
+        conn.rollback()
+        return server_error()
+
+    finally:
+        cur.close()
+        conn.close()
+
 def handler(event, context):
 
     print(f"DEBUG: Evento completo recibido: {json.dumps(event)}")
@@ -801,11 +827,18 @@ def handler(event, context):
         # ACCOUNT REQUESTS
         # ==========================
         
-        if (
-            method == "GET"
-            and path == "/admin/account-requests"
-        ):
-            return list_account_requests()
+        if path.startswith("/admin/account-requests"):
+
+            # 1. Listar todas las solicitudes (GET /admin/account-requests)
+            if method == "GET" and path == "/admin/account-requests":
+                return list_account_requests()
+            
+            # 2. Rechazar una solicitud específica (POST /admin/account-requests/{id}/reject)
+            if method == "POST" and path.endswith("/reject"):
+                # Como la ruta es /admin/account-requests/{id}/reject, extraemos el ID que está antes de /reject
+                # O si API Gateway ya te lo mapea en path_params, lo usamos directo:
+                req_id = resource_id or path.split("/")[-2]
+                return reject_account_request(req_id)
     
 
         # ==========================

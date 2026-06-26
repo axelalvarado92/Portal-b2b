@@ -6,7 +6,7 @@ import {
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Customer/DashboardCustomer";
-import Companies from "./pages/Companies";
+import Companies from "./pages/customer/Companies";
 import Products from "./pages/customer/Products";
 import ProductsAdmin from "./pages/admin/Products";
 import Orders from "./pages/customer/Orders";
@@ -17,6 +17,7 @@ import Profile from "./pages/customer/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
 import AccountRequests from "./pages/admin/AccountRequests";
+import ProductDetail from "./pages/customer/ProductDetail";
 
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -80,8 +81,18 @@ function App() {
               />
 
               <Route
+                path="/company/:id"
+                element={<Products />}
+              />
+
+              <Route
                 path="/products"
                 element={<Products />}
+              />
+              
+              <Route
+                path="/product/:id"
+                element={<ProductDetail />}
               />
 
               <Route

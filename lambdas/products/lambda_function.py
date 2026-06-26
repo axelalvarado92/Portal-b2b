@@ -57,6 +57,11 @@ def list_products(user, params):
     company_id  = params.get("company_id")
     category_id = params.get("category_id")
     search      = params.get("search", "").strip()
+    
+    page = int(params.get("page", 1))
+    limit = int(params.get("limit", 20))
+    
+    offset = (page - 1) * limit
 
     if not company_id:
         return bad_request("company_id es requerido")
@@ -70,8 +75,17 @@ def list_products(user, params):
             return not_found("Empresa no encontrada")
 
         # Query base
+        count_query = """
+            SELECT COUNT(*)
+            FROM products p
+            WHERE p.company_id = %s
+              AND p.is_active = true
+        """
+        
+        count_args = [company_id]
+
         query = """
-            SELECT 
+            SELECT
                 p.id,
                 p.code,
                 p.name,
@@ -81,29 +95,67 @@ def list_products(user, params):
                 p.has_stock,
                 p.stock_quantity,
                 p.unit_type,
-                c.id   AS category_id,
+                c.id AS category_id,
                 c.name AS category_name
             FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN categories c
+                ON p.category_id = c.id
             WHERE p.company_id = %s
               AND p.is_active = true
         """
-
+        
         args = [company_id]
 
         # Filtro por categoría (opcional)
         if category_id:
+
             query += " AND p.category_id = %s"
             args.append(category_id)
+        
+            count_query += " AND p.category_id = %s"
+            count_args.append(category_id)
 
         # Búsqueda por nombre o código (opcional)
         if search:
-            query += " AND (p.name ILIKE %s OR p.code ILIKE %s)"
-            args.extend([f"%{search}%", f"%{search}%"])
 
-        query += " ORDER BY p.name ASC"
+            query += """
+                AND (
+                    p.name ILIKE %s
+                    OR p.code ILIKE %s
+                )
+            """
+        
+            args.extend([
+                f"%{search}%",
+                f"%{search}%"
+            ])
+        
+            count_query += """
+                AND (
+                    p.name ILIKE %s
+                    OR p.code ILIKE %s
+                )
+            """
+        
+            count_args.extend([
+                f"%{search}%",
+                f"%{search}%"
+            ])
+
+        query += """
+            ORDER BY p.name ASC
+            LIMIT %s
+            OFFSET %s
+        """
+        
+        args.extend([limit, offset])
+
+        cur.execute(count_query, count_args)
+
+        total = cur.fetchone()[0]
 
         cur.execute(query, args)
+
         rows = cur.fetchall()
 
         products = [
@@ -125,7 +177,15 @@ def list_products(user, params):
             for row in rows
         ]
 
-        return success(products)
+        return success({
+            "items": products,
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "total_pages": (
+                (total + limit - 1) // limit
+            )
+        })
 
     except Exception:
 
@@ -137,7 +197,8 @@ def list_products(user, params):
 
     finally:
 
-        cur.close()
+       cur.close()
+       conn.close()
 
 
 def get_product(user, product_id):

@@ -23,6 +23,9 @@ resource "aws_cloudfront_origin_access_control" "origin_access" {
 }
 
 resource "aws_cloudfront_distribution" "frontend_distribution" {
+
+  aliases = var.domain_name != null ? [var.domain_name] : []
+    
     origin {
         domain_name = aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
         origin_id = "s3-origin"
@@ -87,4 +90,20 @@ resource "aws_s3_bucket_policy" "cloudfront_policy" {
     policy = data.aws_iam_policy_document.cloudfront_policy_document.json
 
 }
+
+
+resource "null_resource" "sync_s3" {
+  # Solo se dispara si algo cambia en el código fuente del frontend
+  triggers = {
+    # Cambia esto por un hash de tus archivos fuente para no depender del timestamp
+    build_hash = "${md5(join("", [for f in fileset(path.module, "../../frontend/src/**/*") : filesha1(f)]))}"
+  }
+
+  provisioner "local-exec" {
+    # Hemos quitado el backslash y unido los comandos con &&
+    # Ejemplo de cómo añadir la invalidación al final de la cadena
+command = "cd ../../frontend && npm install && npm run build && aws s3 sync dist s3://${aws_s3_bucket.frontend_bucket.id} --delete --profile seba-account && aws cloudfront create-invalidation --distribution-id E2BLXG4R00QL6E --paths /* --profile seba-account"
+  }
+}
+
 

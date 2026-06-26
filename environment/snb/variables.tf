@@ -81,3 +81,9 @@ variable "s3_frontend_destroy" {
   type        = bool
   
 }
+
+variable "certificate_arn" {
+  description = "certificado ssl arn"
+  type        = string
+  
+}
