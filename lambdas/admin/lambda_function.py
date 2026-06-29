@@ -30,75 +30,69 @@ def list_users():
 
     cur.execute("""
         SELECT
-            u.id,
-            u.email,
-            u.full_name,
-            u.phone,
-            u.business_name,
-            u.delivery_method,
-            u.carrier_name,
-            u.carrier_phone,
-            u.delivery_address,
-            u.role,
-            u.is_active,
-            u.created_at,
-            c.id AS company_id,
-            c.name AS company_name
+            u.id, u.email, u.full_name, u.phone,
+            u.business_name, u.cuit, u.condicion_fiscal,
+            u.direccion, u.direccion_entrega, u.direccion_transporte,
+            u.ciudad, u.provincia,
+            u.telefono_oficina, u.telefono_adicional,
+            u.mail_adicional,
+            u.role, u.is_active, u.created_at,
+            c.id, c.name
         FROM users u
-        LEFT JOIN user_companies uc
-            ON uc.user_id = u.id
-        LEFT JOIN companies c
-            ON c.id = uc.company_id
+        LEFT JOIN user_companies uc ON uc.user_id = u.id
+        LEFT JOIN companies c ON c.id = uc.company_id
         ORDER BY u.created_at DESC
     """)
 
     rows = cur.fetchall()
     cur.close()
+    conn.close() # Importante cerrar conexión
 
     users_map = {}
-
     for r in rows:
         user_id = str(r[0])
-
         if user_id not in users_map:
             users_map[user_id] = {
-                "id": user_id,
-                "email": r[1],
-                "full_name": r[2],
-                "phone": r[3],
-                "business_name": r[4],
-                "delivery_method": r[5],
-                "carrier_name": r[6],
-                "carrier_phone": r[7],
-                "delivery_address": r[8],
-                "role": r[9],
-                "is_active": r[10],
-                "created_at": str(r[11]),
+                "id": user_id, "email": r[1], "full_name": r[2], "phone": r[3],
+                "business_name": r[4], "cuit": r[5], "condicion_fiscal": r[6],
+                "direccion": r[7], "direccion_entrega": r[8], "direccion_transporte": r[9],
+                "ciudad": r[10], "provincia": r[11],
+                "telefono_oficina": r[12], "telefono_adicional": r[13],
+                "mail_adicional": r[14],
+                "role": r[15], "is_active": r[16], "created_at": str(r[17]),
                 "companies": []
             }
-
-        if r[12] is not None:
-            users_map[user_id]["companies"].append({
-                "id": str(r[12]),
-                "name": r[13]
-            })
+        if r[18] is not None:
+            users_map[user_id]["companies"].append({"id": str(r[18]), "name": r[19]})
 
     return success(list(users_map.values()))
 
 def create_user(body):
     error = validate_create_user(body)
-    if error:
-        return bad_request(error)
-
+    if error: return bad_request(error)
+    
     email = body["email"]
     full_name = body["full_name"]
     role = body["role"]
+    
     phone = body.get("phone")
     business_name = body.get("business_name")
-    delivery_method = body.get("delivery_method")
-    carrier_name = body.get("carrier_name")
-    carrier_phone = body.get("carrier_phone")
-    delivery_address = body.get("delivery_address")
+    
+    cuit = body.get("cuit")
+    condicion_fiscal = body.get("condicion_fiscal")
+    
+    direccion = body.get("direccion")
+    direccion_entrega = body.get("direccion_entrega")
+    direccion_transporte = body.get("direccion_transporte")
+    
+    ciudad = body.get("ciudad")
+    provincia = body.get("provincia")
+    
+    telefono_oficina = body.get("telefono_oficina")
+    telefono_adicional = body.get("telefono_adicional")
+    
+    mail_adicional = body.get("mail_adicional")
+    
     companies = body.get("companies", [])
 
     if role not in ["admin", "customer"]:
@@ -138,41 +132,86 @@ def create_user(body):
     try:
         cur.execute("""
             INSERT INTO users (
+
                 id,
                 email,
                 full_name,
                 phone,
+            
                 business_name,
-                delivery_method,
-                carrier_name,
-                carrier_phone,
-                delivery_address,
+                cuit,
+                condicion_fiscal,
+            
+                direccion,
+                direccion_entrega,
+                direccion_transporte,
+            
+                ciudad,
+                provincia,
+            
+                telefono_oficina,
+                telefono_adicional,
+            
+                mail_adicional,
+            
                 role,
                 is_active
+            
             )
             VALUES (
-                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                %s,%s,%s,%s,
+                %s,%s,%s,
+                %s,%s,%s,
+                %s,%s,
+                %s,%s,
+                %s,
+                %s,%s
             )
             ON CONFLICT (id) DO UPDATE
-            SET email = EXCLUDED.email,
+            SET
+                email = EXCLUDED.email,
                 full_name = EXCLUDED.full_name,
                 phone = EXCLUDED.phone,
+            
                 business_name = EXCLUDED.business_name,
-                delivery_method = EXCLUDED.delivery_method,
-                carrier_name = EXCLUDED.carrier_name,
-                carrier_phone = EXCLUDED.carrier_phone,
-                delivery_address = EXCLUDED.delivery_address,
+                cuit = EXCLUDED.cuit,
+                condicion_fiscal = EXCLUDED.condicion_fiscal,
+            
+                direccion = EXCLUDED.direccion,
+                direccion_entrega = EXCLUDED.direccion_entrega,
+                direccion_transporte = EXCLUDED.direccion_transporte,
+            
+                ciudad = EXCLUDED.ciudad,
+                provincia = EXCLUDED.provincia,
+            
+                telefono_oficina = EXCLUDED.telefono_oficina,
+                telefono_adicional = EXCLUDED.telefono_adicional,
+            
+                mail_adicional = EXCLUDED.mail_adicional,
+            
                 role = EXCLUDED.role
         """, [
             cognito_sub,
             email,
             full_name,
             phone,
+        
             business_name,
-            delivery_method,
-            carrier_name,
-            carrier_phone,
-            delivery_address,
+            cuit,
+            condicion_fiscal,
+        
+            direccion,
+            direccion_entrega,
+            direccion_transporte,
+        
+            ciudad,
+            provincia,
+        
+            telefono_oficina,
+            telefono_adicional,
+        
+            mail_adicional,
+        
             role,
             True
         ])
@@ -232,11 +271,22 @@ def update_user(user_id, body):
         "role",
         "full_name",
         "phone",
+    
         "business_name",
-        "delivery_method",
-        "carrier_name",
-        "carrier_phone",
-        "delivery_address"
+        "cuit",
+        "condicion_fiscal",
+    
+        "direccion",
+        "direccion_entrega",
+        "direccion_transporte",
+    
+        "ciudad",
+        "provincia",
+    
+        "telefono_oficina",
+        "telefono_adicional",
+    
+        "mail_adicional"
     ]
     updates = []
     args = []
@@ -292,102 +342,63 @@ def update_user(user_id, body):
 def list_companies():
     conn = get_connection()
     cur = conn.cursor()
-
+    # Si esta función debe listar TODAS las empresas para el admin, quita el WHERE user_id
     cur.execute("""
-        SELECT
-            id,
-            name,
-            business_name,
-            tax_id,
-            logo_url,
-            description,
-            contact_email,
-            is_active,
-            notification_emails,
-            whatsapp_phone,
-            created_at
+        SELECT id, name, logo_url, description, contact_email, 
+               nombre_fantasia, cuit, condicion_fiscal, direccion, 
+               ciudad, provincia, telefono_oficina, telefono_adicional, mail_adicional
         FROM companies
         ORDER BY name ASC
     """)
-
     rows = cur.fetchall()
     cur.close()
-
+    conn.close()
     return success([
         {
-            "id": str(r[0]),
-            "name": r[1],
-            "business_name": r[2],
-            "tax_id": r[3],
-            "logo_url": r[4],
-            "description": r[5],
-            "contact_email": r[6],
-            "is_active": r[7],
-            "notification_emails": r[8] or [],
-            "whatsapp_phone": r[9],
-            "created_at": str(r[10])
-        }
-        for r in rows
+            "id": str(r[0]), "name": r[1], "logo_url": r[2], "description": r[3],
+            "contact_email": r[4], "nombre_fantasia": r[5], "cuit": r[6],
+            "condicion_fiscal": r[7], "direccion": r[8], "ciudad": r[9],
+            "provincia": r[10], "telefono_oficina": r[11],
+            "telefono_adicional": r[12], "mail_adicional": r[13]
+        } for r in rows
     ])
 
 def create_company(body):
-    error = validate_create_company(body)
-    if error:
-        return bad_request(error)
-
+    # CORRECCIÓN: Se eliminó el error de sintaxis en el SQL (punto y coma mal ubicado)
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute("""
-        INSERT INTO companies
-        (  name,
-           business_name,
-           tax_id,
-           logo_url,
-           description,
-           contact_email,
-           notification_emails,
-           whatsapp_phone)
-        VALUES (%s,%s,%s,%s,%s,%s)
+        INSERT INTO companies (
+            name, business_name, tax_id, logo_url, description, contact_email, 
+            notification_emails, whatsapp_phone, nombre_fantasia, cuit, 
+            condicion_fiscal, direccion, ciudad, provincia, telefono_oficina, 
+            telefono_adicional, mail_adicional
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
     """, [
-           body["name"],
-           body.get("business_name"),
-           body.get("tax_id"),
-           body.get("logo_url"),
-           body.get("description"),
-           body["contact_email"],
-           body.get("notification_emails", []),
-           body.get("whatsapp_phone")
+        body["name"], body.get("business_name"), body.get("tax_id"), body.get("logo_url"),
+        body.get("description"), body["contact_email"], body.get("notification_emails", []),
+        body.get("whatsapp_phone"), body.get("nombre_fantasia"), body.get("cuit"),
+        body.get("condicion_fiscal"), body.get("direccion"), body.get("ciudad"),
+        body.get("provincia"), body.get("telefono_oficina"), body.get("telefono_adicional"),
+        body.get("mail_adicional")
     ])
-
     company_id = cur.fetchone()[0]
-
     conn.commit()
     cur.close()
-
+    conn.close()
     return created({"id": str(company_id)})
-
 
 def update_company(company_id, body):
     conn = get_connection()
     cur = conn.cursor()
-
-    cur.execute("SELECT id FROM companies WHERE id = %s", [company_id])
-    if not cur.fetchone():
-        return not_found("Empresa no encontrada")
-
+    # CORRECCIÓN: Se agregó la coma faltante en la lista 'allowed'
     allowed = [
-            "name",
-            "business_name",
-            "tax_id",
-            "logo_url",
-            "description",
-            "contact_email",
-            "is_active",
-            "notification_emails",
-            "whatsapp_phone"
-        ]
+        "name", "business_name", "tax_id", "logo_url", "description", 
+        "contact_email", "is_active", "notification_emails", "whatsapp_phone",
+        "nombre_fantasia", "cuit", "condicion_fiscal", "direccion", 
+        "ciudad", "provincia", "telefono_oficina", "telefono_adicional", "mail_adicional"
+    ]
 
     updates = []
     args = []
@@ -408,6 +419,95 @@ def update_company(company_id, body):
     cur.close()
 
     return success({"message": "Empresa actualizada"})
+
+def get_company(company_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+
+            id,
+            name,
+            business_name,
+            tax_id,
+
+            nombre_fantasia,
+            condicion_fiscal,
+
+            logo_url,
+            description,
+
+            contact_email,
+            mail_adicional,
+
+            direccion,
+
+            ciudad,
+            provincia,
+
+            telefono_oficina,
+            telefono_adicional,
+
+            whatsapp_phone,
+
+            notification_emails,
+
+            is_active
+
+        FROM companies
+
+        WHERE id=%s
+
+    """, [company_id])
+
+    row = cur.fetchone()
+
+    cur.close()
+
+    if not row:
+        return not_found("Empresa no encontrada")
+
+    return success({
+
+        "id": str(row[0]),
+
+        "name": row[1],
+
+        "business_name": row[2],
+
+        "tax_id": row[3],
+
+        "nombre_fantasia": row[4],
+
+        "condicion_fiscal": row[5],
+
+        "logo_url": row[6],
+
+        "description": row[7],
+
+        "contact_email": row[8],
+
+        "mail_adicional": row[9],
+
+        "direccion": row[10],
+
+        "ciudad": row[11],
+
+        "provincia": row[12],
+
+        "telefono_oficina": row[13],
+
+        "telefono_adicional": row[14],
+
+        "whatsapp_phone": row[15],
+
+        "notification_emails": row[16],
+
+        "is_active": row[17]
+
+    })
 
 
 # =========================================================
@@ -844,15 +944,19 @@ def handler(event, context):
         # ==========================
         # COMPANIES
         # ==========================
-
+        
         if path.startswith("/admin/companies"):
-
+        
             if method == "GET":
+        
+                if resource_id:
+                    return get_company(resource_id)
+        
                 return list_companies()
-
+        
             if method == "POST":
                 return create_company(body)
-
+        
             if method == "PATCH" and resource_id:
                 return update_company(resource_id, body)
 

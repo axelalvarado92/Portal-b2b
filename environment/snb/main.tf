@@ -7,7 +7,7 @@ locals {
     "auth", "users", "companies", "products",
     "cart", "orders", "admin", "notifications_worker", "payments",
     "credit_notes", "commissions", "invoices", "reports", "postconfirmation", "admin_import_products",
-    "import_products_start", "account_requests"
+    "import_products_start", "account_requests", "uploads"
   ]
 
   lambda_defaults = {
@@ -386,12 +386,12 @@ module "lambda_admin_import_products" {
 )
 
 s3_bucket_arns = [
-    module.s3.imports_bucket_arn
+    module.imports_bucket.bucket_arn
   ]
 
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
-    IMPORTS_BUCKET = module.s3.imports_bucket_name
+    IMPORTS_BUCKET = module.imports_bucket.bucket_name
   }
 }
 
@@ -410,7 +410,7 @@ module "lambda_import_products_start" {
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
 
   s3_bucket_arns = [
-  module.s3.imports_bucket_arn
+  module.imports_bucket.bucket_arn
 ]
 
   layers = local.common_layers
@@ -422,9 +422,33 @@ module "lambda_import_products_start" {
   environment_variables = {
     WORKER_FUNCTION_NAME = module.lambda_admin_import_products.lambda_function_name
     DATABASE_URL          = module.postgresql.database_url
-    IMPORTS_BUCKET         = module.s3.imports_bucket_name
+    IMPORTS_BUCKET         = module.imports_bucket.bucket_name
 
   }
+}
+
+module "lambda_uploads" {
+  source = "../../modules/lambda"
+
+  function_name       = "lambda-uploads"
+  filename            = data.archive_file.lambda_zips["uploads"].output_path
+  source_code_hash    = data.archive_file.lambda_zips["uploads"].output_base64sha256
+  handler             = local.lambda_defaults.handler
+  memory_size         = local.lambda_defaults.memory_size
+  timeout             = local.lambda_defaults.timeout
+  managed_policy_arns = local.lambda_defaults.managed_policy_arns
+  layers              = local.common_layers
+
+   s3_bucket_arns = [
+    module.uploads_bucket.bucket_arn
+  ]
+
+
+  environment_variables = {
+    ASSETS_BUCKET = module.uploads_bucket.bucket_name
+    ASSETS_URL    = "https://${module.uploads_bucket.bucket_name}.s3.amazonaws.com"
+}
+  
 }
 
 
@@ -553,6 +577,7 @@ module "apigateway" {
         { method = "PATCH", path = "/admin/users/{id}", protected = true },
         { method = "GET", path = "/admin/companies", protected = true },
         { method = "POST", path = "/admin/companies", protected = true },
+        { method = "GET", path = "/admin/companies/{id}", protected = true },
         { method = "PATCH", path = "/admin/companies/{id}", protected = true },
         { method = "GET", path = "/admin/products", protected = true },
         { method = "POST", path = "/admin/products", protected = true },
@@ -629,6 +654,14 @@ module "apigateway" {
         { method = "POST", path = "/admin/import-products/presign", protected = true }
       ]
     }
+
+    uploads = {
+      invoke_arn    = module.lambda_uploads.lambda_invoke_arn
+      function_name = module.lambda_uploads.lambda_function_name
+      routes = [
+        { method = "POST", path = "/uploads", protected = true }
+      ]
+    }
   }
 }
 
@@ -674,10 +707,22 @@ module "postgresql" {
 #                            S3 BUCKET
 ########################################################################
 
-module "s3" {
+module "imports_bucket" {
   source = "../../modules/s3"
+  
+  bucket_name = "${var.project_name}-${var.environment}-imports-47148"
+
   environment  = var.environment
   force_destroy = var.s3_force_destroy
+}
+
+module "uploads_bucket" {
+  source = "../../modules/s3"
+
+  bucket_name   = "${var.project_name}-${var.environment}-uploads-47148"
+  
+  force_destroy = var.s3_force_destroy
+  environment  = var.environment
 }
 
 

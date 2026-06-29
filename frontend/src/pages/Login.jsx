@@ -28,28 +28,29 @@ const [error, setError] =
 useState("");
 
 const handleLogin = async (e) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
 
-  try {
-    const data = await loginRequest(email, password);
-    login(data.data.access_token);
+    try {
+      const data = await loginRequest(email, password);
+      login(data.data.access_token);
 
-    // Obtener el usuario para saber el rol
-    const { fetchCurrentUser } = await import("../services/userService");
-    const userData = await fetchCurrentUser();
+      // Obtener el usuario para saber el rol
+      const { fetchCurrentUser } = await import("../services/userService");
+      const userData = await fetchCurrentUser();
 
-    if (userData?.role === "admin") {
-      navigate("/admin/dashboard");
-    } else {
-      navigate("/dashboard");
+      // AQUÍ REALIZAMOS EL CAMBIO:
+      if (userData?.role === "admin") {
+        navigate("/admin/dashboard"); // O la ruta de administración que prefieras
+      } else {
+        navigate("/companies"); // <--- CAMBIA ESTO DE "/dashboard" a "/companies"
+      }
+
+    } catch (err) {
+      console.error(err);
+      setError("Credenciales inválidas");
     }
-
-  } catch (err) {
-    console.error(err);
-    setError("Credenciales inválidas");
-  }
-};
+  };
 
 
 

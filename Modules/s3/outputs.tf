@@ -1,7 +1,11 @@
-output "imports_bucket_name" {
-  value = aws_s3_bucket.imports.bucket
+output "bucket_name" {
+  value = aws_s3_bucket.this.bucket
 }
 
-output "imports_bucket_arn" {
-  value = aws_s3_bucket.imports.arn
+output "bucket_arn" {
+  value = aws_s3_bucket.this.arn
+}
+
+output "bucket_id" {
+  value = aws_s3_bucket.this.id
 }

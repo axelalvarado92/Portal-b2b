@@ -4,26 +4,36 @@
 }
 
 .app-header {
-  background: #ffffff;
-  border-bottom: 1px solid #ececec;
-  padding: 20px 40px;
+  background: white;
+  height: 72px;
 
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+
+  padding: 0 36px;
+
+  border-bottom: 1px solid #e7e7e7;
+
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-.app-logo {
-
-  height: 50px;
-
-  width: auto;
+.app-logo{
+    height:54px;
 }
 
-.app-nav {
-  display: flex;
-  gap: 24px;
-  margin-top: 15px;
+.app-nav{
+
+    display:flex;
+    align-items:center;
+
+    gap:34px;
+
+    margin-left:auto;
+    margin-right:40px;
+
 }
 
 .app-nav a {
@@ -106,33 +116,155 @@
   gap: 16px;
 }
 
-.app-brand {
+.app-brand{
+    display:flex;
+    align-items:center;
+    gap:18px;
+}
+
+.app-subtitle{
+    font-size:14px;
+    color:#777;
+    border-left:2px solid #ddd;
+    padding-left:16px;
+}
+
+.app-nav-link{
+
+    color:#444;
+
+    text-decoration:none;
+
+    font-weight:600;
+
+    transition:.25s;
+
+}
+
+
+.app-nav-link:hover{
+
+    color:#6e1423;
+
+}
+
+.app-user-section{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:20px;
+
+}
+
+.cart-button {
+
+  position: relative;
+
   display: flex;
+
   align-items: center;
-  gap: 16px;
-}
 
-.app-subtitle {
-  font-size: 15px;
-  color: #888;
-  letter-spacing: 0.3px;
-  border-left: 2px solid #ececec;
-  padding-left: 16px;
-}
+  justify-content: center;
 
-.app-nav-link {
-  color: #6e1423;
-  font-weight: 600;
+  color: #444;
+
   text-decoration: none;
-  font-size: 14px;
+
+  transition: .2s;
+
 }
 
-.app-nav-link:hover {
-  text-decoration: underline;
+.cart-button:hover{
+
+    color:#6e1423;
+
 }
 
-.app-user-section {
+.cart-badge{
+
+    position:absolute;
+
+    top:-8px;
+
+    right:-10px;
+
+    background:#d92525;
+
+    color:white;
+
+    width:22px;
+
+    height:22px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:12px;
+
+    font-weight:bold;
+
+}
+
+.dropdown-container {
+  position: relative;
+}
+
+/* Estilo para el botón que abre el menú (similar a los enlaces de navegación) */
+.dropdown-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #444;
+  transition: 0.25s;
+}
+
+.dropdown-toggle:hover {
+  color: #6e1423;
+}
+
+/* Contenedor del menú */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px); /* Un poco separado del header */
+  right: 0;
+  background: white;
+  border: 1px solid #e7e7e7;
+  border-radius: 8px; /* Borde redondeado consistente */
+  padding: 8px 0;
   display: flex;
-  align-items: center;
-  gap: 20px;
+  flex-direction: column;
+  z-index: 1000;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Ítems internos (Perfil y Logout) */
+.dropdown-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  color: #444;
+  background: none;
+  border: none;
+  text-align: left;
+  font-weight: 500;
+  font-size: 14px;
+  transition: 0.2s;
+  display: block;
+  width: 100%;
+}
+
+.dropdown-item:hover {
+  background-color: #f9f9f9;
+  color: #6e1423;
 }

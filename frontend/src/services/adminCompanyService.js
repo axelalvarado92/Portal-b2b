@@ -39,3 +39,35 @@ export async function updateCompany(
   return response.data;
 
 }
+
+export async function getCompany(id) {
+
+    const response = await api.get(
+        `/admin/companies/${id}`
+    );
+
+    return response.data;
+
+}
+
+export async function uploadLogo(file, companyId) {
+
+  const extension = file.name.split(".").pop();
+
+  const response = await api.post(
+    "/uploads",
+    {
+
+      extension,
+
+      content_type: file.type,
+
+      company_id: companyId
+
+    }
+  );
+
+  return response.data.data;
+
+}
+

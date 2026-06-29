@@ -42,20 +42,35 @@ def list_companies(user):
     cur  = conn.cursor()
 
     cur.execute("""
-        SELECT 
+        SELECT
             c.id,
             c.name,
             c.logo_url,
             c.description,
             c.contact_email,
-            uc.discount_percentage
+            uc.discount_percentage,
+    
+            c.nombre_fantasia,
+            c.cuit,
+            c.condicion_fiscal,
+            c.direccion,
+            c.ciudad,
+            c.provincia,
+            c.telefono_oficina,
+            c.telefono_adicional,
+            c.mail_adicional
+    
         FROM companies c
-        INNER JOIN user_companies uc 
+    
+        INNER JOIN user_companies uc
             ON c.id = uc.company_id
+    
         WHERE uc.user_id = %s
           AND uc.is_enabled = true
           AND c.is_active = true
+    
         ORDER BY c.name ASC
+    
     """, [user["id"]])
 
     rows = cur.fetchall()
@@ -68,7 +83,16 @@ def list_companies(user):
             "logo_url":            row[2],
             "description":         row[3],
             "contact_email":       row[4],
-            "discount_percentage": float(row[5]) if row[5] else 0
+            "discount_percentage": float(row[5]) if row[5] else 0,
+            "nombre_fantasia": row[6],
+            "cuit": row[7],
+            "condicion_fiscal": row[8],
+            "direccion": row[9],
+            "ciudad": row[10],
+            "provincia": row[11],
+            "telefono_oficina": row[12],
+            "telefono_adicional": row[13],
+            "mail_adicional": row[14]
         }
         for row in rows
     ]
@@ -82,20 +106,34 @@ def get_company(user, company_id):
 
     # Verificamos acceso del usuario a esta empresa específica
     cur.execute("""
-        SELECT 
+        SELECT
             c.id,
             c.name,
             c.logo_url,
             c.description,
             c.contact_email,
-            uc.discount_percentage
+            uc.discount_percentage,
+    
+            c.nombre_fantasia,
+            c.cuit,
+            c.condicion_fiscal,
+            c.direccion,
+            c.ciudad,
+            c.provincia,
+            c.telefono_oficina,
+            c.telefono_adicional,
+            c.mail_adicional
+    
         FROM companies c
-        INNER JOIN user_companies uc 
+    
+        INNER JOIN user_companies uc
             ON c.id = uc.company_id
+    
         WHERE uc.user_id = %s
           AND c.id = %s
           AND uc.is_enabled = true
           AND c.is_active = true
+    
     """, [user["id"], company_id])
 
     row = cur.fetchone()
@@ -105,10 +143,22 @@ def get_company(user, company_id):
         return not_found("Empresa no encontrada")
 
     return success({
-        "id":                  str(row[0]),
-        "name":                row[1],
-        "logo_url":            row[2],
-        "description":         row[3],
-        "contact_email":       row[4],
-        "discount_percentage": float(row[5]) if row[5] else 0
+
+        "id": str(row[0]),
+        "name": row[1],
+        "logo_url": row[2],
+        "description": row[3],
+        "contact_email": row[4],
+        "discount_percentage": float(row[5]) if row[5] else 0,
+    
+        "nombre_fantasia": row[6],
+        "cuit": row[7],
+        "condicion_fiscal": row[8],
+        "direccion": row[9],
+        "ciudad": row[10],
+        "provincia": row[11],
+        "telefono_oficina": row[12],
+        "telefono_adicional": row[13],
+        "mail_adicional": row[14]
+    
     })

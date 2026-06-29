@@ -5,7 +5,6 @@ import {
 } from "react-router-dom";
 
 import Login from "./pages/Login";
-import Dashboard from "./pages/Customer/DashboardCustomer";
 import Companies from "./pages/customer/Companies";
 import Products from "./pages/customer/Products";
 import ProductsAdmin from "./pages/admin/Products";
@@ -18,6 +17,9 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
 import AccountRequests from "./pages/admin/AccountRequests";
 import ProductDetail from "./pages/customer/ProductDetail";
+import HomePage from "./pages/customer/HomePage";
+import CompanyDetail from "./pages/admin/CompanyDetail";
+
 
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -29,23 +31,22 @@ import Invoices from "./pages/Invoices";
 import AdminRoute from "./routes/AdminRoute";
 
 import { AuthProvider } from "./context/AuthContext";
-
-import {
-  CompanyProvider,
-} from "./context/CompanyContext";
+import { CompanyProvider } from "./context/CompanyContext";
+import { CartProvider } from "./context/CartContext";
 
 import Cart from "./pages/customer/Cart";
-import DashboardCustomer from "./pages/customer/DashboardCustomer";
 
 function App() {
 
   return (
-    <AuthProvider>
+   <AuthProvider>
 
-      <CompanyProvider>
+  <CompanyProvider>
 
-        <BrowserRouter>
+    <CartProvider>
 
+      <BrowserRouter>
+          
           <Routes>
 
             <Route
@@ -72,7 +73,7 @@ function App() {
 
               <Route
                 path="/dashboard"
-                element={<DashboardCustomer />}
+                element={<HomePage />}
               />
 
               <Route
@@ -155,6 +156,15 @@ function App() {
               />
 
               <Route
+                path="/admin/companies/:id"
+                element={
+                    <AdminRoute>
+                        <CompanyDetail />
+                    </AdminRoute>
+                }
+              />
+
+              <Route
                 path="/admin/account-requests"
                 element={
                   <AdminRoute>
@@ -169,14 +179,17 @@ function App() {
               />
 
             </Route>
+            
+            </Routes>
 
-          </Routes>
+          </BrowserRouter>
 
-        </BrowserRouter>
+       </CartProvider>
 
-      </CompanyProvider>
+    </CompanyProvider>
 
     </AuthProvider>
+    
   );
 }
 
