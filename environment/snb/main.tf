@@ -714,6 +714,14 @@ module "imports_bucket" {
 
   environment  = var.environment
   force_destroy = var.s3_force_destroy
+
+  block_public_acls = true
+  block_public_policy = true
+  ignore_public_acls = true
+  restrict_public_buckets = true
+
+  bucket_purpose = "imports"
+
 }
 
 module "uploads_bucket" {
@@ -723,6 +731,14 @@ module "uploads_bucket" {
   
   force_destroy = var.s3_force_destroy
   environment  = var.environment
+
+  block_public_acls = false
+  block_public_policy = false
+  ignore_public_acls = false
+  restrict_public_buckets = false
+
+  bucket_purpose = "uploads"
+
 }
 
 

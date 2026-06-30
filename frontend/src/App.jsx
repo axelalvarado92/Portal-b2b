@@ -22,6 +22,7 @@ import CompanyDetail from "./pages/admin/CompanyDetail";
 
 
 import AppLayout from "./layouts/AppLayout";
+import AdminLayout from "./layouts/AdminLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 import Users from "./pages/admin/Users";
@@ -37,160 +38,63 @@ import { CartProvider } from "./context/CartContext";
 import Cart from "./pages/customer/Cart";
 
 function App() {
-
   return (
-   <AuthProvider>
-
-  <CompanyProvider>
-
-    <CartProvider>
-
-      <BrowserRouter>
-          
-          <Routes>
-
-            <Route
-                path="/"
-                element={<Landing />}
-              />
-
-              <Route
-                path="/login"
-                element={<Login />}
-              />
-
+    <AuthProvider>
+      <CompanyProvider>
+        <CartProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Rutas Públicas */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-
               <Route path="/register" element={<Register />} />
 
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-
+              {/* Layout para Clientes (CustomerLayout) */}
               <Route
-                path="/dashboard"
-                element={<HomePage />}
-              />
-
-              <Route
-                path="/companies"
-                element={<Companies />}
-              />
-
-              <Route
-                path="/company/:id"
-                element={<Products />}
-              />
-
-              <Route
-                path="/products"
-                element={<Products />}
-              />
-              
-              <Route
-                path="/product/:id"
-                element={<ProductDetail />}
-              />
-
-              <Route
-                path="/cart"
-                element={<Cart />}
-              />
-
-              <Route
-                path="/orders"
-                element={<Orders />}
-              />
-
-              <Route 
-                path="/profile" 
-                element={<Profile />} />
-
-              <Route
-                path="/admin/users"
                 element={
-                  <AdminRoute>
-                    <Users />
-                  </AdminRoute>
+                  <ProtectedRoute>
+                    <AppLayout /> 
+                  </ProtectedRoute>
                 }
-              />
+              >
+                <Route path="/dashboard" element={<HomePage />} />
+                <Route path="/companies" element={<Companies />} />
+                <Route path="/company/:id" element={<Products />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/product/:id" element={<ProductDetail />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/invoices" element={<Invoices />} />
+              </Route>
 
+              {/* Layout para Admin (AdminLayout) */}
               <Route
-                path="/admin/dashboard"
+                path="/admin"
                 element={
-                  <AdminRoute>
-                    <DashboardAdmin />
-                  </AdminRoute>
-                }
-              />
-
-              <Route
-                path="/admin/products"
-                element={
-                  <AdminRoute>
-                    <ProductsAdmin />
-                  </AdminRoute>
-                }
-              />
-
-              <Route
-                path="/admin/orders"
-                element={
-                  <AdminRoute>
-                    <AdminOrders />
-                  </AdminRoute>
-                }
-              />
-
-              <Route
-                path="/admin/companies"
-                element={
-                  <AdminRoute>
-                    <AdminCompanies />
-                  </AdminRoute>
-                }
-              />
-
-              <Route
-                path="/admin/companies/:id"
-                element={
+                  <ProtectedRoute>
                     <AdminRoute>
-                        <CompanyDetail />
+                      <AdminLayout />
                     </AdminRoute>
+                  </ProtectedRoute>
                 }
-              />
-
-              <Route
-                path="/admin/account-requests"
-                element={
-                  <AdminRoute>
-                    <AccountRequests />
-                  </AdminRoute>
-                }
-              />
-              
-              <Route
-                path="/invoices"
-                element={<Invoices />}
-              />
-
-            </Route>
-            
+              >
+                <Route path="dashboard" element={<DashboardAdmin />} />
+                <Route path="users" element={<Users />} />
+                <Route path="products" element={<ProductsAdmin />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="companies" element={<AdminCompanies />} />
+                <Route path="companies/:id" element={<CompanyDetail />} />
+                <Route path="account-requests" element={<AccountRequests />} />
+              </Route>
             </Routes>
-
           </BrowserRouter>
-
-       </CartProvider>
-
-    </CompanyProvider>
-
+        </CartProvider>
+      </CompanyProvider>
     </AuthProvider>
-    
   );
 }
+
 
 export default App;

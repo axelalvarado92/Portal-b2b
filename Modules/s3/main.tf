@@ -14,10 +14,10 @@ resource "aws_s3_bucket_versioning" "this" {
 resource "aws_s3_bucket_public_access_block" "this" {
   bucket = aws_s3_bucket.this.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_acls       = var.block_public_acls
+  block_public_policy     = var.block_public_policy
+  ignore_public_acls      = var.ignore_public_acls
+  restrict_public_buckets = var.restrict_public_buckets
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
@@ -49,4 +49,36 @@ resource "aws_s3_bucket_cors_configuration" "this" {
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
   }
+}
+
+resource "aws_s3_bucket_policy" "public_read" {
+
+  count  = var.bucket_purpose == "uploads" ? 1 : 0
+
+  bucket = aws_s3_bucket.this.id
+
+  policy = jsonencode({
+
+    Version = "2012-10-17"
+
+    Statement = [
+
+      {
+
+        Sid = "PublicRead"
+
+        Effect = "Allow"
+
+        Principal = "*"
+
+        Action = "s3:GetObject"
+
+        Resource = "${aws_s3_bucket.this.arn}/*"
+
+      }
+
+    ]
+
+  })
+
 }

@@ -1,0 +1,53 @@
+.admin-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between; /* Logo a la izq, Nav a la der */
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #fff;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.admin-logo {
+  height: 54px; /* Ajusta según el tamaño de tu logo */
+  width: auto;
+}
+
+.admin-nav {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.admin-nav-link {
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+}
+
+.admin-logout-btn {
+  background-color: transparent;
+  border: 1px solid #6e1423; /* Borde rojo */
+  color: #6e1423;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 16px;       /* Aumenta el área de clic */
+  border-radius: 6px;      /* Bordes redondeados */
+  font-size: 14px;         /* Ajusta el tamaño de la letra */
+  transition: all 0.2s;    /* Animación suave al pasar el mouse */
+}
+
+.admin-logout-btn:hover {
+  background-color: #6e1423;
+  color: #fff;             /* Fondo rojo al pasar el mouse */
+}
+
+.admin-content {
+  padding: 2rem;
+  flex: 1;
+}

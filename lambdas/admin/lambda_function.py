@@ -390,6 +390,7 @@ def create_company(body):
     return created({"id": str(company_id)})
 
 def update_company(company_id, body):
+
     conn = get_connection()
     cur = conn.cursor()
     # CORRECCIÓN: Se agregó la coma faltante en la lista 'allowed'
@@ -416,7 +417,13 @@ def update_company(company_id, body):
     """, args)
 
     conn.commit()
+    
+    if cur.rowcount == 0:
+        cur.close()
+        return error("Empresa no encontrada", 404)
+
     cur.close()
+    conn.close() # No olvides cerrar la conexión también
 
     return success({"message": "Empresa actualizada"})
 
