@@ -31,6 +31,19 @@ export default function Users() {
   const [carrierPhone, setCarrierPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [cuit, setCuit] = useState("");
+  const [condicionFiscal, setCondicionFiscal] = useState("");
+  const [direccion, setDireccion] = useState("");
+  const [direccionEntrega, setDireccionEntrega] = useState("");
+  const [direccionTransporte, setDireccionTransporte] = useState("");
+  const [ciudad, setCiudad] = useState("");
+  const [provincia, setProvincia] = useState("");
+  const [telefonoOficina, setTelefonoOficina] = useState("");
+  const [telefonoAdicional, setTelefonoAdicional] = useState("");
+  const [mailAdicional, setMailAdicional] = useState("");
+
+// Y haz lo mismo para los estados de edición (ejemplo: editCuit, setEditCuit, etc.)
+// ... (asegúrate de crear todos los estados "edit..." correspondientes)
 
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -43,6 +56,16 @@ export default function Users() {
   const [editCarrierName, setEditCarrierName] = useState("");
   const [editCarrierPhone, setEditCarrierPhone] = useState("");
   const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
+  const [editCuit, setEditCuit] = useState("");
+  const [editCondicionFiscal, setEditCondicionFiscal] = useState("");
+  const [editDireccion, setEditDireccion] = useState("");
+  const [editDireccionEntrega, setEditDireccionEntrega] = useState("");
+  const [editDireccionTransporte, setEditDireccionTransporte] = useState("");
+  const [editCiudad, setEditCiudad] = useState("");
+  const [editProvincia, setEditProvincia] = useState("");
+  const [editTelefonoOficina, setEditTelefonoOficina] = useState("");
+  const [editTelefonoAdicional, setEditTelefonoAdicional] = useState("");
+  const [editMailAdicional, setEditMailAdicional] = useState("");
 
   // 3. Cargamos tanto los usuarios como las empresas de administración en paralelo
   async function loadInitialData() {
@@ -80,6 +103,16 @@ export default function Users() {
         carrier_phone: carrierPhone,
         delivery_address: deliveryAddress,
         companies: selectedCompanies,
+        cuit: condicionFiscal,
+        condicion_fiscal: condicionFiscal,
+        direccion: direccion,
+        direccion_entrega: direccionEntrega,
+        direccion_transporte: direccionTransporte,
+        ciudad: ciudad,
+        provincia: provincia,
+        telefono_oficina: telefonoOficina,
+        telefono_adicional: telefonoAdicional,
+        mail_adicional: mailAdicional,
       });
 
       setShowForm(false);
@@ -93,6 +126,16 @@ export default function Users() {
       setCarrierName("");
       setCarrierPhone("");
       setDeliveryAddress("");
+      setCuit("");
+      setCondicionFiscal("");
+      setDireccion("");
+      setDireccionEntrega("");
+      setDireccionTransporte("");
+      setEditCiudad("");
+      setProvincia("");
+      setTelefonoOficina("");
+      setTelefonoAdicional("");
+      setMailAdicional("");
 
       await sendInvitationEmail(email); 
       alert("Usuario creado y correo de invitación enviado exitosamente.");
@@ -116,6 +159,16 @@ export default function Users() {
     setEditCarrierName(user.carrier_name || "");
     setEditCarrierPhone(user.carrier_phone || "");
     setEditDeliveryAddress(user.delivery_address || "");
+    setEditCuit(user.cuit || "");
+    setEditCondicionFiscal(user.condicion_fiscal || "");
+    setEditDireccion(user.direccion || "");
+    setEditDireccionEntrega(user.direccion_entrega || "");
+    setEditDireccionTransporte(user.direccion_transporte || "");
+    setEditCiudad(user.ciudad || "");
+    setEditProvincia(user.provincia || "");
+    setEditTelefonoOficina(user.telefono_oficina || "");
+    setEditTelefonoAdicional(user.telefono_adicional || "");
+    setEditMailAdicional(user.mail_adicional || "");
     
     // Mapear las empresas para obtener solo los IDs
     const userCompanyIds = user.companies?.map((c) => c.id || c) || [];
@@ -142,7 +195,17 @@ export default function Users() {
         delivery_method: editDeliveryMethod.trim(),
         carrier_name: editCarrierName.trim(),
         carrier_phone: editCarrierPhone.trim(),
-        delivery_address: editDeliveryAddress.trim()
+        delivery_address: editDeliveryAddress.trim(),
+        cuit: editCuit.trim(),
+        condicion_fiscal: editCondicionFiscal.trim(),
+        direccion: editDireccion.trim(),
+        direccion_entrega: editDireccionEntrega.trim(),
+        direccion_transporte: editDireccionTransporte.trim(),
+        ciudad: editCiudad.trim(),
+        provincia: editProvincia.trim(),
+        telefono_oficina: editTelefonoOficina.trim(),
+        telefono_adicional: editTelefonoAdicional.trim(),
+        mail_adicional: editMailAdicional.trim(),
       };
 
       console.log(`🚀 Intentando actualizar al usuario: ${userId}`);
@@ -165,6 +228,12 @@ export default function Users() {
     try {
       await toggleUserStatus(user.id, !user.is_active);
       await loadInitialData();
+  
+      // Actualizamos editingUser si es el mismo usuario
+      if (editingUser?.id === user.id) {
+        setEditingUser(prev => ({ ...prev, is_active: !prev.is_active }));
+      }
+  
     } catch (err) {
       console.error(err);
     }
@@ -185,119 +254,77 @@ export default function Users() {
 
       {/* CREAR USUARIO */}
       {showForm && (
-        <div className="card">
-          <h3>Crear usuario</h3>
+  <div className="card">
+    <h3>Crear usuario</h3>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input
-                className="form-input"
-                placeholder="correo@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Nombre Completo</label>
-              <input
-                className="form-input"
-                placeholder="Nombre y Apellido"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Teléfono</label>
-              <input
-                className="form-input"
-                placeholder="Ej: +54 9 ..."
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                Razón Social
-              </label>
-            
-              <input
-                className="form-input"
-                value={businessName}
-                onChange={(e) =>
-                  setBusinessName(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Forma de Entrega
-              </label>
-            
-              <input
-                className="form-input"
-                value={deliveryMethod}
-                onChange={(e) =>
-                  setDeliveryMethod(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Transporte
-              </label>
-            
-              <input
-                className="form-input"
-                value={carrierName}
-                onChange={(e) =>
-                  setCarrierName(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Teléfono Transporte
-              </label>
-            
-              <input
-                className="form-input"
-                value={carrierPhone}
-                onChange={(e) =>
-                  setCarrierPhone(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Dirección Entrega
-              </label>
-            
-              <input
-                className="form-input"
-                value={deliveryAddress}
-                onChange={(e) =>
-                  setDeliveryAddress(e.target.value)
-                }
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Tipo de Usuario</label>
-              <select className="form-select" value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="customer">Customer</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-          </div>
-
+    <div className="form-grid">
+      {/* 1. Datos Personales */}
+        <div className="form-group"><label className="form-label">Email</label>
+          <input className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Nombre Completo</label>
+          <input className="form-input" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Teléfono</label>
+          <input className="form-input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Teléfono Adicional</label>
+          <input className="form-input" value={telefonoAdicional} onChange={(e) => setTelefonoAdicional(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Mail Adicional</label>
+          <input className="form-input" value={mailAdicional} onChange={(e) => setMailAdicional(e.target.value)} />
+        </div>
+  
+        {/* 2. Datos Comerciales */}
+        <div className="form-group"><label className="form-label">Razón Social</label>
+          <input className="form-input" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">CUIT</label>
+          <input className="form-input" value={cuit} onChange={(e) => setCuit(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Condición Fiscal</label>
+          <input className="form-input" value={condicionFiscal} onChange={(e) => setCondicionFiscal(e.target.value)} />
+        </div>
+  
+        {/* 3. Logística y Ubicación */}
+        <div className="form-group"><label className="form-label">Dirección Fiscal</label>
+          <input className="form-input" value={direccion} onChange={(e) => setDireccion(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Dirección Entrega</label>
+          <input className="form-input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Ciudad</label>
+          <input className="form-input" value={ciudad} onChange={(e) => setCiudad(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Provincia</label>
+          <input className="form-input" value={provincia} onChange={(e) => setProvincia(e.target.value)} />
+        </div>
+        
+        {/* 4. Transporte */}
+        <div className="form-group"><label className="form-label">Forma de Entrega</label>
+          <input className="form-input" value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Transporte</label>
+          <input className="form-input" value={carrierName} onChange={(e) => setCarrierName(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Dirección Transporte</label>
+          <input className="form-input" value={direccionTransporte} onChange={(e) => setDireccionTransporte(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Teléfono Transporte</label>
+          <input className="form-input" value={carrierPhone} onChange={(e) => setCarrierPhone(e.target.value)} />
+        </div>
+  
+        {/* 5. Otros */}
+        <div className="form-group"><label className="form-label">Teléfono Oficina</label>
+          <input className="form-input" value={telefonoOficina} onChange={(e) => setTelefonoOficina(e.target.value)} />
+        </div>
+        <div className="form-group"><label className="form-label">Tipo de Usuario</label>
+          <select className="form-select" value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="customer">Customer</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
           <div className="companies-box">
             <h4>Empresas Disponibles</h4>
             <div className="custom-multiselect">
@@ -357,6 +384,22 @@ export default function Users() {
                 setPhone("");
                 setRole("customer");
                 setSelectedCompanies([]);
+                setBusinessName("");
+                setDeliveryMethod("");
+                setCarrierName("");
+                setCarrierPhone("");
+                setDeliveryAddress("");
+                // Nuevos estados
+                setCuit("");
+                setCondicionFiscal("");
+                setDireccion("");
+                setDireccionEntrega("");
+                setDireccionTransporte("");
+                setCiudad("");
+                setProvincia("");
+                setTelefonoOficina("");
+                setTelefonoAdicional("");
+                setMailAdicional("");
               }}
             >
               Cancelar
@@ -367,323 +410,346 @@ export default function Users() {
 
       {/* EDICIÓN DE USUARIO */}
       {showEditForm && editingUser && (
-        <div className="card">
-          <h3>Editar usuario</h3>
-          <p className="muted-email">{editingUser.email}</p>
+  <div className="card">
+    <h3>Editar usuario</h3>
+    <p className="muted-email"><strong>Email:</strong> {editingUser.email}</p>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label">Nombre Completo</label>
-              <input
-                className="form-input"
-                placeholder="Nombre y Apellido"
-                value={editFullName}
-                onChange={(e) => setEditFullName(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Teléfono</label>
-              <input
-                className="form-input"
-                placeholder="Ej: +54 9 ..."
-                value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                Razón Social
-              </label>
-            
-              <input
-                className="form-input"
-                value={editBusinessName}
-                onChange={(e) =>
-                  setEditBusinessName(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Forma de Entrega
-              </label>
-            
-              <input
-                className="form-input"
-                value={editDeliveryMethod}
-                onChange={(e) =>
-                  setEditDeliveryMethod(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Transporte
-              </label>
-            
-              <input
-                className="form-input"
-                value={editCarrierName}
-                onChange={(e) =>
-                  setEditCarrierName(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Teléfono Transporte
-              </label>
-            
-              <input
-                className="form-input"
-                value={editCarrierPhone}
-                onChange={(e) =>
-                  setEditCarrierPhone(e.target.value)
-                }
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">
-                Dirección Entrega
-              </label>
-            
-              <input
-                className="form-input"
-                value={editDeliveryAddress}
-                onChange={(e) =>
-                  setEditDeliveryAddress(e.target.value)
-                }
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Tipo de Usuario</label>
-              <select className="form-select" value={editRole} onChange={(e) => setEditRole(e.target.value)}>
-                <option value="customer">Customer</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="companies-box">
-            <h4>Asignar Empresas</h4>
-            <div className="custom-multiselect">
-              <div className="chips-container">
-                {editCompanies.map(id => {
-                  const comp = allCompanies.find(c => c.id === id);
-                  return (
-                    <span key={id} className="chip">
-                      {comp?.name}
-                      <button 
-                        type="button" 
-                        className="chip-remove" 
-                        onClick={() => setEditCompanies(p => p.filter(x => x !== id))}
-                      >
-                        &times;
-                      </button>
-                    </span>
-                  );
-                })}
-                {editCompanies.length === 0 && <span className="placeholder">Selecciona empresas...</span>}
-              </div>
-
-              <div className="dropdown-options">
-                {allCompanies.map((c) => {
-                  const isSelected = editCompanies.includes(c.id);
-                  return (
-                    <div 
-                      key={c.id} 
-                      className={`option-item ${isSelected ? 'selected' : ''}`}
-                      onClick={() => {
-                        if (isSelected) {
-                          setEditCompanies(p => p.filter(id => id !== c.id));
-                        } else {
-                          setEditCompanies(p => [...p, c.id]);
-                        }
-                      }}
-                    >
-                      <input type="checkbox" checked={isSelected} readOnly />
-                      {c.name}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="actions-row">
-            <button className="btn-primary" onClick={handleUpdateUser}>
-              Guardar
-            </button>
-            <button className="btn-primary" onClick={() => {
-              setShowEditForm(false);
-              setEditingUser(null);
-            }}>
-              Cancelar
-            </button>
-          </div>
+    {/* DATOS PERSONALES */}
+    <div className="form-section">
+      <div className="form-section-title">Datos Personales</div>
+      <div className="form-grid-2">
+        <div className="form-group">
+          <label className="form-label">Nombre Completo</label>
+          <input className="form-input" value={editFullName} onChange={(e) => setEditFullName(e.target.value)} />
         </div>
-      )}
+        <div className="form-group">
+          <label className="form-label">Teléfono</label>
+          <input className="form-input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Teléfono Adicional</label>
+          <input className="form-input" value={editTelefonoAdicional} onChange={(e) => setEditTelefonoAdicional(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Teléfono Oficina</label>
+          <input className="form-input" value={editTelefonoOficina} onChange={(e) => setEditTelefonoOficina(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Mail Adicional</label>
+          <input className="form-input" value={editMailAdicional} onChange={(e) => setEditMailAdicional(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Tipo de Usuario</label>
+          <select className="form-select" value={editRole} onChange={(e) => setEditRole(e.target.value)}>
+            <option value="customer">Customer</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+    </div>
 
-      {/* TABLA DE USUARIOS */}
-      <div className="table-wrapper">
-        <table className="users-table">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Nombre</th>
-            <th>Empresas</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-              <td>{user.email}</td>
-            
-              <td>
-                {user.full_name || "-"}
-              </td>
-            
-              <td>
-                {
-                  user.companies?.length
-                    ? user.companies
-                        .map(company => company.name)
-                        .join(", ")
-                    : "-"
-                }
-              </td>
-            
-              <td>
-                <span
-                  className={`status ${
-                    user.is_active
-                      ? "active"
-                      : "inactive"
-                  }`}
-                >
-                  {user.is_active
-                    ? "Activo"
-                    : "Inactivo"}
+    {/* DATOS COMERCIALES */}
+    <div className="form-section">
+      <div className="form-section-title">Datos Comerciales</div>
+      <div className="form-grid-2">
+        <div className="form-group">
+          <label className="form-label">Razón Social</label>
+          <input className="form-input" value={editBusinessName} onChange={(e) => setEditBusinessName(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">CUIT</label>
+          <input className="form-input" value={editCuit} onChange={(e) => setEditCuit(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Condición Fiscal</label>
+          <input className="form-input" value={editCondicionFiscal} onChange={(e) => setEditCondicionFiscal(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Ciudad</label>
+          <input className="form-input" value={editCiudad} onChange={(e) => setEditCiudad(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Provincia</label>
+          <input className="form-input" value={editProvincia} onChange={(e) => setEditProvincia(e.target.value)} />
+        </div>
+      </div>
+    </div>
+
+    {/* TRANSPORTE */}
+    <div className="form-section">
+      <div className="form-section-title">Transporte y Entrega</div>
+      <div className="form-grid-2">
+        <div className="form-group">
+          <label className="form-label">Forma de Entrega</label>
+          <input className="form-input" value={editDeliveryMethod} onChange={(e) => setEditDeliveryMethod(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Dirección Entrega</label>
+          <input className="form-input" value={editDeliveryAddress} onChange={(e) => setEditDeliveryAddress(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Transporte</label>
+          <input className="form-input" value={editCarrierName} onChange={(e) => setEditCarrierName(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Dirección Transporte</label>
+          <input className="form-input" value={editDireccionTransporte} onChange={(e) => setEditDireccionTransporte(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Teléfono Transporte</label>
+          <input className="form-input" value={editCarrierPhone} onChange={(e) => setEditCarrierPhone(e.target.value)} />
+        </div>
+      </div>
+    </div>
+
+    {/* EMPRESAS */}
+    <div className="form-section">
+      <div className="form-section-title">Empresas Asignadas</div>
+      <div className="companies-box">
+        <div className="custom-multiselect">
+          <div className="chips-container">
+            {editCompanies.map(id => {
+              const comp = allCompanies.find(c => c.id === id);
+              return (
+                <span key={id} className="chip">
+                  {comp?.name}
+                  <button type="button" className="chip-remove"
+                    onClick={() => setEditCompanies(p => p.filter(x => x !== id))}>
+                    &times;
+                  </button>
                 </span>
-              </td>
-            
-              <td className="actions">
-            
-                <button
-                  className="snb-btn-secondary"
-                  onClick={() =>
-                    handleEditUser(user)
-                  }
-                >
-                  Editar
-                </button>
-            
-                <button
-                  className="snb-btn-secondary"
+              );
+            })}
+            {editCompanies.length === 0 && <span className="placeholder">Selecciona empresas...</span>}
+          </div>
+          <div className="dropdown-options">
+            {allCompanies.map((c) => {
+              const isSelected = editCompanies.includes(c.id);
+              return (
+                <div key={c.id} className={`option-item ${isSelected ? 'selected' : ''}`}
                   onClick={() => {
-            
-                    setSelectedUser(user);
-            
-                    setTimeout(() => {
-            
-                      document
-                        .getElementById(
-                          "user-detail-card"
-                        )
-                        ?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        });
-            
-                    }, 100);
-            
-                  }}
-                >
-                  Ver detalle
-                </button>
-            
-                <button
-                  className="snb-btn-danger"
-                  onClick={() =>
-                    handleToggleUser(user)
-                  }
-                >
-                  {user.is_active
-                    ? "Desactivar"
-                    : "Activar"}
-                </button>
-            
-              </td>
-            </tr>
-            ))}
-          </tbody>
-        </table>
-        {selectedUser && (
-
-        <div
-          id="user-detail-card"
-          className="user-detail-card"
-        >
-      
-          <h2>
-            Detalle del usuario
-          </h2>
-      
-          <p>
-            <strong>Email:</strong>
-            {" "}
-            {selectedUser.email}
-          </p>
-      
-          <p>
-            <strong>Nombre:</strong>
-            {" "}
-            {selectedUser.full_name || "-"}
-          </p>
-      
-          <p>
-            <strong>Razón Social:</strong>
-            {" "}
-            {selectedUser.business_name || "-"}
-          </p>
-      
-          <p>
-            <strong>Forma de Entrega:</strong>
-            {" "}
-            {selectedUser.delivery_method || "-"}
-          </p>
-      
-          <p>
-            <strong>Transporte:</strong>
-            {" "}
-            {selectedUser.carrier_name || "-"}
-          </p>
-      
-          <p>
-            <strong>Teléfono Transporte:</strong>
-            {" "}
-            {selectedUser.carrier_phone || "-"}
-          </p>
-      
-          <p>
-            <strong>Teléfono:</strong>
-            {" "}
-            {selectedUser.phone || "-"}
-          </p>
-      
+                    if (isSelected) setEditCompanies(p => p.filter(id => id !== c.id));
+                    else setEditCompanies(p => [...p, c.id]);
+                  }}>
+                  <input type="checkbox" checked={isSelected} readOnly />
+                  {c.name}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      
-      )}
-        {toast && <div className="toast">{toast}</div>}
+      </div>
+    </div>
+
+    {/* ESTADO DEL USUARIO */}
+    <div className="form-section">
+      <div className="form-section-title">Estado de la cuenta</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <span style={{ fontSize: "14px", color: "#555" }}>
+          El usuario está actualmente{" "}
+          <strong style={{ color: editingUser?.is_active ? "#16a34a" : "#dc2626" }}>
+            {editingUser?.is_active ? "Activo" : "Inactivo"}
+          </strong>
+        </span>
+        <button
+          className={editingUser?.is_active ? "btn-danger" : "btn-success"}
+          onClick={() => handleToggleUser(editingUser)}
+        >
+          {editingUser?.is_active ? "Desactivar" : "Activar"}
+        </button>
+      </div>
+    </div>
+
+    <div className="actions-row">
+      <button className="btn-primary" onClick={handleUpdateUser}>Guardar</button>
+      <button className="btn-secondary" onClick={() => { setShowEditForm(false); setEditingUser(null); }}>Cancelar</button>
+    </div>
+  </div>
+)}
+
+{/* TABLA DE USUARIOS */}
+<div className="table-wrapper">
+  <table className="users-table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Razón Social</th>
+        <th>CUIT</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {users.map((user) => (
+        <tr key={user.id}>
+
+          <td>{user.full_name || "-"}</td>
+
+          <td>{user.business_name || "-"}</td>
+
+          <td>{user.cuit || "-"}</td>
+
+          <td>
+            <span className={`status ${user.is_active ? "active" : "inactive"}`}>
+              {user.is_active ? "Activo" : "Inactivo"}
+            </span>
+          </td>
+
+          <td className="actions">
+            <button
+              className="btn-secondary"
+              onClick={() => handleEditUser(user)}
+            >
+              Editar
+            </button>
+
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setSelectedUser(user);
+                setTimeout(() => {
+                  document
+                    .getElementById("user-detail-card")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 100);
+              }}
+            >
+              Ver detalle
+            </button>
+          </td>
+
+        </tr>
+      ))}
+    </tbody>
+  </table>
+        
+        {selectedUser && (
+  <div id="user-detail-card" className="user-detail-card">
+    <h2>Detalle del usuario</h2>
+
+    <div className="detail-grid">
+
+      <div className="detail-section-card">
+        <h3>Datos Personales</h3>
+        <div className="detail-row">
+          <span className="detail-label">Email</span>
+          <span className="detail-value">{selectedUser.email}</span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Nombre</span>
+          <span className={`detail-value ${!selectedUser.full_name ? 'empty' : ''}`}>
+            {selectedUser.full_name || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Teléfono</span>
+          <span className={`detail-value ${!selectedUser.phone ? 'empty' : ''}`}>
+            {selectedUser.phone || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Teléfono Adicional</span>
+          <span className={`detail-value ${!selectedUser.telefono_adicional ? 'empty' : ''}`}>
+            {selectedUser.telefono_adicional || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Mail Adicional</span>
+          <span className={`detail-value ${!selectedUser.mail_adicional ? 'empty' : ''}`}>
+            {selectedUser.mail_adicional || 'Sin datos'}
+          </span>
+        </div>
+      </div>
+
+      <div className="detail-section-card">
+        <h3>Datos Comerciales</h3>
+        <div className="detail-row">
+          <span className="detail-label">Razón Social</span>
+          <span className={`detail-value ${!selectedUser.business_name ? 'empty' : ''}`}>
+            {selectedUser.business_name || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">CUIT</span>
+          <span className={`detail-value ${!selectedUser.cuit ? 'empty' : ''}`}>
+            {selectedUser.cuit || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Condición Fiscal</span>
+          <span className={`detail-value ${!selectedUser.condicion_fiscal ? 'empty' : ''}`}>
+            {selectedUser.condicion_fiscal || 'Sin datos'}
+          </span>
+        </div>
+      </div>
+
+      <div className="detail-section-card">
+        <h3>Logística y Ubicación</h3>
+        <div className="detail-row">
+          <span className="detail-label">Dirección Fiscal</span>
+          <span className={`detail-value ${!selectedUser.direccion ? 'empty' : ''}`}>
+            {selectedUser.direccion || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Dirección Entrega</span>
+          <span className={`detail-value ${!selectedUser.delivery_address ? 'empty' : ''}`}>
+            {selectedUser.delivery_address || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Ciudad</span>
+          <span className={`detail-value ${!selectedUser.ciudad ? 'empty' : ''}`}>
+            {selectedUser.ciudad || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Provincia</span>
+          <span className={`detail-value ${!selectedUser.provincia ? 'empty' : ''}`}>
+            {selectedUser.provincia || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Teléfono Oficina</span>
+          <span className={`detail-value ${!selectedUser.telefono_oficina ? 'empty' : ''}`}>
+            {selectedUser.telefono_oficina || 'Sin datos'}
+          </span>
+        </div>
+      </div>
+
+      <div className="detail-section-card">
+        <h3>Transporte</h3>
+        <div className="detail-row">
+          <span className="detail-label">Forma de Entrega</span>
+          <span className={`detail-value ${!selectedUser.delivery_method ? 'empty' : ''}`}>
+            {selectedUser.delivery_method || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Transporte</span>
+          <span className={`detail-value ${!selectedUser.carrier_name ? 'empty' : ''}`}>
+            {selectedUser.carrier_name || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Dirección Transporte</span>
+          <span className={`detail-value ${!selectedUser.direccion_transporte ? 'empty' : ''}`}>
+            {selectedUser.direccion_transporte || 'Sin datos'}
+          </span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Teléfono Transporte</span>
+          <span className={`detail-value ${!selectedUser.carrier_phone ? 'empty' : ''}`}>
+            {selectedUser.carrier_phone || 'Sin datos'}
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+)}
+
+{toast && <div className="toast">{toast}</div>}
       </div>
     </div>
   );

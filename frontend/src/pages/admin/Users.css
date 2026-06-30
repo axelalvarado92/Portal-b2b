@@ -422,3 +422,87 @@ button {
   margin-bottom: 12px;
 }
 
+/* ===== SECCIONES DEL FORMULARIO ===== */
+
+.form-section {
+  margin-bottom: 24px;
+}
+
+.form-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6e1423;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0e8ea;
+  margin-bottom: 14px;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* ===== DETALLE DE USUARIO ===== */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.detail-section-card {
+  background: #fafafa;
+  border: 1px solid #eeeeee;
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.detail-section-card h3 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6e1423;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0e8ea;
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.detail-value.empty {
+  color: #bbb;
+  font-style: italic;
+  font-weight: 400;
+}
+
+@media (max-width: 768px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

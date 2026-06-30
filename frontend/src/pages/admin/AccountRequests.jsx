@@ -15,6 +15,24 @@ export function AccountRequests() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  // En tu componente AccountRequests.jsx
+  const [showModal, setShowModal] = useState(false);
+  const [requestToReject, setRequestToReject] = useState(null);
+
+  // Función para abrir el modal
+  const openRejectModal = (id) => {
+    setRequestToReject(id);
+    setShowModal(true);
+  };
+  
+  // Función para cerrar el modal
+  const closeRejectModal = () => {
+    setRequestToReject(null);
+    setShowModal(false);
+  };
+
+// Modifica el botón de rechazar en tu render:
+// <button onClick={() => openRejectModal(req.id || req._id)} ... >  
   
   const [userData, setUserData] = useState({
     fullName: "",
@@ -47,7 +65,6 @@ export function AccountRequests() {
   }, []);
 
   const handleReject = async (id) => {
-    if (!window.confirm("¿Estás seguro de que querés rechazar esta solicitud?")) return;
     try {
       setActionLoading(true);
       await rejectAccountRequest(id);
@@ -143,7 +160,7 @@ export function AccountRequests() {
                         Aceptar...
                       </button>
                       <button 
-                        onClick={() => handleReject(req.id || req._id)}
+                        onClick={() => openRejectModal(req.id || req._id)}
                         disabled={actionLoading}
                         className="btn-burgundy-secondary"
                       >
@@ -264,6 +281,29 @@ export function AccountRequests() {
           </form>
         </div>
       )}
+     {showModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Confirmar acción</h3>
+            <p>¿Estás seguro de que querés rechazar esta solicitud? Esta acción no se puede deshacer.</p>
+            <div className="modal-actions">
+              <button className="btn-burgundy-secondary" onClick={closeRejectModal}>
+                Cancelar
+              </button>
+              <button 
+                className="btn-burgundy-primary" 
+                onClick={async () => {
+                  await handleReject(requestToReject);
+                  closeRejectModal();
+                }}
+              >
+                Confirmar Rechazo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }

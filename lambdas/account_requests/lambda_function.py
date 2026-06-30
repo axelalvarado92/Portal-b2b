@@ -122,6 +122,21 @@ def create_request(body):
         conn.close()
 
 
+def reject_request(request_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # Aquí eliminas la solicitud de la tabla
+        cur.execute("DELETE FROM account_requests WHERE id = %s", [request_id])
+        conn.commit()
+        return success({"message": "Solicitud rechazada correctamente"})
+    except Exception as e:
+        conn.rollback()
+        return server_error()
+    finally:
+        cur.close()
+        conn.close()
+
 def handler(event, context):
     try:
         path = event["requestContext"]["http"]["path"]
@@ -144,6 +159,11 @@ def handler(event, context):
         if method == "POST" and path == "/account-requests":
             return create_request(body)
 
+        if method == "POST" and "/reject" in path:
+            parts = path.split('/')
+            request_id = parts[3] # El ID está en la posición 3
+            return reject_request(request_id)
+    
         return bad_request("Ruta inválida")
 
     except Exception as e:
