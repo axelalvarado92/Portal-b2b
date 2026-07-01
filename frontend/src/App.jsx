@@ -19,6 +19,7 @@ import AccountRequests from "./pages/admin/AccountRequests";
 import ProductDetail from "./pages/customer/ProductDetail";
 import HomePage from "./pages/customer/HomePage";
 import CompanyDetail from "./pages/admin/CompanyDetail";
+import AdminProductDetail from "./pages/admin/ProductDetail";
 
 
 import AppLayout from "./layouts/AppLayout";
@@ -83,6 +84,7 @@ function App() {
                 <Route path="dashboard" element={<DashboardAdmin />} />
                 <Route path="users" element={<Users />} />
                 <Route path="products" element={<ProductsAdmin />} />
+                <Route path="/admin/products/:id" element={<AdminProductDetail />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="companies" element={<AdminCompanies />} />
                 <Route path="companies/:id" element={<CompanyDetail />} />

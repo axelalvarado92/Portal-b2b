@@ -1,435 +1,171 @@
 import { useEffect, useState } from "react";
-import {
-  getProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
+import { useNavigate } from "react-router-dom";
+import { 
+  getProducts, createProduct, updateProduct, deleteProduct, 
   importProductsExcel, 
-  getPresignedUploadUrl
 } from "../../services/adminProductService";
-
 import { getCompanies } from "../../services/adminCompanyService";
-import "./Products.css";
 import { Upload } from "lucide-react";
+import "./Products.css";
 
-export default function Products() {
+export default function AdminProducts() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
-  const [sortAlpha, setSortAlpha] = useState(false);
-  const [filterCompany, setFilterCompany] = useState("");
-
-  // Estados para creación manual
-  const [showForm, setShowForm] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState("");
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [price, setPrice] = useState("");
-  const [stockQuantity, setStockQuantity] = useState("");
-
-  // Estados para la IMPORTACIÓN ASÍNCRONA (Tu Lambda)
-  const [showImportForm, setShowImportForm] = useState(false);
-  const [importCompanyId, setImportCompanyId] = useState("");
-  const [excelFile, setExcelFile] = useState(null);
-  const [isImporting, setIsImporting] = useState(false);
-
-  // Estados para edición
-  const [showEditForm, setShowEditForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [editName, setEditName] = useState("");
-  const [editCode, setEditCode] = useState("");
-  const [editPrice, setEditPrice] = useState("");
-  const [editStockQuantity, setEditStockQuantity] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [toast, setToast] = useState("");
+
+  
+  // Paginación y filtros
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filterCompany, setFilterCompany] = useState("");
+  const [sortBy, setSortBy] = useState("default");
+
+  // Estados de formularios
+  const [showForm, setShowForm] = useState(false);
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [excelFile, setExcelFile] = useState(null);
 
   async function loadProducts() {
     try {
       setLoading(true);
-      const response = await getProducts();
-      const companiesResponse = await getCompanies();
       
-      setCompanies(companiesResponse.data || []);
-      setProducts(response.data || []);
+      const productsData = await getProducts(null, page, 20);
+      
+      // Accedemos correctamente a products y total_pages dentro de 'data'
+      const payload = productsData.data || {}; 
+      
+      setProducts(payload.products || []);
+      setTotalPages(payload.total_pages || 1);
+      
+      // Intentamos cargar empresas
+      try {
+        const companiesRes = await getCompanies();
+        setCompanies(companiesRes.data || []);
+      } catch (e) {
+        console.warn("No se pudieron cargar empresas.");
+      }
+
     } catch (err) {
-      console.error(err);
+      console.error("Error al cargar:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  useEffect(() => { loadProducts(); }, [page]);
 
-  // Capturar el archivo seleccionado por el Admin
-  const handleExcelUpload = (e) => {
-    setExcelFile(e.target.files[0]);
-  };
+  // Lógica de filtrado y ordenamiento en cliente (similar a customer)
+  let processedProducts = products.filter(p =>
+    p.name?.toLowerCase().includes(search.toLowerCase()) ||
+    p.code?.toLowerCase().includes(search.toLowerCase())
+  );
 
-  // Enviar parámetros a la arquitectura S3 + Lambda
-const handleProcessImport = async () => {
-  if (!importCompanyId) {
-    setToast("⚠️ Seleccioná la empresa para esta lista de precios.");
-    setTimeout(() => setToast(""), 3000);
-    return;
-  }
-  if (!excelFile) {
-    setToast("⚠️ Seleccioná un archivo Excel (.xlsx o .xls).");
-    setTimeout(() => setToast(""), 3000);
-    return;
+  if (filterCompany) {
+    processedProducts = processedProducts.filter(p => p.company_name === filterCompany);
   }
 
-  setIsImporting(true);
+  if (sortBy === "alpha-asc") processedProducts.sort((a, b) => a.name.localeCompare(b.name));
+  else if (sortBy === "alpha-desc") processedProducts.sort((a, b) => b.name.localeCompare(a.name));
 
-  try {
-    const presignResponse = await getPresignedUploadUrl(importCompanyId, excelFile.name);
-    const { upload_url, s3_key } = presignResponse.data;
+  // ... (aquí mantén tu lógica de handleProcessImport y otros handlers)
 
-   await fetch(upload_url, {
-      method: "PUT",
-      body: excelFile,
-      headers: {
-        "Content-Type": ""
-      }
-    });
-
-    await importProductsExcel(importCompanyId, s3_key);
-
-    setToast("✓ Importación iniciada. Los productos van a aparecer en unos segundos.");
-    setTimeout(() => setToast(""), 4000);
-
-    setShowImportForm(false);
-    setExcelFile(null);
-    setImportCompanyId("");
-
-    // Refrescar la tabla después de un pequeño delay, dándole tiempo al worker
-    setTimeout(() => loadProducts(), 5000);
-
-  } catch (err) {
-    console.error(err);
-    setToast("✗ Error al procesar la importación.");
-    setTimeout(() => setToast(""), 3000);
-  } finally {
-    setIsImporting(false);
-  }
-};
-
-  if (loading) return <p>Cargando productos...</p>;
+  if (loading) return <p className="catalog-loading">Cargando catálogo administrativo...</p>;
 
   return (
-    <div style={{ padding: "40px" }}>
-      {/* CABECERA CON ICONO LUCIDE */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-      <h1 className="products-title">Productos</h1>
-      <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+    <div className="catalog-wrapper">
+      <div className="catalog-header">
+        <h1>Gestión de Productos</h1>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button className="snb-btn-secondary" onClick={() => setShowImportForm(!showImportForm)}>
+            <Upload size={16} /> Importar Excel
+          </button>
+          <button className="snb-btn" onClick={() => setShowForm(true)}>+ Nuevo Producto</button>
+        </div>
+      </div>
+
+      {/* REUTILIZAMOS LA BARRA DE HERRAMIENTAS DE CUSTOMER */}
+      <div className="catalog-toolbar">
+        <input
+          className="catalog-search"
+          placeholder="Buscar por nombre o código..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="toolbar-filters">
+          <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)}>
+            <option value="">Todas las empresas</option>
+            {companies.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="default">Relevancia</option>
+            <option value="alpha-asc">A - Z</option>
+            <option value="alpha-desc">Z - A</option>
+          </select>
+        </div>
+      </div>
+
+      {/* GRILLA DE PRODUCTOS (MISMA ESTRUCTURA) */}
+      <div className="products-grid">
+        {processedProducts.map((product) => (
+          <div key={product.id} className="product-card">
+            <div className="product-image-wrapper">
+              <img src={product.image_url || "/product-placeholder.png"} alt={product.name} />
+            </div>
+            <div className="product-body">
+              <h3 className="product-title">{product.name}</h3>
+              <p className="product-description">Cod: {product.code}</p>
+              <div className="product-price">${Number(product.price).toFixed(2)}</div>
+              <button 
+                className="add-cart-btn" 
+                onClick={() => navigate(`/admin/products/${product.id}`)}
+              >
+                Editar Producto
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+        {/* --- PAGINACIÓN --- */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))} 
+              disabled={page === 1}
+            >
+              ←
+            </button>
         
-        {/* Botón de Importar alineado y corregido */}
-        <button 
-          className="snb-btn-secondary" 
-          onClick={() => { setShowImportForm(true); setShowForm(false); }}
-          style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center",
-            gap: "8px", 
-            padding: "10px 15px",
-            height: "42px" // Ajusta esta altura si tu botón "+ Nuevo producto" mide distinto para que queden simétricos
-          }}
-        >
-          <Upload size={16} style={{ shrink: 0, display: "block" }} />
-          <span>Importar Lista (Excel)</span>
-        </button>
-    
-        <button 
-          className="snb-btn" 
-          onClick={() => { setShowForm(true); setShowImportForm(false); }}
-          style={{ height: "42px" }} // Misma altura para simetría total
-        >
-          + Nuevo producto
-        </button>
-      </div>
-    </div>
-
-      {/* FORMULARIO DE IMPORTACIÓN ASOCIADO A TU LAMBDA */}
-      {showImportForm && (
-        <div className="product-form-card" style={{ borderLeft: "4px solid #6b1426", padding: "20px", marginBottom: "20px" }}>
-          <h3>Importar Lista de Precios Masiva (S3 Engine)</h3>
-          <p style={{ fontSize: "13px", color: "#666", marginBottom: "15px" }}>
-            Nuestra Lambda normalizará automáticamente las columnas buscando campos equivalentes a <strong>Código</strong>, <strong>Nombre/Descripción</strong> y <strong>Precio/Costo</strong>.
-          </p>
-
-          <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Empresa Destino:</label>
-          <select
-            className="product-input"
-            value={importCompanyId}
-            onChange={(e) => setImportCompanyId(e.target.value)}
-            style={{ width: "100%", padding: "10px", marginBottom: "15px" }}
-          >
-            <option value="">Seleccionar empresa...</option>
-            {companies.map(company => (
-              <option key={company.id} value={company.id}>{company.name}</option>
-            ))}
-          </select>
-
-          <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Archivo de Precios:</label>
-          <input 
-            type="file" 
-            accept=".xlsx, .xls" 
-            onChange={handleExcelUpload} 
-            style={{ marginBottom: "20px", display: "block" }}
-          />
-
-          <button className="snb-btn" onClick={handleProcessImport} disabled={isImporting}>
-            {isImporting ? "Procesando en AWS Lambda..." : "Subir e Iniciar Procesamiento"}
-          </button>
-          <button className="snb-btn-secondary" onClick={() => setShowImportForm(false)} style={{ marginLeft: "10px" }}>
-            Cancelar
-          </button>
-        </div>
-      )}
-
-      {/* Buscador */}
-      <input
-        className="product-search"
-        placeholder="Buscar producto..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      
-      {showForm && (
-        <div className="product-form-card">
-          <h3>Crear producto</h3>
-      
-          <select
-            className="product-input"
-            value={selectedCompany}
-            onChange={(e) => setSelectedCompany(e.target.value)}
-          >
-            <option value="">Seleccionar empresa</option>
-            {companies.map(company => (
-              <option key={company.id} value={company.id}>{company.name}</option>
-            ))}
-          </select>
-      
-          <input
-            className="product-input"
-            placeholder="Nombre"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-      
-          <input
-            className="product-input"
-            placeholder="Código"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-      
-          <input
-            className="product-input"
-            type="number"
-            placeholder="Precio"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-          />
-      
-          <input
-            className="product-input"
-            type="number"
-            placeholder="Stock"
-            value={stockQuantity}
-            onChange={(e) => setStockQuantity(e.target.value)}
-          />
-      
-          <button
-            className="snb-btn"
-            onClick={async () => {
-              try {
-                await createProduct({
-                  company_id: selectedCompany,
-                  name,
-                  code,
-                  price: Number(price),
-                  has_stock: true,
-                  stock_quantity: Number(stockQuantity),
-                  unit_type: "unit",
-                });
-                setShowForm(false);
-                setSelectedCompany("");
-                setName("");
-                setCode("");
-                setPrice("");
-                setStockQuantity("");
-                loadProducts();
-              } catch (err) {
-                console.error(err);
-                alert("Error al crear producto");
-              }
-            }}
-          >
-            Crear producto
-          </button>
-      
-          <button
-            className="snb-btn-secondary"
-            onClick={() => setShowForm(false)}
-            style={{ marginLeft: "10px" }}
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
-
-      {showEditForm && editingProduct && (
-        <div className="product-form-card">
-          <h3>Editar producto</h3>
-      
-          <input
-            className="product-input"
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            placeholder="Nombre"
-          />
-      
-          <input
-            className="product-input"
-            value={editCode}
-            onChange={(e) => setEditCode(e.target.value)}
-            placeholder="Código"
-          />
-      
-          <input
-            className="product-input"
-            type="number"
-            value={editPrice}
-            onChange={(e) => setEditPrice(e.target.value)}
-            placeholder="Precio"
-          />
-      
-          <input
-            className="product-input"
-            type="number"
-            value={editStockQuantity}
-            onChange={(e) => setEditStockQuantity(e.target.value)}
-            placeholder="Stock"
-          />
-      
-          <input
-            className="product-input"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="URL de imagen"
-          />
-      
-          <button
-            className="snb-btn"
-            onClick={async () => {
-              try {
-                await updateProduct(editingProduct.id, {
-                  name: editName,
-                  code: editCode,
-                  price: Number(editPrice),
-                  stock_quantity: Number(editStockQuantity),
-                  image_url: imageUrl,
-                });
-                setShowEditForm(false);
-                loadProducts();
-              } catch (err) {
-                console.error(err);
-                alert("Error al actualizar producto");
-              }
-            }}
-          >
-            Guardar cambios
-          </button>
-      
-          <button
-            className="snb-btn-secondary"
-            onClick={() => setShowEditForm(false)}
-            style={{ marginLeft: "10px" }}
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
-
-      <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "16px" }}>
-
-        <select
-          className="product-input"
-          style={{ maxWidth: "220px", marginBottom: 0 }}
-          value={filterCompany}
-          onChange={(e) => setFilterCompany(e.target.value)}
-        >
-          <option value="">Todas las empresas</option>
-          {companies.map(company => (
-            <option key={company.id} value={company.name}>{company.name}</option>
-          ))}
-        </select>
-      
-        <button
-          className={sortAlpha ? "snb-btn" : "snb-btn-secondary"}
-          onClick={() => setSortAlpha(prev => !prev)}
-        >
-          {sortAlpha ? "A→Z activo" : "Ordenar A→Z"}
-        </button>
-      
-      </div>
-
-      {/* Tabla de Productos */}
-      <table className="products-table">
-        <thead>
-          <tr>
-          <th style={thStyle}>Código</th>
-          <th style={thCenterStyle}>Nombre</th>
-          <th style={thCenterStyle}>Empresa</th>
-          <th style={thCenterStyle}>Precio</th>
-          <th style={thCenterStyle}>Stock</th>
-          <th style={thCenterStyle}>Activo</th>
-          <th style={thStyle}>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-            {products
-              .filter(product => product.name.toLowerCase().includes(search.toLowerCase()))
-              .filter(product => filterCompany ? product.company_name === filterCompany : true)
-              .sort((a, b) => sortAlpha ? a.name.localeCompare(b.name) : 0)
-              .map(product => (
-              <tr key={product.id}>
-                <td style={tdStyle}>{product.code}</td>
-                <td style={tdCenterStyle}>{product.name}</td>
-                <td style={tdCenterStyle}>{product.company_name}</td>
-                <td style={tdCenterStyle}>${product.price}</td>
-                <td style={tdCenterStyle}>{product.stock_quantity}</td>
-                <td style={tdCenterStyle}>{product.is_active ? "✅" : "❌"}</td>
-                <td style={tdStyle}>
+            {[...Array(totalPages)].map((_, i) => {
+              const pageNum = i + 1;
+              // Mostrar solo un rango de páginas para no saturar si hay muchas
+              if (pageNum >= page - 2 && pageNum <= page + 2) {
+                return (
                   <button
-                    className="snb-btn-secondary"
-                    onClick={() => {
-                      setEditingProduct(product);
-                      setEditName(product.name || "");
-                      setEditCode(product.code || "");
-                      setEditPrice(product.price || 0);
-                      setEditStockQuantity(product.stock_quantity || 0);
-                      setImageUrl(product.image_url || "");
-                      setShowEditForm(true);
-                    }}
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={page === pageNum ? "active-page" : ""}
                   >
-                    Editar
+                    {pageNum}
                   </button>
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
+                );
+              }
+              return null;
+            })}
+        
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+              disabled={page === totalPages}
+            >
+              →
+            </button>
+          </div>
+        )}
+
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
-
-const thStyle = { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", background: "#f5f5f5" };
-const thCenterStyle = { textAlign: "center", padding: "12px", borderBottom: "1px solid #ddd", background: "#f5f5f5" };
-const tdStyle = { padding: "12px", borderBottom: "1px solid #eee" };
-const tdCenterStyle = { padding: "12px", borderBottom: "1px solid #eee", textAlign: "center" };

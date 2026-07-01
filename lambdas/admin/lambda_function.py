@@ -523,29 +523,52 @@ def get_company(company_id):
 
 def list_products(params):
     company_id = params.get("company_id")
+    page = int(params.get("page", 1))
+    limit = int(params.get("limit", 12))
+    offset = (page - 1) * limit
 
     conn = get_connection()
     cur = conn.cursor()
 
+    count_query = "SELECT COUNT(*) FROM products"
+    count_args = []
+    if company_id:
+        count_query += " WHERE company_id = %s"
+        count_args.append(company_id)
+    cur.execute(count_query, count_args)
+    total = cur.fetchone()[0]
+
     query = """
-        SELECT p.id, p.code, p.name, p.price, p.is_active,
-               p.unit_type, p.has_stock, p.stock_quantity,
+        SELECT p.id,
+               p.code,
+               p.name,
+               p.price,
+               p.is_active,
+               p.unit_type,
+               p.has_stock,
+               p.stock_quantity,
+               p.image_url,
                c.name
         FROM products p
-        INNER JOIN companies c ON p.company_id = c.id
+        INNER JOIN companies c
+            ON p.company_id = c.id
     """
 
     args = []
-
     if company_id:
         query += " WHERE p.company_id = %s"
         args.append(company_id)
 
+    query += " ORDER BY p.name LIMIT %s OFFSET %s"
+    args.append(limit)
+    args.append(offset)
+
     cur.execute(query, args)
     rows = cur.fetchall()
     cur.close()
+    conn.close()
 
-    return success([
+    products = [
         {
             "id": str(r[0]),
             "code": r[1],
@@ -555,11 +578,47 @@ def list_products(params):
             "unit_type": r[5],
             "has_stock": r[6],
             "stock_quantity": r[7],
-            "company_name": r[8]
+            "image_url": r[8],
+            "company_name": r[9]
         }
         for r in rows
-    ])
+    ]
 
+    return success({
+        "products": products,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "total_pages": (total + limit - 1) // limit
+    })
+
+def get_product(product_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, code, name, description, image_url, price,
+               is_active, unit_type, has_stock, stock_quantity, category_id, company_id
+        FROM products
+        WHERE id = %s
+    """, [product_id])
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return not_found("Producto no encontrado")
+    return success({
+        "id": str(row[0]),
+        "code": row[1],
+        "name": row[2],
+        "description": row[3],
+        "image_url": row[4],
+        "price": float(row[5]),
+        "is_active": row[6],
+        "unit_type": row[7],
+        "has_stock": row[8],
+        "stock_quantity": row[9],
+        "category_id": str(row[10]) if row[10] else None,
+        "company_id": str(row[11]) if row[11] else None
+    })
 
 def create_product(body):
     error = validate_create_product(body)
@@ -601,6 +660,7 @@ def create_product(body):
 
 
 def update_product(product_id, body):
+    print("DEBUG: Body recibido en el update:", body)
     conn = get_connection()
     cur = conn.cursor()
 
@@ -617,11 +677,18 @@ def update_product(product_id, body):
     args = []
 
     for f in allowed:
-        if f in body:
+        # SOLO agregamos al UPDATE si el valor no es None
+        # O si realmente quieres permitir borrar datos, mantén el 'if f in body'
+        if f in body and body[f] is not None: 
             updates.append(f"{f} = %s")
             args.append(body[f])
 
     args.append(product_id)
+
+    # Agregamos un log para ver qué SQL se está ejecutando realmente
+    sql_query = f"UPDATE products SET {', '.join(updates)}, updated_at = now() WHERE id = %s"
+    print("DEBUG: SQL a ejecutar:", sql_query)
+    print("DEBUG: Argumentos:", args)
 
     cur.execute(f"""
         UPDATE products SET {', '.join(updates)}, updated_at = now()
@@ -974,6 +1041,8 @@ def handler(event, context):
         if path.startswith("/admin/products"):
 
             if method == "GET":
+                if resource_id:
+                    return get_product(resource_id)
                 return list_products(params)
 
             if method == "POST":

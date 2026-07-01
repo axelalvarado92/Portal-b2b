@@ -136,7 +136,7 @@ export default function DashboardAdmin() {
           </h3>
 
           <p className="dashboard-card-value">
-            Catálogo disponible
+            Gestion de productos
           </p>
 
         </Link>

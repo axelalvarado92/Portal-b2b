@@ -1,20 +1,21 @@
 import api from "../api/api";
 
-export async function uploadLogo(file, companyId) {
+// En services/uploadService.js
 
-    const extension = file.name.split(".").pop();
+export async function uploadLogo(file, companyId = null) {
+  const extension = file.name.split(".").pop();
+  
+  // Creamos el payload base
+  const payload = {
+    extension,
+    content_type: file.type
+  };
 
-    const response = await api.post("/uploads", {
+  // Solo agregamos company_id si existe un valor válido
+  if (companyId) {
+    payload.company_id = companyId;
+  }
 
-        extension,
-
-        content_type: file.type,
-
-        company_id: companyId
-
-    });
-
-    console.log(response.data);
-
-    return response.data.data;   
+  const response = await api.post("/uploads", payload);
+  return response.data.data;   
 }
