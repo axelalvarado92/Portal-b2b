@@ -19,6 +19,7 @@ export default function Companies() {
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [taxId, setTaxId] = useState("");
+  const [nombreFantasia, setNombreFantasia] = useState("");
 
 
   const [search, setSearch] = useState("");
@@ -55,6 +56,7 @@ export default function Companies() {
         business_name: businessName,
         whatsapp_phone: whatsappPhone,
         tax_id: taxId,
+        nombre_fantasia: nombreFantasia,
       });
 
       alert("Empresa creada exitosamente");
@@ -132,67 +134,98 @@ export default function Companies() {
 
       {/* FORMULARIO DE CREACIÓN */}
       {showForm && (
-        <div
-          style={{
-            background: "#fff",
-            padding: "20px",
-            marginBottom: "20px",
-            border: "1px solid #ddd",
-            borderRadius: "10px",
-          }}
-        >
+        <div className="card" style={{ marginBottom: "20px" }}>
           <h3>Crear empresa</h3>
+      
+          {/* DATOS GENERALES */}
+          <div className="form-section">
+            <div className="form-section-title">Datos Generales</div>
+            <div className="form-grid-2">
+              <div className="form-group">
+                <label className="form-label">Nombre</label>
+                <input
+                  className="form-input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nombre Fantasía</label>
+                <input
+                  className="form-input"
+                  placeholder="Opcional"
+                  value={nombreFantasia}
+                  onChange={(e) => setNombreFantasia(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+      
+          {/* DATOS FISCALES */}
+          <div className="form-section">
+            <div className="form-section-title">Datos Fiscales</div>
+            <div className="form-grid-2">
+              <div className="form-group">
+                <label className="form-label">Razón Social</label>
+                <input
+                  className="form-input"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">CUIT</label>
+                <input
+                  className="form-input"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+      
+          {/* CONTACTO */}
+          <div className="form-section">
+      <div className="form-section-title">Contacto</div>
+      <div className="form-grid-2">
+        <div className="form-group">
+          <label className="form-label">Email</label>
           <input
-            placeholder="Nombre"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={inputStyle}
-          />
-          
-          <input
-            style={inputStyle}
-            placeholder="Razón Social"
-            value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
-          />
-
-          <input
-            style={inputStyle}
-            placeholder="CUIT"
-            value={taxId}
-            onChange={(e) => setTaxId(e.target.value)}
-          />
-
-          <input
-            placeholder="Email"
+            className="form-input"
             value={contactEmail}
             onChange={(e) => setContactEmail(e.target.value)}
-            style={inputStyle}
           />
+        </div>
+        <div className="form-group">
+          <label className="form-label">WhatsApp</label>
           <input
-            placeholder="Whatsapp"
+            className="form-input"
             value={whatsappPhone}
             onChange={(e) => setWhatsappPhone(e.target.value)}
-            style={inputStyle}
           />
-
-          <button className="snb-btn" onClick={handleCreateCompany}>
-            Crear empresa
-          </button>
-          <button
-            className="snb-btn-secondary"
-            onClick={() => {
-              setShowForm(false);
-              setName("");
-              setContactEmail("");
-              setWhatsappPhone("");
-              setBusinessName("");
-              setTaxId("");
-            }}
-            style={{ marginLeft: "10px" }}
-          >
-            Cancelar
-          </button>
+        </div>
+      </div>
+          </div>
+      
+          <div className="actions-row">
+      <button className="btn-primary" onClick={handleCreateCompany}>
+        Crear empresa
+      </button>
+      <button
+        className="btn-secondary"
+        onClick={() => {
+          setShowForm(false);
+          setName("");
+          setContactEmail("");
+          setWhatsappPhone("");
+          setBusinessName("");
+          setTaxId("");
+          setNombreFantasia("");
+        }}
+      >
+        Cancelar
+      </button>
+          </div>
         </div>
       )}
 
