@@ -25,6 +25,7 @@
 .company-detail{
     max-width:1200px;
     margin:auto;
+    background:#f4f2f1;
     padding:40px;
 }
 
@@ -67,7 +68,13 @@
     background:#fff;
     border-radius:16px;
     padding:25px;
-    box-shadow:0 2px 10px rgba(0,0,0,.05);
+    border:1px solid #ececec;
+    box-shadow:0 4px 16px rgba(0,0,0,.06);
+    transition: box-shadow .2s ease;
+}
+
+.detail-card:hover{
+    box-shadow:0 6px 20px rgba(0,0,0,.09);
 }
 
 .detail-row {
@@ -409,4 +416,46 @@
   .form-grid-2 {
     grid-template-columns: 1fr;
   }
+}
+
+.edit-btn{
+    background:#6e1423;
+    color:white;
+    border:none;
+    padding:12px 24px;
+    border-radius:8px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.edit-btn:hover{
+    background:#8a1b2d;
+}
+
+.save-btn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}
+
+.toast{
+    position:fixed;
+    bottom:30px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#1a1a1a;
+    color:white;
+    padding:14px 28px;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:600;
+    box-shadow:0 4px 20px rgba(0,0,0,.2);
+    z-index:1000;
+    animation: toast-in .25s ease-out;
+}
+
+@keyframes toast-in{
+    from{ opacity:0; transform:translate(-50%, 10px); }
+    to{ opacity:1; transform:translate(-50%, 0); }
 }

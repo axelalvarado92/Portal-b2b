@@ -83,7 +83,12 @@ export default function AdminProducts() {
           <button className="snb-btn-secondary" onClick={() => setShowImportForm(!showImportForm)}>
             <Upload size={16} /> Importar Excel
           </button>
-          <button className="snb-btn" onClick={() => setShowForm(true)}>+ Nuevo Producto</button>
+          <button
+            className="snb-btn"
+            onClick={() => navigate("/admin/products/new")}
+          >
+            Nuevo producto
+          </button>
         </div>
       </div>
 

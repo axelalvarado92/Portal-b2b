@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { uploadLogo } from "../../services/uploadService";
-import { updateProduct, getProduct } from "../../services/adminProductService";
+import { updateProduct, getProduct, createProduct } from "../../services/adminProductService";
 import "../customer/ProductDetail.css";
 
 export default function AdminProductDetail() {
   const { id } = useParams();
+  const isCreate = id === "new";
+  const isEdit = id && id !== "new";
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
@@ -26,18 +28,17 @@ export default function AdminProductDetail() {
   const [imageFile, setImageFile] = useState(null);
 
   useEffect(() => {
-    loadProduct();
+    if (isEdit) {
+      loadProduct();
+    } else {
+      setLoading(false);
+    }
   }, [id]);
 
   async function loadProduct() {
     try {
       setLoading(true);
-      // Asumimos que esta función llama a /admin/products/{id}
       const response = await getProduct(id);
-      
-      // AQUÍ ESTÁ EL CAMBIO:
-      // Si response.data es un objeto, úsalo. 
-      // Si response.data es la lista que vimos en tu log, busquemos el producto por ID:
       const p = response.data.products 
         ? response.data.products.find(item => item.id === id) 
         : response.data;
@@ -63,7 +64,6 @@ export default function AdminProductDetail() {
     const file = e.target.files[0];
     if (!file) return;
     setImageFile(file);
-    // Nota: No actualizamos formData aquí para evitar guardar blobs temporales
   }
 
   async function handleSave() {
@@ -86,17 +86,27 @@ export default function AdminProductDetail() {
       }
 
       // Guardar datos en la base de datos
-      await updateProduct(id, {
+      const payload = {
         ...formData,
         price: Number(formData.price),
-        image_url: finalImageUrl 
-      });
+        image_url: finalImageUrl
+      };
+      
+      if (isEditing) {
+        await updateProduct(id, payload);
+      } else {
+        await createProduct(payload);
+      }
 
       setToast("✓ Producto actualizado");
       setImageFile(null);
       
       // Recargar datos reales desde la BD
-      await loadProduct(); 
+      if (isEditing) {
+        await loadProduct();
+      } else {
+        navigate("/admin/products");
+      }
     } catch (err) {
       console.error(err);
       setToast("✗ Error al guardar");
@@ -139,7 +149,11 @@ export default function AdminProductDetail() {
 
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
             <button className="snb-btn" onClick={handleSave} disabled={uploading}>
-              {uploading ? "Guardando..." : "Guardar Cambios"}
+              {
+                uploading
+                  ? (isEditing ? "Guardando..." : "Creando...")
+                  : (isEditing ? "Guardar cambios" : "Crear producto")
+              }
             </button>
             
             {/* NUEVO BOTÓN DE CANCELAR */}

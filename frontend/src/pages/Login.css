@@ -241,3 +241,37 @@ padding: 14px 18px;
 }
 
 }
+
+.password-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 20px;   /* el margin se muda acá, no al input */
+}
+
+.password-wrapper .login-input {
+  width: 100%;
+  padding-right: 48px;
+  margin-bottom: 0;      /* anulamos el margin-bottom global del input */
+  box-sizing: border-box;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.password-toggle:hover {
+  color: #6e1423;
+}

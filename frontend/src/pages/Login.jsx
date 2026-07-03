@@ -6,7 +6,7 @@ import { login as loginRequest } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import { fetchCurrentUser } from "../services/userService";
 
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, Eye, EyeOff } from "lucide-react";
 
 import logoSNB from "../assets/logo-snb.png";
 
@@ -26,6 +26,8 @@ useState("");
 
 const [error, setError] =
 useState("");
+
+const [showPassword, setShowPassword] = useState(false);
 
 const handleLogin = async (e) => {
     e.preventDefault();
@@ -48,7 +50,7 @@ const handleLogin = async (e) => {
 
     } catch (err) {
       console.error(err);
-      setError("Credenciales inválidas");
+      setError("Contraseña o email incorrectos. Por favor, intente nuevamente.");
     }
   };
 
@@ -115,25 +117,35 @@ return (
           required
         />
 
-        <input
-          type="password"
-          placeholder="contraseña"
-          value={password}
-          onChange={(e) =>
-            setPassword(
-              e.target.value
-            )
-          }
-          className="login-input"
-          required
-        />
+        <div className="password-wrapper">
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="contraseña"
+            value={password}
+            onChange={(e) =>
+              setPassword(
+                e.target.value
+              )
+            }
+            className="login-input"
+            required
+          />
+
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowPassword((prev) => !prev)}
+            tabIndex={-1}
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
 
         {error && (
-
           <p className="login-error">
             {error}
           </p>
-
         )}
 
         <button
@@ -142,7 +154,6 @@ return (
         >
           Iniciar
         </button>
-
         <div className="login-links">
 
         <Link to="/forgot-password">¿Olvidaste tu contraseña?</Link>

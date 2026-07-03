@@ -10,6 +10,8 @@ import "./CompanyDetail.css";
 export default function CompanyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,71 +49,40 @@ export default function CompanyDetail() {
   }
 
   async function saveCompany() {
-
     try {
-  
+      setSaving(true);
       let finalLogoUrl = form.logo_url;
   
       if (logoFile) {
+        const { upload_url, file_url } = await uploadLogo(logoFile, id);
   
-        // 1. Pedimos la URL prefirmada
-        const {
-          upload_url,
-          file_url
-        } = await uploadLogo(
-          logoFile,
-          id
-        );
-  
-        // 2. Subimos el archivo directamente a S3
         await fetch(upload_url, {
-  
           method: "PUT",
-  
-          headers: {
-            "Content-Type": logoFile.type
-          },
-  
+          headers: { "Content-Type": logoFile.type },
           body: logoFile
-  
         });
   
-        // 3. Guardamos la URL definitiva
         finalLogoUrl = file_url;
-  
       }
   
-      // 4. Actualizamos la empresa
-      const updatedForm = {
-  
-        ...form,
-  
-        logo_url: finalLogoUrl
-  
-      };
+      const updatedForm = { ...form, logo_url: finalLogoUrl };
   
       await updateCompany(id, updatedForm);
   
       setCompany(updatedForm);
-  
       setForm(updatedForm);
-  
       setEditing(false);
-  
       setLogoFile(null);
-  
       setLogoPreview(null);
   
-      alert("Cambios guardados exitosamente.");
-  
+      setToast("✓ Cambios guardados exitosamente");
     } catch (err) {
-  
       console.error("Error al guardar:", err);
-  
-      alert("No se pudo guardar la empresa.");
-  
+      setToast("✗ No se pudo guardar la empresa");
+    } finally {
+      setSaving(false);
+      setTimeout(() => setToast(""), 2500);
     }
-  
   }
 
   function handleChange(e) {
@@ -208,15 +179,17 @@ export default function CompanyDetail() {
                 >
                     Cancelar
                 </button>
-        
+
                 <button
                     className="save-btn"
                     onClick={saveCompany}
+                    disabled={saving}
                 >
-                    Guardar cambios
+                    {saving ? "Guardando..." : "Guardar cambios"}
                 </button>
         
             </div>
+            
         
         )
         
@@ -228,8 +201,9 @@ export default function CompanyDetail() {
                 className="edit-btn"
                 onClick={() => setEditing(true)}
             >
-                Editar empresa
+                ✎ Editar empresa
             </button>
+            
         
         )
         }
@@ -384,6 +358,8 @@ export default function CompanyDetail() {
         />
     
     </div>
+
+    {toast && <div className="toast">{toast}</div>}
     </div>
 
   );

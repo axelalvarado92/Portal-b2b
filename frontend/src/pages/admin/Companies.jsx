@@ -92,7 +92,7 @@ export default function Companies() {
         gap: "15px"
       }}>
         
-        <h1 style={{ margin: 0 }}>Empresas</h1>
+        <h1 style={{ margin: 0 }}>Proveedores</h1>
       
         {/* Contenedor alineado para el Buscador y el Botón */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -230,72 +230,41 @@ export default function Companies() {
       )}
 
       {/* CARDS DE EMPRESAS */}
-     <div className="companies-grid">
-     
-       {filteredCompanies.map((company) => (
-     
-         <div
-           key={company.id}
-           className="company-card"
-           onClick={() =>
-             navigate(`/admin/companies/${company.id}`)
-           }
-         >
-     
-           <div className="company-logo-wrapper">
-     
-             <img
-               src={
-                 company.logo_url ||
-                 "/logo-placeholder.png"
-               }
-               alt={company.name}
-               className="company-logo"
-             />
-     
-           </div>
-     
-           <div className="company-body">
-     
-             <h3 className="company-name">
-               {company.name}
-             </h3>
-     
-             {company.nombre_fantasia && (
-     
-               <p className="company-fantasy">
-                 {company.nombre_fantasia}
-               </p>
-     
-             )}
-     
-             <p className="company-email">
-               📧 {company.contact_email || "-"}
-             </p>
-     
-             <p className="company-location">
-               📍 {[company.ciudad, company.provincia]
-                 .filter(Boolean)
-                 .join(", ") || "-"}
-             </p>
-     
-             <span
-               className={
-                 company.is_active
-                   ? "status-active"
-                   : "status-inactive"
-               }
-             >
-               {company.is_active ? "Activa" : "Inactiva"}
-             </span>
-     
-           </div>
-     
-         </div>
-     
-       ))}
-     
-     </div>
+      <div className="companies-grid">
+      
+        {filteredCompanies.map((company) => (
+      
+          <div
+            key={company.id}
+            className="company-card"
+            onClick={() =>
+              navigate(`/admin/companies/${company.id}`)
+            }
+          >
+      
+            <div className="company-logo-wrapper">
+              <img
+                src={company.logo_url || "/logo-placeholder.png"}
+                alt={company.name}
+                className="company-logo"
+              />
+            </div>
+      
+            <div className="company-body">
+              <h3 className="company-name">
+                {company.name}
+              </h3>
+      
+              <p className="company-description">
+                {company.description || company.nombre_fantasia || "-"}
+              </p>
+            </div>
+      
+          </div>
+      
+        ))}
+      
+      </div>
     </div>
   );
 }

@@ -6,15 +6,14 @@
 }
 
 .hero-banner {
-  width: 100%;
-  height: 400px;
-  background: linear-gradient(135deg, #fce4e4, #f8d7da); /* Tono suave similar al ejemplo */
-  border-radius: 16px;
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  height: 420px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  color: #6e1423;
 }
 
 .contact-section {
@@ -30,7 +29,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 40px 36px; /* Ajustado al padding del header de tu layout */
+  padding: 20px 36px; /* Ajustado al padding del header de tu layout */
   border-top: 1px solid #e7e7e7;
   margin-top: auto; /* Empuja el footer al final si fuera necesario */
 }
@@ -64,3 +63,109 @@
   margin-right: 8px;
   color: #6e1423; /* Tu color corporativo */
 }
+
+.hero-banner {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  height: 420px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-carousel {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 2s ease-in-out;
+}
+
+.hero-slide.active {
+  opacity: 1;
+}
+
+.hero-overlay {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: white;
+  padding: 30px 40px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+}
+
+.hero-overlay h1 {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.hero-overlay p {
+  font-size: 16px;
+}
+
+.hero-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: white;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+  transition: background 0.2s;
+}
+
+.hero-arrow:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.hero-arrow-left {
+  left: 20px;
+}
+
+.hero-arrow-right {
+  right: 20px;
+}
+
+.hero-dots {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 3;
+}
+
+.hero-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.hero-dot.active {
+  background: white;
+}
+

@@ -84,7 +84,8 @@ function App() {
                 <Route path="dashboard" element={<DashboardAdmin />} />
                 <Route path="users" element={<Users />} />
                 <Route path="products" element={<ProductsAdmin />} />
-                <Route path="/admin/products/:id" element={<AdminProductDetail />} />
+                <Route path="products/new" element={<AdminProductDetail mode="create" />} />
+                <Route path="products/:id" element={<AdminProductDetail mode="edit" />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="companies" element={<AdminCompanies />} />
                 <Route path="companies/:id" element={<CompanyDetail />} />
