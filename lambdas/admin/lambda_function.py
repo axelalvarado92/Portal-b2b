@@ -364,7 +364,6 @@ def list_companies():
     ])
 
 def create_company(body):
-    # CORRECCIÓN: Se eliminó el error de sintaxis en el SQL (punto y coma mal ubicado)
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -377,7 +376,7 @@ def create_company(body):
         RETURNING id
     """, [
         body["name"], body.get("business_name"), body.get("tax_id"), body.get("logo_url"),
-        body.get("description"), body["contact_email"], body.get("notification_emails", []),
+        body.get("description"), body.get("contact_email"), body.get("notification_emails", []),
         body.get("whatsapp_phone"), body.get("nombre_fantasia"), body.get("cuit"),
         body.get("condicion_fiscal"), body.get("direccion"), body.get("ciudad"),
         body.get("provincia"), body.get("telefono_oficina"), body.get("telefono_adicional"),
@@ -516,6 +515,24 @@ def get_company(company_id):
 
     })
 
+def delete_company(company_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE companies SET is_active = false WHERE id = %s
+    """, [company_id])
+
+    conn.commit()
+
+    if cur.rowcount == 0:
+        cur.close()
+        return not_found("Empresa no encontrada")
+
+    cur.close()
+    conn.close()
+
+    return success({"message": "Empresa desactivada"})
 
 # =========================================================
 # PRODUCTS
@@ -1058,20 +1075,21 @@ def handler(event, context):
         # ORDERS
         # ==========================
         
-        if path.startswith("/admin/orders"):
+        if path.startswith("/admin/companies"):
 
-            # 1. Actualizar el estado de un pedido (PUT /admin/orders/{id})
-            if method == "PUT" and resource_id:
-                nuevo_estado = body.get("status", "Cerrado")
-                return update_order_status(resource_id, nuevo_estado)
-
-            # 2. Obtener el detalle de un pedido específico (GET /admin/orders/{id})
-            if method == "GET" and resource_id:
-                return get_order_admin(resource_id)
+            if method == "GET":
+                if resource_id:
+                    return get_company(resource_id)
+                return list_companies()
         
-            # 3. Listar todos los pedidos (GET /admin/orders)
-            if method == "GET" and not resource_id:
-                return list_orders()
+            if method == "POST":
+                return create_company(body)
+        
+            if method == "PATCH" and resource_id:
+                return update_company(resource_id, body)
+        
+            if method == "DELETE" and resource_id:
+                return delete_company(resource_id)
 
     except Exception as e:
         print(str(e))

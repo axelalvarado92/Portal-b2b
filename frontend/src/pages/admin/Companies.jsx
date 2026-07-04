@@ -114,120 +114,23 @@ export default function Companies() {
           />
       
           <button
-            className="snb-btn"
-            onClick={() => setShowForm(true)}
-            style={{ 
-              height: "42px", 
-              padding: "0 20px",
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              whiteSpace: "nowrap",
-              margin: 0
-            }}
+              className="snb-btn"
+              onClick={() => navigate("/admin/companies/new")}
+              style={{ 
+                height: "42px", 
+                padding: "0 20px",
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                whiteSpace: "nowrap",
+                margin: 0
+              }}
           >
-            + Nueva Empresa
+              + Nueva Empresa
           </button>
         </div>
       
       </div>
-
-      {/* FORMULARIO DE CREACIÓN */}
-      {showForm && (
-        <div className="card" style={{ marginBottom: "20px" }}>
-          <h3>Crear empresa</h3>
-      
-          {/* DATOS GENERALES */}
-          <div className="form-section">
-            <div className="form-section-title">Datos Generales</div>
-            <div className="form-grid-2">
-              <div className="form-group">
-                <label className="form-label">Nombre</label>
-                <input
-                  className="form-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Nombre Fantasía</label>
-                <input
-                  className="form-input"
-                  placeholder="Opcional"
-                  value={nombreFantasia}
-                  onChange={(e) => setNombreFantasia(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-      
-          {/* DATOS FISCALES */}
-          <div className="form-section">
-            <div className="form-section-title">Datos Fiscales</div>
-            <div className="form-grid-2">
-              <div className="form-group">
-                <label className="form-label">Razón Social</label>
-                <input
-                  className="form-input"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">CUIT</label>
-                <input
-                  className="form-input"
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-      
-          {/* CONTACTO */}
-          <div className="form-section">
-      <div className="form-section-title">Contacto</div>
-      <div className="form-grid-2">
-        <div className="form-group">
-          <label className="form-label">Email</label>
-          <input
-            className="form-input"
-            value={contactEmail}
-            onChange={(e) => setContactEmail(e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">WhatsApp</label>
-          <input
-            className="form-input"
-            value={whatsappPhone}
-            onChange={(e) => setWhatsappPhone(e.target.value)}
-          />
-        </div>
-      </div>
-          </div>
-      
-          <div className="actions-row">
-      <button className="btn-primary" onClick={handleCreateCompany}>
-        Crear empresa
-      </button>
-      <button
-        className="btn-secondary"
-        onClick={() => {
-          setShowForm(false);
-          setName("");
-          setContactEmail("");
-          setWhatsappPhone("");
-          setBusinessName("");
-          setTaxId("");
-          setNombreFantasia("");
-        }}
-      >
-        Cancelar
-      </button>
-          </div>
-        </div>
-      )}
 
       {/* CARDS DE EMPRESAS */}
       <div className="companies-grid">

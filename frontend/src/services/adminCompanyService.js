@@ -71,3 +71,7 @@ export async function uploadLogo(file, companyId) {
 
 }
 
+export async function deleteCompany(companyId) {
+  const response = await api.delete(`/admin/companies/${companyId}`);
+  return response.data;
+}

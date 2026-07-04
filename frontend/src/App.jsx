@@ -88,7 +88,8 @@ function App() {
                 <Route path="products/:id" element={<AdminProductDetail mode="edit" />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="companies" element={<AdminCompanies />} />
-                <Route path="companies/:id" element={<CompanyDetail />} />
+                <Route path="companies/new" element={<CompanyDetail mode="create" />} />
+                <Route path="companies/:id" element={<CompanyDetail mode="edit" />} />
                 <Route path="account-requests" element={<AccountRequests />} />
               </Route>
             </Routes>

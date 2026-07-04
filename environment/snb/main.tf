@@ -579,6 +579,7 @@ module "apigateway" {
         { method = "POST", path = "/admin/companies", protected = true },
         { method = "GET", path = "/admin/companies/{id}", protected = true },
         { method = "PATCH", path = "/admin/companies/{id}", protected = true },
+        { method = "DELETE", path = "/admin/companies/{id}", protected = true },
         { method = "GET", path = "/admin/products", protected = true },
         { method = "POST", path = "/admin/products", protected = true },
         { method = "PATCH", path = "/admin/products/{id}", protected = true },
