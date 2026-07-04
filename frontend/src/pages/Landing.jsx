@@ -22,15 +22,17 @@ export default function Landing() {
 
         <nav className="landing-nav">
 
-          <Link to="/login">
-            Comprar
-          </Link>
-          
           <Link
-            to="/login"
-            className="nav-login"
+            to="/"
+            
           >
-            Ingresar
+            Inicio
+          </Link>
+
+          <Link to="/login"
+          className="nav-login"
+          >
+            Comprar
           </Link>
 
         </nav>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { uploadLogo } from "../../services/uploadService";
 import { updateProduct, getProduct, createProduct } from "../../services/adminProductService";
+import { getCompanies } from "../../services/adminCompanyService";
 import "../customer/ProductDetail.css";
 
 export default function AdminProductDetail() {
@@ -9,6 +10,7 @@ export default function AdminProductDetail() {
   const isCreate = id === "new";
   const isEdit = id && id !== "new";
   const navigate = useNavigate();
+  const [companies, setCompanies] = useState([]);
   
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -16,14 +18,27 @@ export default function AdminProductDetail() {
    const handleCancel = () => {
     navigate(-1); // Regresa a la página anterior
   };
+
+  useEffect(() => {
+  async function loadCompanies() {
+    try {
+      const res = await getCompanies();
+      setCompanies(res.data || []);
+    } catch (err) {
+      console.error("Error cargando empresas:", err);
+    }
+  }
+  loadCompanies();
+}, []);
   
   // Estado para el formulario
   const [formData, setFormData] = useState({
-    name: "",
+     name: "",
     code: "",
     price: "",
     description: "",
-    image_url: ""
+    image_url: "",
+    company_id: ""
   });
   const [imageFile, setImageFile] = useState(null);
 
@@ -46,12 +61,13 @@ export default function AdminProductDetail() {
       if (!p) throw new Error("Producto no encontrado");
   
       setFormData({
-        name: p.name || "",
-        code: p.code || "",
-        price: p.price || "",
-        description: p.description || "",
-        image_url: p.image_url || "",
-        category_id: p.category_id || ""
+         name: p.name || "",
+         code: p.code || "",
+         price: p.price || "",
+         description: p.description || "",
+         image_url: p.image_url || "",
+         category_id: p.category_id || "",
+         company_id: p.company_id || ""
       });
     } catch (err) {
       console.error(err);
@@ -91,18 +107,19 @@ export default function AdminProductDetail() {
         price: Number(formData.price),
         image_url: finalImageUrl
       };
+
+      console.log("PAYLOAD A ENVIAR:", payload);   // ← acá, en esta línea exacta
       
-      if (isEditing) {
+      if (isEdit) {
         await updateProduct(id, payload);
       } else {
         await createProduct(payload);
       }
 
-      setToast("✓ Producto actualizado");
+      setToast(isEdit ? "✓ Producto actualizado" : "✓ Producto creado");
       setImageFile(null);
       
-      // Recargar datos reales desde la BD
-      if (isEditing) {
+      if (isEdit) {
         await loadProduct();
       } else {
         navigate("/admin/products");
@@ -133,30 +150,39 @@ export default function AdminProductDetail() {
         </div>
 
         <div className="detail-info">
-          {/* Al usar valores por defecto en el estado inicial, 
-              asegúrate de que los inputs tengan siempre un valor */}
           <label>Nombre:</label>
           <input className="product-input" value={formData.name || ""} onChange={(e) => setFormData({...formData, name: e.target.value})} />
-
+        
+          <label>Empresa:</label>
+          <select
+            className="product-input"
+            value={formData.company_id || ""}
+            onChange={(e) => setFormData({...formData, company_id: e.target.value})}
+          >
+            <option value="">Seleccionar empresa</option>
+            {companies.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        
           <label>Código:</label>
           <input className="product-input" value={formData.code || ""} onChange={(e) => setFormData({...formData, code: e.target.value})} />
-
+        
           <label>Precio:</label>
           <input className="product-input" type="number" value={formData.price || ""} onChange={(e) => setFormData({...formData, price: e.target.value})} />
-
+        
           <label>Descripción:</label>
           <textarea className="product-input" value={formData.description || ""} onChange={(e) => setFormData({...formData, description: e.target.value})} />
-
+        
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
             <button className="snb-btn" onClick={handleSave} disabled={uploading}>
               {
                 uploading
-                  ? (isEditing ? "Guardando..." : "Creando...")
-                  : (isEditing ? "Guardar cambios" : "Crear producto")
+                  ? (isEdit ? "Guardando..." : "Creando...")
+                  : (isEdit ? "Guardar cambios" : "Crear producto")
               }
             </button>
             
-            {/* NUEVO BOTÓN DE CANCELAR */}
             <button className="snb-btn-cancel" onClick={handleCancel} style={{ background: "#ccc" }}>
               Cancelar
             </button>

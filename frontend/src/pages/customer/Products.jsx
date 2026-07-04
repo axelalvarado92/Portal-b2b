@@ -13,7 +13,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
-  const [cartCount, setCartCount] = useState(0);
+
   
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -91,7 +91,6 @@ useEffect(() => {
     }
     try {
       await addToCart(product.id, selectedCompany.id, 1);
-      setCartCount(prev => prev + 1);
       setToast("✓ Producto agregado al carrito");
       setTimeout(() => setToast(""), 2500);
     } catch (err) {
@@ -132,11 +131,9 @@ return (
   <div className="catalog-wrapper">
     {/* Encabezado Principal */}
     <div className="catalog-header">
-      <h1>Catálogo de Productos</h1>
-      <button className="cart-indicator" onClick={() => navigate("/cart")}>
-        🛒 Carrito ({cartCount})
-      </button>
-    </div>
+    <h1>Catálogo de Productos</h1>
+   </div>
+
 
     {/* 🛠️ BARRA DE HERRAMIENTAS */}
     <div className="catalog-toolbar">
