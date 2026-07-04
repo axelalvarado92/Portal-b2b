@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllCarts, updateCartItem, deleteCartItem, clearCart } from "../../services/cartService";
 import { createOrder } from "../../services/ordersService";
+import { useCart } from "../../context/CartContext";
 import "./Cart.css";
 
 export default function Cart() {
 
   const navigate = useNavigate();
+  const { refreshCart } = useCart();
 
   const [carts, setCarts] = useState([]);
   const [grandTotal, setGrandTotal] = useState(0);
@@ -40,6 +42,7 @@ export default function Cart() {
     try {
       await updateCartItem(itemId, newQty);
       await loadCarts();
+      await refreshCart();
     } catch (err) {
       console.error(err);
     }
@@ -50,6 +53,7 @@ export default function Cart() {
       await deleteCartItem(itemId);
       showToast("✓ Producto eliminado");
       await loadCarts();
+      await refreshCart();
     } catch (err) {
       console.error(err);
     }
@@ -60,6 +64,7 @@ export default function Cart() {
       await clearCart(companyId);
       showToast("✓ Carrito vaciado");
       await loadCarts();
+      await refreshCart();
     } catch (err) {
       console.error(err);
     }
@@ -71,6 +76,7 @@ export default function Cart() {
       await createOrder(cart.company_id, cart.cart_id);
       showToast(`✓ Pedido confirmado para ${cart.company_name}`);
       await loadCarts();
+      await refreshCart();
     } catch (err) {
       console.error(err);
       showToast("✗ Error al confirmar pedido");

@@ -60,7 +60,22 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
       ssl_support_method = var.domain_name != null ? "sni-only" : null
     }
 
+    custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 10
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 10
+  }
 }
+
+
 
 data "aws_iam_policy_document" "cloudfront_policy_document" {
   statement {
