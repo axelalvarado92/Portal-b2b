@@ -36,14 +36,55 @@
 }
 
 .landing-hero {
-  height: 70vh;
-  min-height: 500px;
-  max-height: 650px;
-
-  background-size: cover;
-  background-position: center 30%;
-
   position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 7; /* ajustar según la proporción real de tu imagen */
+}
+
+
+@media (max-width: 768px) {
+  .landing-hero {
+    aspect-ratio: 4 / 5; /* en mobile, más vertical, para no perder el texto de los costados */
+  }
+}
+
+.landing-hero-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out;
+}
+
+.landing-hero-slide.active {
+  opacity: 1;
+}
+
+.landing-hero-dots {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 3;
+}
+
+.landing-hero-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.landing-hero-dot.active {
+  background: white;
 }
 
 .landing-footer {

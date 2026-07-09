@@ -63,3 +63,18 @@ export async function createAccountRequest(data) {
 
   return response.json();
 }
+
+export async function completeNewPassword(email, newPassword, session) {
+  const response = await fetch(`${API_URL}/auth/complete-new-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, new_password: newPassword, session })
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || "Error al establecer la contraseña");
+  }
+
+  return response.json();
+}

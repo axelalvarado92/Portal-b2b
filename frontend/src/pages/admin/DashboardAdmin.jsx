@@ -112,7 +112,7 @@ export default function DashboardAdmin() {
           </div>
 
           <h3>
-            Empresas
+            Proveedores
           </h3>
 
           <p className="dashboard-card-value">

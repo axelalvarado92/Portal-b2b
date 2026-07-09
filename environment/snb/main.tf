@@ -510,6 +510,7 @@ module "apigateway" {
         { method = "POST", path = "/auth/confirm", protected = false },
         { method = "POST", path = "/auth/login", protected = false },
         { method = "POST", path = "/auth/refresh", protected = false },
+        { method = "POST", path = "/auth/complete-new-password", protected = false }
       ]
     }
     

@@ -57,49 +57,95 @@ export default function Profile() {
             <span className="profile-value">{profile.phone || "—"}</span>
           </div>
 
-          {/* Nuevos datos de envío y facturación */}
-          <div className="profile-field">
-            <span className="profile-label">Razón Social</span>
-            <span className="profile-value">{profile.business_name || "—"}</span>
-          </div>
+        </div> {/* Cierre agregado para profile-fields */}
+      </div> {/* Cierre agregado para profile-card principal */}
 
-          <div className="profile-field">
-            <span className="profile-label">Forma de Entrega</span>
-            <span className="profile-value">{profile.delivery_method || "—"}</span>
-          </div>
+      {/* Contenedor en 2 columnas para las secciones restantes */}
+      <div className="profile-sections-grid">
 
-          <div className="profile-field">
-            <span className="profile-label">Transporte</span>
-            <span className="profile-value">{profile.carrier_name || "—"}</span>
+        <div className="profile-section">
+          <h2>Datos fiscales</h2>
+          <div className="profile-card">
+            <div className="profile-fields">
+              <div className="profile-field">
+                <span className="profile-label">Razón Social</span>
+                <span className="profile-value">{profile.business_name || "—"}</span>
+              </div>
+              <div className="profile-field">
+                <span className="profile-label">CUIT</span>
+                <span className="profile-value">{profile.cuit || "—"}</span>
+              </div>
+              <div className="profile-field">
+                <span className="profile-label">Condición fiscal</span>
+                <span className="profile-value">{profile.condicion_fiscal || "—"}</span>
+              </div>
+            </div>
           </div>
-
-          <div className="profile-field">
-            <span className="profile-label">Teléfono Transporte</span>
-            <span className="profile-value">{profile.carrier_phone || "—"}</span>
-          </div>
-
-          <div className="profile-field">
-            <span className="profile-label">Dirección Entrega</span>
-            <span className="profile-value">{profile.delivery_address || "—"}</span>
-          </div>
-
         </div>
 
-      </div>
-
-      <div className="profile-section">
-        <h2>Empresas asociadas</h2>
-        {profile.companies && profile.companies.length > 0 ? (
-          <div className="profile-companies">
-            {profile.companies.map(company => (
-              <div key={company.id} className="profile-company-card">
-                <span className="profile-company-name">{company.name}</span>
+        <div className="profile-section">
+          <h2>Envío y transporte</h2>
+          <div className="profile-card">
+            <div className="profile-fields">
+              <div className="profile-field">
+                <span className="profile-label">Forma de Entrega</span>
+                <span className="profile-value">{profile.delivery_method || "—"}</span>
               </div>
-            ))}
+              <div className="profile-field">
+                <span className="profile-label">Transporte</span>
+                <span className="profile-value">{profile.carrier_name || "—"}</span>
+              </div>
+              <div className="profile-field">
+                <span className="profile-label">Teléfono Transporte</span>
+                <span className="profile-value">{profile.carrier_phone || "—"}</span>
+              </div>
+              <div className="profile-field">
+                <span className="profile-label">Dirección Entrega</span>
+                <span className="profile-value">{profile.delivery_address || "—"}</span>
+              </div>
+              <div className="profile-field">
+                <span className="profile-label">Dirección Transporte</span>
+                <span className="profile-value">{profile.direccion_transporte || "—"}</span>
+              </div>
+            </div>
           </div>
-        ) : (
-          <p className="profile-empty">No tenés empresas asociadas.</p>
-        )}
+        </div>
+
+        <div className="profile-section">
+          <h2>Ubicación</h2>
+          <div className="profile-card">
+            <div className="profile-fields">
+              <div className="profile-field">
+                <span className="profile-label">Dirección</span>
+                <span className="profile-value">{profile.direccion || "—"}</span>
+              </div>
+              <div className="profile-field">
+                <span className="profile-label">Ciudad</span>
+                <span className="profile-value">{profile.ciudad || "—"}</span>
+              </div>
+              <div className="profile-field">
+                <span className="profile-label">Provincia</span>
+                <span className="profile-value">{profile.provincia || "—"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="profile-section">
+          <h2>Empresas asociadas</h2>
+          {profile.companies && profile.companies.length > 0 ? (
+            <div className="profile-companies">
+              {profile.companies.map(company => (
+                <div key={company.id} className="profile-company-card">
+                  <span className="profile-company-name">{company.name}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="profile-empty">No tenés empresas asociadas.</p>
+          )}
+        </div>
+
       </div>
 
     </div>

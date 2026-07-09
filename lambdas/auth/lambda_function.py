@@ -20,8 +20,6 @@ def login(body):
 
     email = body.get("email")
     password = body.get("password")
-    print("LOGIN REQUEST")
-    print(email)
 
     if not email or not password:
         return bad_request("email y password son requeridos")
@@ -36,6 +34,14 @@ def login(body):
                 "PASSWORD": password
             }
         )
+
+        # Cognito pide establecer una contraseña nueva (primer login con clave temporal)
+        if response.get("ChallengeName") == "NEW_PASSWORD_REQUIRED":
+            return success({
+                "challenge": "NEW_PASSWORD_REQUIRED",
+                "session": response["Session"],
+                "email": email
+            })
 
         auth = response["AuthenticationResult"]
 
@@ -52,9 +58,49 @@ def login(body):
 
     except Exception as e:
         print("LOGIN ERROR")
-
         print(str(e))
+        return server_error()
 
+
+def complete_new_password(body):
+
+    email = body.get("email")
+    new_password = body.get("new_password")
+    session = body.get("session")
+
+    if not email or not new_password or not session:
+        return bad_request("email, new_password y session son requeridos")
+
+    try:
+
+        response = cognito.respond_to_auth_challenge(
+            ClientId=CLIENT_ID,
+            ChallengeName="NEW_PASSWORD_REQUIRED",
+            Session=session,
+            ChallengeResponses={
+                "USERNAME": email,
+                "NEW_PASSWORD": new_password
+            }
+        )
+
+        auth = response["AuthenticationResult"]
+
+        return success({
+            "access_token": auth["AccessToken"],
+            "id_token": auth["IdToken"],
+            "refresh_token": auth["RefreshToken"],
+            "expires_in": auth["ExpiresIn"]
+        })
+
+    except cognito.exceptions.InvalidPasswordException:
+        return bad_request("La contraseña no cumple los requisitos de seguridad")
+
+    except cognito.exceptions.NotAuthorizedException:
+        return bad_request("Sesión inválida o expirada, iniciá sesión de nuevo")
+
+    except Exception as e:
+        print("COMPLETE NEW PASSWORD ERROR")
+        print(str(e))
         return server_error()
 
 
@@ -192,6 +238,9 @@ def handler(event, context):
 
         if path == "/auth/login":
             return login(body)
+        
+        if path == "/auth/complete-new-password":
+            return complete_new_password(body)
 
         if path == "/auth/refresh":
             return refresh_token(body)
