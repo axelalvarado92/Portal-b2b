@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
 
     async function initAuth() {
+      console.log("INIT AUTH, TOKEN:", token?.substring(0, 50));
 
       if (!token) {
         setLoading(false);
@@ -51,6 +52,7 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = (accessToken) => {
+    console.log("SAVING TOKEN:", accessToken?.substring(0, 50));
 
     localStorage.setItem("accessToken", accessToken);
 

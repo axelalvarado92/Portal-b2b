@@ -83,10 +83,19 @@ def create_request(body):
                 delivery_method,
                 carrier_name,
                 carrier_phone,
-                delivery_address
+                delivery_address,
+                mail_adicional,
+                telefono_oficina,
+                telefono_adicional,
+                cuit,
+                condicion_fiscal,
+                direccion,
+                ciudad,
+                provincia,
+                direccion_transporte
             )
             VALUES (
-                %s,%s,%s,%s,%s,%s,%s,%s,%s
+                %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
             )
             """,
             (
@@ -98,13 +107,21 @@ def create_request(body):
                 body.get("delivery_method"),
                 body.get("carrier_name"),
                 body.get("carrier_phone"),
-                body.get("delivery_address")
+                body.get("delivery_address"),
+                body.get("mail_adicional"),
+                body.get("telefono_oficina"),
+                body.get("telefono_adicional"),
+                body.get("cuit"),
+                body.get("condicion_fiscal"),
+                body.get("direccion"),
+                body.get("ciudad"),
+                body.get("provincia"),
+                body.get("direccion_transporte")
             )
         )
 
         conn.commit()
 
-        # 💡 NUEVO: Disparamos el email una vez que se guardó en la DB
         send_admin_notification(full_name, business_name, email, phone)
 
         return success({

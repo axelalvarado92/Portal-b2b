@@ -918,7 +918,16 @@ def list_account_requests():
                 carrier_phone,
                 delivery_address,
                 status,
-                created_at
+                created_at,
+                mail_adicional,
+                telefono_oficina,
+                telefono_adicional,
+                cuit,
+                condicion_fiscal,
+                direccion,
+                ciudad,
+                provincia,
+                direccion_transporte
             FROM account_requests
             ORDER BY created_at DESC
         """)
@@ -939,7 +948,16 @@ def list_account_requests():
                 "carrier_phone": row[7],
                 "delivery_address": row[8],
                 "status": row[9],
-                "created_at": row[10].isoformat() if row[10] else None
+                "created_at": row[10].isoformat() if row[10] else None,
+                "mail_adicional": row[11],
+                "telefono_oficina": row[12],
+                "telefono_adicional": row[13],
+                "cuit": row[14],
+                "condicion_fiscal": row[15],
+                "direccion": row[16],
+                "ciudad": row[17],
+                "provincia": row[18],
+                "direccion_transporte": row[19]
             })
 
         return success(requests)
@@ -947,6 +965,173 @@ def list_account_requests():
     finally:
         cur.close()
         conn.close()
+
+def approve_account_request(request_id, body):
+
+    companies = body.get("companies", [])
+    role = body.get("role", "customer")
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            full_name, email, phone, business_name,
+            delivery_method, carrier_name, carrier_phone, delivery_address,
+            mail_adicional, telefono_oficina, telefono_adicional,
+            cuit, condicion_fiscal, direccion, ciudad, provincia,
+            direccion_transporte, status
+        FROM account_requests
+        WHERE id = %s
+    """, [request_id])
+
+    row = cur.fetchone()
+
+    if not row:
+        cur.close()
+        conn.close()
+        return not_found("Solicitud no encontrada")
+
+    (
+        full_name, email, phone, business_name,
+        delivery_method, carrier_name, carrier_phone, delivery_address,
+        mail_adicional, telefono_oficina, telefono_adicional,
+        cuit, condicion_fiscal, direccion, ciudad, provincia,
+        direccion_transporte, status
+    ) = row
+
+    if status == "approved":
+        cur.close()
+        conn.close()
+        return bad_request("Esta solicitud ya fue aprobada")
+
+    # ─────────────────────────────
+    # 1. Crear usuario en Cognito
+    # ─────────────────────────────
+    try:
+        response = cognito.admin_create_user(
+            UserPoolId=USER_POOL_ID,
+            Username=email,
+            UserAttributes=[
+                {"Name": "email", "Value": email},
+                {"Name": "name", "Value": full_name},
+                {"Name": "custom:role", "Value": role},
+                {"Name": "email_verified", "Value": "true"}
+            ],
+            DesiredDeliveryMediums=["EMAIL"]
+        )
+
+        cognito_sub = next(
+            a["Value"]
+            for a in response["User"]["Attributes"]
+            if a["Name"] == "sub"
+        )
+
+    except cognito.exceptions.UsernameExistsException:
+        cur.close()
+        conn.close()
+        return bad_request("Ya existe un usuario con ese email")
+
+    # ─────────────────────────────
+    # 2. Persistir en Postgres (users)
+    # ─────────────────────────────
+    try:
+        cur.execute("""
+            INSERT INTO users (
+                id, email, full_name, phone,
+                business_name, cuit, condicion_fiscal,
+                direccion, direccion_entrega, direccion_transporte,
+                ciudad, provincia,
+                telefono_oficina, telefono_adicional,
+                mail_adicional,
+                role, is_active,
+                cognito_sub
+            )
+            VALUES (
+                %s,%s,%s,%s,
+                %s,%s,%s,
+                %s,%s,%s,
+                %s,%s,
+                %s,%s,
+                %s,
+                %s,%s,
+                %s
+            )
+        """, [
+            cognito_sub,
+            email,
+            full_name,
+            phone,
+
+            business_name,
+            cuit,
+            condicion_fiscal,
+
+            direccion,
+            delivery_address,
+            direccion_transporte,
+
+            ciudad,
+            provincia,
+
+            telefono_oficina,
+            telefono_adicional,
+
+            mail_adicional,
+
+            role,
+            True,
+            cognito_sub
+        ])
+
+        # ─────────────────────────────
+        # 3. Vincular empresas elegidas por el admin
+        # ─────────────────────────────
+        for company_id in companies:
+            cur.execute("""
+                INSERT INTO user_companies (user_id, company_id)
+                VALUES (%s, %s)
+                ON CONFLICT DO NOTHING
+            """, [cognito_sub, company_id])
+
+        # ─────────────────────────────
+        # 4. Marcar la solicitud como aprobada
+        # ─────────────────────────────
+        cur.execute("""
+            UPDATE account_requests
+            SET status = 'approved'
+            WHERE id = %s
+        """, [request_id])
+
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+
+        # rollback cognito si falla la DB
+        try:
+            cognito.admin_delete_user(
+                UserPoolId=USER_POOL_ID,
+                Username=email
+            )
+        except:
+            pass
+
+        cur.close()
+        conn.close()
+        print("APPROVE ACCOUNT REQUEST ERROR")
+        print(str(e))
+        return server_error()
+
+    cur.close()
+    conn.close()
+
+    return success({
+        "id": cognito_sub,
+        "email": email,
+        "full_name": full_name,
+        "message": "Usuario creado y solicitud aprobada"
+    })
 
 def reject_account_request(request_id):
     conn = get_connection()
@@ -1026,10 +1211,12 @@ def handler(event, context):
             
             # 2. Rechazar una solicitud específica (POST /admin/account-requests/{id}/reject)
             if method == "POST" and path.endswith("/reject"):
-                # Como la ruta es /admin/account-requests/{id}/reject, extraemos el ID que está antes de /reject
-                # O si API Gateway ya te lo mapea en path_params, lo usamos directo:
                 req_id = resource_id or path.split("/")[-2]
                 return reject_account_request(req_id)
+            
+            if method == "POST" and path.endswith("/accept"):
+                req_id = resource_id or path.split("/")[-2]
+                return approve_account_request(req_id, body)
     
 
         # ==========================

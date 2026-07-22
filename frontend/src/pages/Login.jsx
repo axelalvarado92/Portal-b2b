@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 
 import { login as loginRequest, completeNewPassword } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
-import { fetchCurrentUser } from "../services/userService";
 
 import { Mail, Phone, Eye, EyeOff } from "lucide-react";
 
@@ -15,7 +14,19 @@ import "./Login.css";
 export default function Login() {
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+
+  useEffect(() => {
+
+    if (!user) return;
+  
+    if (user.role === "admin") {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/companies");
+    }
+  
+  }, [user, navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,50 +37,50 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
-  async function goToRoleHome() {
-    const userData = await fetchCurrentUser();
-    if (userData?.role === "admin") {
-      navigate("/admin/dashboard");
-    } else {
-      navigate("/companies");
-    }
-  }
-
   const handleLogin = async (e) => {
+
     e.preventDefault();
+  
     setError("");
-
+  
     try {
+  
       const data = await loginRequest(email, password);
-
+  
       if (data.data?.challenge === "NEW_PASSWORD_REQUIRED") {
         setChallengeSession(data.data.session);
         return;
       }
-
+  
       login(data.data.access_token);
-      await goToRoleHome();
-
+  
     } catch (err) {
+  
       console.error(err);
+  
       setError("Contraseña o email incorrectos. Por favor, intente nuevamente.");
+  
     }
+  
   };
 
   const handleCompleteNewPassword = async (e) => {
     e.preventDefault();
     setError("");
-
+  
     if (newPassword !== confirmNewPassword) {
       setError("Las contraseñas no coinciden");
       return;
     }
-
+  
     try {
       const data = await completeNewPassword(email, newPassword, challengeSession);
+      // Temporal para debug
+      console.log("COMPLETE NEW PASSWORD RESPONSE:", data);
+      console.log("ACCESS TOKEN:", data.data?.access_token);
       login(data.data.access_token);
-      await goToRoleHome();
-
+      // El useEffect se encarga de redirigir según el rol
+  
     } catch (err) {
       console.error(err);
       setError(err.message || "No se pudo establecer la nueva contraseña");

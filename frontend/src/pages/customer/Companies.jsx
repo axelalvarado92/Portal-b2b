@@ -45,7 +45,7 @@ export default function Companies() {
     <div className="companies-page">
 
       <h1 className="companies-title">
-        Proveedores
+        Seleccioná una empresa para ver sus productos
       </h1>
 
       <div className="companies-grid">

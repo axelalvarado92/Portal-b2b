@@ -519,7 +519,7 @@ module "apigateway" {
       function_name = module.lambda_account_requests.lambda_function_name
       routes = [
         { method = "POST", path = "/account-requests", protected = false },
-        { method    = "POST", path      = "/admin/account-requests/{id}/reject", protected = true }
+        { method = "POST", path = "/admin/account-requests/{id}/reject", protected = true }
       ]
     }
 
@@ -590,6 +590,7 @@ module "apigateway" {
         { method = "GET", path = "/admin/orders/{id}", protected = true },
         { method = "PUT", path = "/admin/orders/{id}", protected = true },
         { method = "GET", path = "/admin/account-requests", protected = true },
+        { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true }
       ]
     }
     payments = {

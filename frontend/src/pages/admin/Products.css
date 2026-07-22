@@ -357,3 +357,57 @@
   color: white !important;
   border-color: #6e1423;
 }
+
+.import-box{
+    margin:20px 0;
+    padding:20px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    background:#fff;
+}
+
+.modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    z-index:9999;
+}
+
+.import-modal{
+
+    width:480px;
+    max-width:90%;
+
+    background:white;
+
+    border-radius:12px;
+
+    padding:30px;
+
+    box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+
+.import-modal h2{
+    margin-bottom:10px;
+}
+
+.selected-file{
+    margin-top:15px;
+    font-weight:600;
+    color:#6e1423;
+}
+
+.modal-buttons{
+
+    display:flex;
+    justify-content:flex-end;
+
+    gap:12px;
+
+    margin-top:25px;
+}

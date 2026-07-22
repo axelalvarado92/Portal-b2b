@@ -30,47 +30,30 @@ export default function DashboardAdmin() {
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-
     async function loadDashboard() {
-
       try {
-
-        const response =
-          await getDashboardReport();
-          console.log("DASHBOARD RESPONSE:", response);
+        const [dashboardResponse, requestsResponse] = await Promise.all([
+          getDashboardReport(),
+          getAccountRequests()
+        ]);
+  
+        setStats(dashboardResponse.data);
+  
+        // Filtramos solo las pendientes
+        const list = Array.isArray(requestsResponse) 
+          ? requestsResponse 
+          : (requestsResponse?.data || []);
         
-
-        setStats(
-          response.data
-        );
-
+        const pending = list.filter(r => r.status === "pending");
+        setPendingCount(pending.length);
+  
       } catch (err) {
         console.error("DASHBOARD ERROR:", err);
-
       }
-
     }
-
+  
     loadDashboard();
-
   }, []);
-
-  useEffect(() => {
-  async function fetchCount() {
-    try {
-      const data = await getAccountRequests();
-      // Si es un array, contamos los elementos. Si viene dentro de .data, también.
-      if (Array.isArray(data)) {
-        setPendingCount(data.length);
-      } else if (data && Array.isArray(data.data)) {
-        setPendingCount(data.data.length);
-      }
-    } catch (err) {
-      console.error("No se pudo cargar el contador de solicitudes", err);
-    }
-  }
-  fetchCount();
-}, []);
 
   return (
 
@@ -147,7 +130,7 @@ export default function DashboardAdmin() {
           </div>
           <h3>Solicitudes</h3>
           <p className="dashboard-card-value">
-            {pendingCount > 0 ? `${pendingCount} pendientes` : "Sin solicitudes pendientes"}
+            {pendingCount} pendientes
           </p>
         </Link>
 

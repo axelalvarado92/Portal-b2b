@@ -3,7 +3,11 @@
 }
 
 .companies-title {
-  margin-bottom: 30px;
+  font-size: 1.4rem;
+  text-align: left;
+  max-width: 500px;
+  margin: 0 0 32px 0; /* Arriba: 0, Derecha: 0, Abajo: 32px, Izquierda: 0 */
+  color: #870606;
 }
 
 .companies-grid {

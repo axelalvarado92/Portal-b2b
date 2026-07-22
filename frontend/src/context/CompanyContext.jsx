@@ -17,7 +17,7 @@ export function CompanyProvider({
   children,
 }) {
 
-  const { isAuthenticated } = useAuth(); // ajustá el nombre según lo que exponga tu AuthContext
+  const { token } = useAuth();
 
   const [companies, setCompanies] =
     useState([]);
@@ -32,55 +32,32 @@ export function CompanyProvider({
 
   useEffect(() => {
 
-    if (!isAuthenticated) {
+    if (!token) {
       setCompanies([]);
       setSelectedCompany(null);
       setLoading(false);
       return;
     }
-
+  
     async function loadCompanies() {
-
       try {
-
         setLoading(true);
-
-        const response =
-          await getCompanies();
-
-        const companyList =
-          response.data || [];
-
+        const response = await getCompanies();
+        const companyList = response.data || [];
         setCompanies(companyList);
-
-        if (
-          companyList.length > 0
-        ) {
-
-          setSelectedCompany(
-            companyList[0]
-          );
-
+        if (companyList.length > 0) {
+          setSelectedCompany(companyList[0]);
         }
-
       } catch (err) {
-
-        console.error(
-          "COMPANY ERROR",
-          err
-        );
-
+        console.error("COMPANY ERROR", err);
       } finally {
-
         setLoading(false);
-
       }
-
     }
-
+  
     loadCompanies();
-
-  }, [isAuthenticated]); // ← clave: ahora reacciona al login/logout
+  
+  }, [token]);
 
   return (
     <CompanyContext.Provider
