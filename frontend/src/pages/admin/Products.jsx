@@ -33,18 +33,17 @@ export default function AdminProducts() {
   const [isImporting, setIsImporting] = useState(false);
   const [excelFile, setExcelFile] = useState(null);
 
-// Cargar productos
+  // Cargar productos
   async function loadProducts() {
     try {
       setLoading(true);
-      const productsData = await getProducts(null, page, 20);
       
-      console.log("RAW productsData:", productsData);
-      console.log("typeof:", typeof productsData);
+      // Pasar filterCompany al backend
+      const companyId = filterCompany || null;
+      const productsData = await getProducts(companyId, page, 20);
       
       let parsed = productsData;
       if (typeof productsData === 'string') {
-        // Reemplazar NaN por null antes de parsear (JSON válido)
         const cleaned = productsData.replace(/:\s*NaN\b/g, ': null');
         parsed = JSON.parse(cleaned);
       }
@@ -115,8 +114,11 @@ useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
       const { upload_url, s3_key } = presigned;
   
       // 2. Subir archivo a S3
-      await fetch(upload_url, {
+      const uploadRes = await fetch(upload_url, {
         method: "PUT",
+        headers: {
+          "Content-Type": "application/octet-stream"
+        },
         body: excelFile,
       });
   
@@ -143,7 +145,7 @@ useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
       }, 2500);
     }
   }
-  useEffect(() => { loadProducts(); }, [page]);
+  useEffect(() => { loadProducts(); }, [page, filterCompany]);
 
   // Lógica de filtrado y ordenamiento en cliente (similar a customer)
   let processedProducts = products.filter(p =>

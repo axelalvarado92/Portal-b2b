@@ -61,7 +61,7 @@ def handle_presign(body):
         Params={
             "Bucket": IMPORTS_BUCKET,
             "Key": s3_key,
-            "ContentType": "application/vnd.ms-excel"
+            "ContentType": "application/octet-stream"       # para que soporte xlsx y xsl
         },
         ExpiresIn=300  # 5 minutos
     )
