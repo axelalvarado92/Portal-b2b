@@ -6,6 +6,23 @@ import { uploadLogo } from "../../services/uploadService";
 
 import "./CompanyDetail.css";
 
+function Field({ label, name, value, onChange }) {
+  return (
+    <div className="detail-row">
+      <span>{label}</span>
+      {onChange ? (
+        <input
+          name={name}
+          value={value || ""}
+          onChange={onChange}
+        />
+      ) : (
+        <strong>{value || "-"}</strong>
+      )}
+    </div>
+  );
+}
+
 export default function CompanyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -115,26 +132,9 @@ export default function CompanyDetail() {
     setLogoPreview(URL.createObjectURL(file));
   }
 
-  function Field({ label, name, value }) {
-    return (
-      <div className="detail-row">
-        <span>{label}</span>
-        {editing ? (
-          <input
-            name={name}
-            value={value || ""}
-            onChange={handleChange}
-          />
-        ) : (
-          <strong>{value || "-"}</strong>
-        )}
-      </div>
-    );
-  }
+ if (loading) return <p>Cargando empresa...</p>;
 
-  if (loading) return <p>Cargando empresa...</p>;
-
-  if (isEdit && !company) return <p>Empresa no encontrada.</p>;
+ if (isEdit && !company) return <p>Empresa no encontrada.</p>;
 
   return (
     <div className="company-detail">
@@ -240,25 +240,25 @@ export default function CompanyDetail() {
 
       <div className="detail-card">
           <h2>Información fiscal</h2>
-          <Field label="Razón social" name="business_name" value={form.business_name} />
-          <Field label="CUIT" name="tax_id" value={form.tax_id} />
-          <Field label="Condición fiscal" name="condicion_fiscal" value={form.condicion_fiscal} />
+          <Field label="Razón social" name="business_name" value={form.business_name} onChange={editing ? handleChange : undefined} />
+          <Field label="CUIT" name="tax_id" value={form.tax_id} onChange={editing ? handleChange : undefined} />
+          <Field label="Condición fiscal" name="condicion_fiscal" value={form.condicion_fiscal} onChange={editing ? handleChange : undefined} />
       </div>
 
       <div className="detail-card">
         <h2>Contacto</h2>
-        <Field label="Email" name="contact_email" value={form.contact_email} />
-        <Field label="Email adicional" name="mail_adicional" value={form.mail_adicional} />
-        <Field label="Teléfono" name="phone" value={form.phone} />
-        <Field label="Teléfono oficina" name="telefono_oficina" value={form.telefono_oficina} />
-        <Field label="Teléfono adicional" name="telefono_adicional" value={form.telefono_adicional} />
+        <Field label="Email" name="contact_email" value={form.contact_email} onChange={editing ? handleChange : undefined} />
+        <Field label="Email adicional" name="mail_adicional" value={form.mail_adicional} onChange={editing ? handleChange : undefined} />
+        <Field label="Teléfono" name="phone" value={form.phone} onChange={editing ? handleChange : undefined} />
+        <Field label="Teléfono oficina" name="telefono_oficina" value={form.telefono_oficina} onChange={editing ? handleChange : undefined} />
+        <Field label="Teléfono adicional" name="telefono_adicional" value={form.telefono_adicional} onChange={editing ? handleChange : undefined} />
       </div>
 
       <div className="detail-card">
         <h2>Ubicación</h2>
-        <Field label="Dirección" name="direccion" value={form.direccion} />
-        <Field label="Ciudad" name="ciudad" value={form.ciudad} />
-        <Field label="Provincia" name="provincia" value={form.provincia} />
+        <Field label="Dirección" name="direccion" value={form.direccion} onChange={editing ? handleChange : undefined} />
+        <Field label="Ciudad" name="ciudad" value={form.ciudad} onChange={editing ? handleChange : undefined} />
+        <Field label="Provincia" name="provincia" value={form.provincia} onChange={editing ? handleChange : undefined} />
       </div>
 
       {toast && <div className="toast">{toast}</div>}

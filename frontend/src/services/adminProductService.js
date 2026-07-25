@@ -1,20 +1,10 @@
 import api from "../api/api";
 
-export async function getProducts(
-  companyId = null,
-  page = 1,
-  limit = 12
-) {
+export async function getProducts(companyId = null, page = 1, limit = 12) {
   let url = `/admin/products?page=${page}&limit=${limit}`;
-
-  if (companyId) {
-    url += `&company_id=${companyId}`;
-  }
+  if (companyId) url += `&company_id=${companyId}`;
 
   const response = await api.get(url);
-
-  // Devolvemos response.data directamente. 
-  // Según tu log, esto contiene { data: { products: [...], total_pages: 54 }, error: null }
   return response.data;
 }
 
@@ -70,6 +60,18 @@ export async function importProductsExcel(companyId, s3Key) {
     s3_key: s3Key
   });
   return response.data;
+}
+
+export async function getImportPresignedUrl(companyId, fileName) {
+  const response = await api.post(
+    "/admin/import-products/presign",
+    {
+      company_id: companyId,
+      file_name: fileName
+    }
+  );
+
+  return response.data.data;
 }
 
 

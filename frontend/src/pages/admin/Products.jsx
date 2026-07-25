@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  getProducts, createProduct, updateProduct, deleteProduct, 
-  importProductsExcel, 
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  importProductsExcel,
+  getImportPresignedUrl
 } from "../../services/adminProductService";
 import { getCompanies } from "../../services/adminCompanyService";
 import { Upload } from "lucide-react";
@@ -29,67 +33,63 @@ export default function AdminProducts() {
   const [isImporting, setIsImporting] = useState(false);
   const [excelFile, setExcelFile] = useState(null);
 
+// Cargar productos
   async function loadProducts() {
     try {
       setLoading(true);
-      
       const productsData = await getProducts(null, page, 20);
       
-      // Accedemos correctamente a products y total_pages dentro de 'data'
-      const payload = productsData.data || {}; 
+      console.log("RAW productsData:", productsData);
+      console.log("typeof:", typeof productsData);
       
+      let parsed = productsData;
+      if (typeof productsData === 'string') {
+        // Reemplazar NaN por null antes de parsear (JSON válido)
+        const cleaned = productsData.replace(/:\s*NaN\b/g, ': null');
+        parsed = JSON.parse(cleaned);
+      }
+      
+      const payload = parsed?.data || {};
       setProducts(payload.products || []);
       setTotalPages(payload.total_pages || 1);
       
-      // Intentamos cargar empresas
-      try {
-        const companiesRes = await getCompanies();
-        setCompanies(companiesRes.data || []);
-      } catch (e) {
-        console.warn("No se pudieron cargar empresas.");
-      }
-
     } catch (err) {
-      console.error("Error al cargar:", err);
+      console.error("Error cargando productos:", err);
+      setProducts([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleProcessImport() {
+// Cargar empresas - INDEPENDIENTE
+async function loadCompanies() {
+  try {
+    const companiesRes = await getCompanies();
+    console.log("RAW companiesRes:", companiesRes);
+    console.log("typeof companiesRes:", typeof companiesRes);
+    
+    let parsed = companiesRes;
+    if (typeof companiesRes === 'string') {
+      parsed = JSON.parse(companiesRes);
+    }
+    
+    setCompanies(parsed?.data || []);
+  } catch (e) {
+    console.error("Error cargando empresas:", e);
+    setCompanies([]);
+  }
+}
 
-    if (!excelFile) {
-      setToast("Seleccione un archivo Excel");
-      return;
-    }
+useEffect(() => { loadProducts(); }, [page]);
+useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
+
+  function handleExcelSelected(e) {
+    const file = e.target.files?.[0];
   
-    try {
+    if (!file) return;
   
-      setIsImporting(true);
-  
-      await importProductsExcel(excelFile);
-  
-      setToast("Productos importados correctamente");
-  
-      setExcelFile(null);
-      setShowImportForm(false);
-  
-      await loadProducts();
-  
-    } catch (err) {
-  
-      console.error(err);
-  
-      setToast("Error al importar productos");
-  
-    } finally {
-  
-      setIsImporting(false);
-  
-      setTimeout(() => setToast(""), 3000);
-  
-    }
-  
+    setExcelFile(file);
   }
 
   async function handleProcessImport() {
@@ -98,12 +98,35 @@ export default function AdminProducts() {
       return;
     }
   
+    if (!filterCompany) {
+      setToast("Seleccioná una empresa");
+      return;
+    }
+  
     try {
       setIsImporting(true);
   
-      await importProductsExcel(excelFile);
+      // 1. Obtener URL firmada
+      const presigned = await getImportPresignedUrl(
+        filterCompany,
+        excelFile.name
+      );
   
-      setToast("Productos importados correctamente");
+      const { upload_url, s3_key } = presigned;
+  
+      // 2. Subir archivo a S3
+      await fetch(upload_url, {
+        method: "PUT",
+        body: excelFile,
+      });
+  
+      // 3. Iniciar importación
+      await importProductsExcel(
+        filterCompany,
+        s3_key
+      );
+  
+      setToast("Importación iniciada correctamente");
       setShowImportForm(false);
       setExcelFile(null);
   
@@ -120,7 +143,6 @@ export default function AdminProducts() {
       }, 2500);
     }
   }
-
   useEffect(() => { loadProducts(); }, [page]);
 
   // Lógica de filtrado y ordenamiento en cliente (similar a customer)
@@ -130,7 +152,7 @@ export default function AdminProducts() {
   );
 
   if (filterCompany) {
-    processedProducts = processedProducts.filter(p => p.company_name === filterCompany);
+    processedProducts = processedProducts.filter(p => p.company_id === filterCompany);
   }
 
   if (sortBy === "alpha-asc") processedProducts.sort((a, b) => a.name.localeCompare(b.name));
@@ -283,7 +305,9 @@ export default function AdminProducts() {
             <div className="product-body">
               <h3 className="product-title">{product.name}</h3>
               <p className="product-description">Cod: {product.code}</p>
-              <div className="product-price">${Number(product.price).toFixed(2)}</div>
+              <div className="product-price">
+                {product.price != null ? `$${Number(product.price).toFixed(2)}` : "—"}
+              </div>
               <button 
                 className="add-cart-btn" 
                 onClick={() => navigate(`/admin/products/${product.id}`)}

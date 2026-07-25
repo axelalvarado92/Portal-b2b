@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import json
 import boto3
 import uuid
+import math
 
 from shared.db import get_connection
 from shared.auth_utils import require_admin
@@ -19,6 +20,20 @@ from shared.schemas import (
 
 cognito = boto3.client("cognito-idp")
 USER_POOL_ID = os.environ["USER_POOL_ID"]
+
+#############################################################
+#                FUNCION PARA EVITAR VALOR NaN
+#############################################################
+def safe_float(value):
+    if value is None:
+        return None
+    try:
+        f = float(value)
+        if math.isnan(f) or math.isinf(f):
+            return None
+        return f
+    except (TypeError, ValueError):
+        return None
 
 # =========================================================
 # USERS
@@ -257,12 +272,13 @@ def update_user(user_id, body):
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT id, cognito_sub FROM users WHERE id = %s", [user_id])
+    cur.execute("SELECT id, cognito_sub, email FROM users WHERE id = %s", [user_id])
     row = cur.fetchone()
+    print(f"ROW: {row}")  # temporal para debug
     if not row:
         return not_found("Usuario no encontrado")
     
-    cognito_sub = row[1]
+    cognito_sub = row[1] or row [2]
 
     # 1. Actualizar campos en Postgres (SQL Dinámico)
     # Lista de campos permitidos que vienen en el body
@@ -305,8 +321,6 @@ def update_user(user_id, body):
     cognito_attributes = []
     if "full_name" in body:
         cognito_attributes.append({"Name": "name", "Value": body["full_name"]})
-    if "phone" in body:
-        cognito_attributes.append({"Name": "phone_number", "Value": body["phone"]})
     if "role" in body:
         cognito_attributes.append({"Name": "custom:role", "Value": body["role"]})
 
@@ -538,6 +552,20 @@ def delete_company(company_id):
 # PRODUCTS
 # =========================================================
 
+import math
+
+def safe_float(value):
+    if value is None:
+        return None
+    try:
+        f = float(value)
+        if math.isnan(f) or math.isinf(f):
+            return None
+        return f
+    except (TypeError, ValueError):
+        return None
+
+
 def list_products(params):
     company_id = params.get("company_id")
     page = int(params.get("page", 1))
@@ -565,6 +593,7 @@ def list_products(params):
                p.has_stock,
                p.stock_quantity,
                p.image_url,
+               c.id,
                c.name
         FROM products p
         INNER JOIN companies c
@@ -590,13 +619,14 @@ def list_products(params):
             "id": str(r[0]),
             "code": r[1],
             "name": r[2],
-            "price": float(r[3]),
+            "price": safe_float(r[3]),          # <-- CAMBIO AQUÍ
             "is_active": r[4],
             "unit_type": r[5],
             "has_stock": r[6],
             "stock_quantity": r[7],
             "image_url": r[8],
-            "company_name": r[9]
+            "company_id": str(r[9]),
+            "company_name": r[10]
         }
         for r in rows
     ]

@@ -4,6 +4,7 @@ import pandas as pd
 import psycopg2
 import uuid
 import os
+import re
 
 from io import BytesIO
 
@@ -74,25 +75,40 @@ def clean_string(value):
 # ---------------------------------------------------
 
 def clean_price(value):
-
     if pd.isna(value):
         return None
-
+    
     try:
-
-        value = str(value)
-
-        value = (
-            value
-            .replace("$", "")
-            .replace(",", ".")
-            .strip()
-        )
-
+        # Si ya es número de pandas, devolverlo directo
+        if isinstance(value, (int, float)):
+            if math.isnan(value) or math.isinf(value):
+                return None
+            return float(value)
+        
+        # Limpiar string
+        value = str(value).strip()
+        value = value.replace("$", "").replace(" ", "").strip()
+        
+        if value == "":
+            return None
+        
+        # Formato argentino: 1.234,56 → punto es miles, coma es decimal
+        # Formato inglés: 1,234.56 → coma es miles, punto es decimal
+        if "," in value and "." in value:
+            if value.rfind(",") > value.rfind("."):
+                # La coma está más a la derecha → argentino
+                value = value.replace(".", "").replace(",", ".")
+            else:
+                # Inglés
+                value = value.replace(",", "")
+        elif "," in value:
+            # Solo coma → decimal argentino: 1234,56
+            value = value.replace(",", ".")
+        # Si solo tiene punto (1234.56) → lo dejamos, float lo entiende
+        
         return float(value)
-
+        
     except Exception:
-
         return None
 
 # ---------------------------------------------------
@@ -272,6 +288,8 @@ def upsert_product(
         name,
         price
     ])
+
+    print("ROWCOUNT:", cur.rowcount)
 
 # ---------------------------------------------------
 # HANDLER
@@ -456,6 +474,9 @@ def handler(event, context):
         df["code"] = df["code"].apply(clean_string)
         df["name"] = df["name"].apply(clean_string)
         df["price"] = df["price"].apply(clean_price)
+        print("===== PREVIEW DATAFRAME =====")
+        print(df.head(20).to_dict("records"))
+        print("=============================")
 
         df = df[
             df["code"].notna()
@@ -490,6 +511,13 @@ def handler(event, context):
                     continue
 
                 print(f"PROCESANDO CODIGO: {code}")
+
+                print(
+                    f"INSERTANDO -> code={code}, "
+                    f"name={row['name']}, "
+                    f"price={row['price']}, "
+                    f"tipo={type(row['price'])}"
+                )
 
                 upsert_product(
                     cur,
@@ -529,7 +557,6 @@ def handler(event, context):
         conn.commit()
 
         print("IMPORT FINALIZADO")
-
         # ---------------------------------------------------
         # RESPONSE
         # ---------------------------------------------------

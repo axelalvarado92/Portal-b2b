@@ -61,6 +61,7 @@ def handle_presign(body):
         Params={
             "Bucket": IMPORTS_BUCKET,
             "Key": s3_key,
+            "ContentType": "application/vnd.ms-excel"
         },
         ExpiresIn=300  # 5 minutos
     )
