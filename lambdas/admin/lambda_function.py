@@ -552,8 +552,6 @@ def delete_company(company_id):
 # PRODUCTS
 # =========================================================
 
-import math
-
 def safe_float(value):
     if value is None:
         return None
@@ -588,6 +586,9 @@ def list_products(params):
                p.code,
                p.name,
                p.price,
+               p.price_per_kg,
+               p.price_bulk,
+               p.attributes,
                p.is_active,
                p.unit_type,
                p.has_stock,
@@ -619,14 +620,17 @@ def list_products(params):
             "id": str(r[0]),
             "code": r[1],
             "name": r[2],
-            "price": safe_float(r[3]),          # <-- CAMBIO AQUÍ
-            "is_active": r[4],
-            "unit_type": r[5],
-            "has_stock": r[6],
-            "stock_quantity": r[7],
-            "image_url": r[8],
-            "company_id": str(r[9]),
-            "company_name": r[10]
+            "price": safe_float(r[3]),
+            "price_per_kg": safe_float(r[4]),
+            "price_bulk": safe_float(r[5]),
+            "attributes": r[6] if r[6] else {},
+            "is_active": r[7],
+            "unit_type": r[8],
+            "has_stock": r[9],
+            "stock_quantity": r[10],
+            "image_url": r[11],
+            "company_id": str(r[12]),
+            "company_name": r[13]
         }
         for r in rows
     ]
@@ -644,6 +648,7 @@ def get_product(product_id):
     cur = conn.cursor()
     cur.execute("""
         SELECT id, code, name, description, image_url, price,
+               price_per_kg, price_bulk, attributes,
                is_active, unit_type, has_stock, stock_quantity, category_id, company_id
         FROM products
         WHERE id = %s
@@ -652,19 +657,34 @@ def get_product(product_id):
     cur.close()
     if not row:
         return not_found("Producto no encontrado")
+
+    # Parsear attributes de JSONB a dict
+
+    attributes = row[8]
+    if isinstance(attributes, str):
+        try:
+            attributes = json.loads(attributes)
+        except:
+            attributes = {}
+    elif attributes is None:
+        attributes = {}
+
     return success({
         "id": str(row[0]),
         "code": row[1],
         "name": row[2],
         "description": row[3],
         "image_url": row[4],
-        "price": float(row[5]),
-        "is_active": row[6],
-        "unit_type": row[7],
-        "has_stock": row[8],
-        "stock_quantity": row[9],
-        "category_id": str(row[10]) if row[10] else None,
-        "company_id": str(row[11]) if row[11] else None
+        "price": float(row[5]) if row[5] else None,
+        "price_per_kg": float(row[6]) if row[6] else None,
+        "price_bulk": float(row[7]) if row[7] else None,
+        "attributes": attributes,
+        "is_active": row[9],
+        "unit_type": row[10],
+        "has_stock": row[11],
+        "stock_quantity": row[12],
+        "category_id": str(row[13]) if row[13] else None,
+        "company_id": str(row[14]) if row[14] else None
     })
 
 def create_product(body):
@@ -682,8 +702,9 @@ def create_product(body):
     cur.execute("""
         INSERT INTO products
         (company_id, category_id, code, name, description, image_url, price,
+         price_per_kg, price_bulk, attributes,
          has_stock, stock_quantity, unit_type)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
     """, [
         body["company_id"],
@@ -693,10 +714,14 @@ def create_product(body):
         body.get("description"),
         body.get("image_url"),
         body["price"],
+        body.get("price_per_kg"),
+        body.get("price_bulk"),
+        json.dumps(body.get("attributes", {})),
         body.get("has_stock", False),
         body.get("stock_quantity"),
         body.get("unit_type", "unit")
     ])
+
 
     product_id = cur.fetchone()[0]
 
@@ -717,6 +742,7 @@ def update_product(product_id, body):
 
     allowed = [
         "name", "code", "description", "image_url", "price",
+        "price_per_kg", "price_bulk", "attributes",
         "has_stock", "stock_quantity", "unit_type", "is_active"
     ]
 
@@ -724,11 +750,14 @@ def update_product(product_id, body):
     args = []
 
     for f in allowed:
-        # SOLO agregamos al UPDATE si el valor no es None
-        # O si realmente quieres permitir borrar datos, mantén el 'if f in body'
-        if f in body and body[f] is not None: 
-            updates.append(f"{f} = %s")
-            args.append(body[f])
+        if f in body and body[f] is not None:
+            if f == "attributes":
+                # Convertir dict a JSON string para PostgreSQL
+                updates.append(f"{f} = %s")
+                args.append(json.dumps(body[f]))
+            else:
+                updates.append(f"{f} = %s")
+                args.append(body[f])
 
     args.append(product_id)
 

@@ -307,9 +307,7 @@ useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
             <div className="product-body">
               <h3 className="product-title">{product.name}</h3>
               <p className="product-description">Cod: {product.code}</p>
-              <div className="product-price">
-                {product.price != null ? `$${Number(product.price).toFixed(2)}` : "—"}
-              </div>
+              <div className="product-price">${Number(product.price).toFixed(2)}</div>
               <button 
                 className="add-cart-btn" 
                 onClick={() => navigate(`/admin/products/${product.id}`)}

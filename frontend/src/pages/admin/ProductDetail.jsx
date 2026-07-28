@@ -15,31 +15,36 @@ export default function AdminProductDetail() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState("");
-   const handleCancel = () => {
-    navigate(-1); // Regresa a la página anterior
+  
+  const handleCancel = () => {
+    navigate(-1);
   };
 
   useEffect(() => {
-  async function loadCompanies() {
-    try {
-      const res = await getCompanies();
-      setCompanies(res.data || []);
-    } catch (err) {
-      console.error("Error cargando empresas:", err);
+    async function loadCompanies() {
+      try {
+        const res = await getCompanies();
+        setCompanies(res.data || []);
+      } catch (err) {
+        console.error("Error cargando empresas:", err);
+      }
     }
-  }
-  loadCompanies();
-}, []);
+    loadCompanies();
+  }, []);
   
-  // Estado para el formulario
+  // Estado para el formulario — AHORA CON CAMPOS NUEVOS
   const [formData, setFormData] = useState({
-     name: "",
+    name: "",
     code: "",
     price: "",
+    price_per_kg: "",
+    price_bulk: "",
     description: "",
     image_url: "",
-    company_id: ""
+    company_id: "",
+    attributes: {}  // ← NUEVO: atributos dinámicos (color, talle, etc.)
   });
+  
   const [imageFile, setImageFile] = useState(null);
 
   useEffect(() => {
@@ -54,20 +59,25 @@ export default function AdminProductDetail() {
     try {
       setLoading(true);
       const response = await getProduct(id);
+      
+      // La Lambda devuelve {data: {products: [...]}} o {data: {...}}
       const p = response.data.products 
         ? response.data.products.find(item => item.id === id) 
         : response.data;
   
       if (!p) throw new Error("Producto no encontrado");
   
+      // ← NUEVO: extraer price_per_kg, price_bulk y attributes
       setFormData({
-         name: p.name || "",
-         code: p.code || "",
-         price: p.price || "",
-         description: p.description || "",
-         image_url: p.image_url || "",
-         category_id: p.category_id || "",
-         company_id: p.company_id || ""
+        name: p.name || "",
+        code: p.code || "",
+        price: p.price || "",
+        price_per_kg: p.price_per_kg || "",
+        price_bulk: p.price_bulk || "",
+        description: p.description || "",
+        image_url: p.image_url || "",
+        company_id: p.company_id || "",
+        attributes: p.attributes || {}  // ← NUEVO
       });
     } catch (err) {
       console.error(err);
@@ -82,12 +92,22 @@ export default function AdminProductDetail() {
     setImageFile(file);
   }
 
+  // ← NUEVO: helper para actualizar un atributo específico
+  function handleAttributeChange(key, value) {
+    setFormData(prev => ({
+      ...prev,
+      attributes: {
+        ...prev.attributes,
+        [key]: value
+      }
+    }));
+  }
+
   async function handleSave() {
     try {
       setUploading(true);
       let finalImageUrl = formData.image_url;
 
-      // Si hay un nuevo archivo, lo subimos primero
       if (imageFile) {
         const result = await uploadLogo(imageFile, null);
         const { upload_url, file_url } = result;
@@ -101,14 +121,16 @@ export default function AdminProductDetail() {
         finalImageUrl = file_url;
       }
 
-      // Guardar datos en la base de datos
+      // ← NUEVO: payload incluye precios alternativos y atributos
       const payload = {
         ...formData,
-        price: Number(formData.price),
+        price: Number(formData.price) || null,
+        price_per_kg: formData.price_per_kg ? Number(formData.price_per_kg) : null,
+        price_bulk: formData.price_bulk ? Number(formData.price_bulk) : null,
         image_url: finalImageUrl
       };
 
-      console.log("PAYLOAD A ENVIAR:", payload);   // ← acá, en esta línea exacta
+      console.log("PAYLOAD A ENVIAR:", payload);
       
       if (isEdit) {
         await updateProduct(id, payload);
@@ -151,7 +173,11 @@ export default function AdminProductDetail() {
 
         <div className="detail-info">
           <label>Nombre:</label>
-          <input className="product-input" value={formData.name || ""} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+          <input 
+            className="product-input" 
+            value={formData.name || ""} 
+            onChange={(e) => setFormData({...formData, name: e.target.value})} 
+          />
         
           <label>Empresa:</label>
           <select
@@ -166,13 +192,63 @@ export default function AdminProductDetail() {
           </select>
         
           <label>Código:</label>
-          <input className="product-input" value={formData.code || ""} onChange={(e) => setFormData({...formData, code: e.target.value})} />
+          <input 
+            className="product-input" 
+            value={formData.code || ""} 
+            onChange={(e) => setFormData({...formData, code: e.target.value})} 
+          />
         
+          {/* ← NUEVO: Precio principal */}
           <label>Precio:</label>
-          <input className="product-input" type="number" value={formData.price || ""} onChange={(e) => setFormData({...formData, price: e.target.value})} />
+          <input 
+            className="product-input" 
+            type="number" 
+            value={formData.price || ""} 
+            onChange={(e) => setFormData({...formData, price: e.target.value})} 
+          />
+        
+          {/* ← NUEVO: Precios alternativos */}
+          <label>Precio por KG:</label>
+          <input 
+            className="product-input" 
+            type="number" 
+            value={formData.price_per_kg || ""} 
+            onChange={(e) => setFormData({...formData, price_per_kg: e.target.value})} 
+          />
+        
+          <label>Precio por Bulto:</label>
+          <input 
+            className="product-input" 
+            type="number" 
+            value={formData.price_bulk || ""} 
+            onChange={(e) => setFormData({...formData, price_bulk: e.target.value})} 
+          />
         
           <label>Descripción:</label>
-          <textarea className="product-input" value={formData.description || ""} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+          <textarea 
+            className="product-input" 
+            value={formData.description || ""} 
+            onChange={(e) => setFormData({...formData, description: e.target.value})} 
+          />
+        
+          {/* ← NUEVO: Atributos dinámicos (color, talle, tamaño, etc.) */}
+          {formData.attributes && Object.keys(formData.attributes).length > 0 && (
+            <div style={{ marginTop: "15px", marginBottom: "15px" }}>
+              <label style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>
+                Atributos:
+              </label>
+              {Object.entries(formData.attributes).map(([key, val]) => (
+                <div key={key} style={{ marginBottom: "8px" }}>
+                  <label style={{ textTransform: "capitalize" }}>{key}:</label>
+                  <input 
+                    className="product-input"
+                    value={val || ""}
+                    onChange={(e) => handleAttributeChange(key, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
             <button className="snb-btn" onClick={handleSave} disabled={uploading}>
