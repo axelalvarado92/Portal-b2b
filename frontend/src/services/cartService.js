@@ -9,18 +9,20 @@ export async function getCart(companyId) {
   return response.data;
 }
 
-export async function addToCart(
+export async function addToCart({
   productId,
   companyId,
-  quantity = 1
-) {
+  quantity = 1,
+  selectedOptions = {}
+}) {
 
   const response = await api.post(
     "/cart/items",
     {
       product_id: productId,
       company_id: companyId,
-      quantity
+      quantity,
+      selected_options: selectedOptions
     }
   );
 

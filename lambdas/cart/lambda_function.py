@@ -104,12 +104,13 @@ def get_cart(user, company_id):
             ci.product_id,
             p.name,
             p.code,
-            p.price,
+            ci.unit_price,
             p.unit_type,
             p.has_stock,
             p.stock_quantity,
             ci.quantity,
-            ci.observations
+            ci.observations,
+            ci.variant_selection
         FROM cart_items ci
         INNER JOIN products p ON ci.product_id = p.id
         WHERE ci.cart_id = %s
@@ -130,8 +131,9 @@ def get_cart(user, company_id):
             "has_stock":      row[6],
             "stock_quantity": row[7],
             "quantity":       float(row[8]),
-            "observations":   row[9],
-            "subtotal":       float(row[4]) * float(row[8])
+            "observations": row[9],
+            "variant_selection": row[10] if row[10] else {},
+            "subtotal": float(row[4]) * float(row[8])
         }
         for row in rows
     ]
@@ -173,12 +175,13 @@ def get_all_carts(user):
                 ci.product_id,
                 p.name,
                 p.code,
-                p.price,
+                ci.unit_price,
                 p.unit_type,
                 p.has_stock,
                 p.stock_quantity,
                 ci.quantity,
-                ci.observations
+                ci.observations,
+                ci.variant_selection
             FROM cart_items ci
             INNER JOIN products p ON ci.product_id = p.id
             WHERE ci.cart_id = %s
@@ -199,7 +202,8 @@ def get_all_carts(user):
                 "stock_quantity": row[7],
                 "quantity":       float(row[8]),
                 "observations":   row[9],
-                "subtotal":       float(row[4]) * float(row[8])
+                "subtotal":       float(row[4]) * float(row[8]),
+                "variant_selection": row[10] if row[10] else {},
             }
             for row in item_rows
         ]
@@ -235,6 +239,7 @@ def add_cart_item(user, body):
     company_id = body["company_id"]
     quantity   = body["quantity"]
     observations = body.get("observations", "")
+    variant_selection = body.get("variant_selection", {})
 
     if quantity <= 0:
         return bad_request("La cantidad debe ser mayor a 0")
@@ -246,37 +251,96 @@ def add_cart_item(user, body):
 
     # Verificamos que el producto pertenezca a la empresa
     cur.execute("""
-        SELECT id, price FROM products
+        SELECT id, price, attributes FROM products
         WHERE id = %s AND company_id = %s AND is_active = true
     """, [product_id, company_id])
 
     product = cur.fetchone()
+
     if not product:
         cur.close()
         return not_found("Producto no encontrado")
+    
+    base_price = float(product[1])
+    
+    attributes = product[2] or {}
+    
+    try:
+        if isinstance(attributes, str):
+            attributes = json.loads(attributes)
+    except:
+        attributes = {}
+    
+    unit_price = base_price
+    
+    for group in attributes.get("variant_groups", []):
+    
+        selected = variant_selection.get(group["name"])
+    
+        if not selected:
+            continue
+    
+        for option in group["options"]:
+    
+            if option["value"] == selected:
+                unit_price += float(option.get("price_extra", 0))
+                break
 
     # Si el producto ya está en el carrito, sumamos cantidad
     cur.execute("""
-        SELECT id, quantity FROM cart_items
-        WHERE cart_id = %s AND product_id = %s
-    """, [cart_id, product_id])
-
+        SELECT id, quantity
+        FROM cart_items
+        WHERE cart_id = %s
+          AND product_id = %s
+          AND variant_selection = %s::jsonb
+    """, [
+        cart_id,
+        product_id,
+        json.dumps(variant_selection)
+    ])
+    
     existing = cur.fetchone()
 
     if existing:
+
         new_quantity = float(existing[1]) + float(quantity)
+    
         cur.execute("""
             UPDATE cart_items
-            SET quantity = %s
+            SET
+                quantity = %s,
+                observations = %s,
+                variant_selection = %s,
+                unit_price = %s
             WHERE id = %s
             RETURNING id
-        """, [new_quantity, existing[0]])
+        """, [
+            new_quantity,
+            observations,
+            json.dumps(variant_selection),
+            unit_price,
+            existing[0]
+        ])
     else:
         cur.execute("""
-            INSERT INTO cart_items (cart_id, product_id, quantity, observations)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO cart_items (
+                cart_id,
+                product_id,
+                quantity,
+                observations,
+                variant_selection,
+                unit_price
+            )
+            VALUES (%s,%s,%s,%s,%s,%s)
             RETURNING id
-        """, [cart_id, product_id, quantity, observations])
+        """, [
+            cart_id,
+            product_id,
+            quantity,
+            observations,
+            json.dumps(variant_selection),
+            unit_price
+        ])
 
     conn.commit()
     cur.close()

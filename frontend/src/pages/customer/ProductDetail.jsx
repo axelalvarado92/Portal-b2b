@@ -16,10 +16,53 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedVariants, setSelectedVariants] = useState({});
+  const [quantity, setQuantity] = useState(1);
+  const [finalPrice, setFinalPrice] = useState(0);
 
   useEffect(() => {
     loadProduct();
   }, [id]);
+
+  useEffect(() => {
+
+    if (!product) return;
+  
+    const initialSelections = {};
+  
+    if (product.variant_groups) {
+  
+      product.variant_groups.forEach(group => {
+  
+        if (group.options.length > 0) {
+          initialSelections[group.name] = group.options[0];
+        }
+  
+      });
+  
+    }
+  
+    setSelectedVariants(initialSelections);
+  
+  }, [product]);
+
+  useEffect(() => {
+
+    if (!product) return;
+  
+    let price = Number(product.price);
+  
+    Object.values(selectedVariants).forEach(option => {
+  
+      if (option?.price_extra) {
+        price += Number(option.price_extra);
+      }
+  
+    });
+  
+    setFinalPrice(price);
+  
+  }, [product, selectedVariants]);
 
   async function loadProduct() {
 
@@ -63,11 +106,17 @@ export default function ProductDetail() {
   
     try {
   
-      await addToCart(
-        product.id,
-        selectedCompany.id,
-        1
-      );
+      await addToCart({
+
+        productId: product.id,
+      
+        companyId: selectedCompany.id,
+      
+        quantity,
+      
+        selectedOptions: selectedVariants
+      
+      });
   
       setToast("✓ Producto agregado al carrito");
   
@@ -117,13 +166,72 @@ export default function ProductDetail() {
 
           <div className="detail-price">
             $
-            {Number(product.price).toLocaleString(
+            {Number(finalPrice).toLocaleString(
               "es-AR",
               {
                 minimumFractionDigits: 2
               }
             )}
           </div>
+
+          {product.has_variants && (
+
+            <div className="variant-container">
+          
+              {product.variant_groups.map(group => (
+          
+                <div
+                  key={group.name}
+                  className="variant-group"
+                >
+          
+                  <label>{group.name}</label>
+          
+                  <select
+          
+                    value={selectedVariants[group.name]?.value || ""}
+          
+                    onChange={(e) => {
+          
+                      const option = group.options.find(
+                        o => o.value === e.target.value
+                      );
+          
+                      setSelectedVariants(prev => ({
+                        ...prev,
+                        [group.name]: option
+                      }));
+          
+                    }}
+          
+                  >
+          
+                    {group.options.map(option => (
+          
+                      <option
+                        key={option.value}
+                        value={option.value}
+                      >
+          
+                        {option.value}
+          
+                        {option.price_extra > 0
+                          ? ` (+$${option.price_extra})`
+                          : ""}
+          
+                      </option>
+          
+                    ))}
+          
+                  </select>
+          
+                </div>
+          
+              ))}
+          
+            </div>
+          
+          )}
 
           {product.description && (
 
@@ -136,6 +244,36 @@ export default function ProductDetail() {
             </div>
 
           )}
+
+          <div className="quantity-selector">
+
+            <label>Cantidad</label>
+          
+            <div className="quantity-controls">
+          
+              <button
+                type="button"
+                onClick={() =>
+                  setQuantity(q => Math.max(1, q - 1))
+                }
+              >
+                -
+              </button>
+          
+              <span>{quantity}</span>
+          
+              <button
+                type="button"
+                onClick={() =>
+                  setQuantity(q => q + 1)
+                }
+              >
+                +
+              </button>
+          
+            </div>
+          
+          </div>
 
           <button
             className="add-cart-btn"

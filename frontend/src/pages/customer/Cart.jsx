@@ -85,6 +85,23 @@ export default function Cart() {
     }
   }
 
+  // ── helpers ───────────────────────────────────────────────
+
+  function formatVariants(variantSelection) {
+    if (!variantSelection) return null;
+    // Si viene como string (por si acaso), parsearlo
+    const variants = typeof variantSelection === "string"
+      ? JSON.parse(variantSelection)
+      : variantSelection;
+
+    const entries = Object.entries(variants);
+    if (entries.length === 0) return null;
+
+    return entries.map(([group, value]) => `${group}: ${value}`).join(" · ");
+  }
+
+  // ── render ────────────────────────────────────────────────
+
   if (loading) return <p className="cart-loading">Cargando carrito...</p>;
 
   return (
@@ -129,26 +146,35 @@ export default function Cart() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cart.items.map(item => (
-                    <tr key={item.id}>
-                      <td>{item.product_code}</td>
-                      <td>{item.product_name}</td>
-                      <td>${item.price.toFixed(2)}</td>
-                      <td>
-                        <div className="qty-control">
-                          <button onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}>−</button>
-                          <span>{item.quantity}</span>
-                          <button onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}>+</button>
-                        </div>
-                      </td>
-                      <td>${item.subtotal.toFixed(2)}</td>
-                      <td>
-                        <button className="cart-delete-btn" onClick={() => handleDelete(item.id)}>
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {cart.items.map(item => {
+                    const variantText = formatVariants(item.variant_selection);
+
+                    return (
+                      <tr key={item.id}>
+                        <td>{item.product_code}</td>
+                        <td>
+                          <div className="cart-product-name">{item.product_name}</div>
+                          {variantText && (
+                            <div className="cart-variant-line">{variantText}</div>
+                          )}
+                        </td>
+                        <td>${item.price.toFixed(2)}</td>
+                        <td>
+                          <div className="qty-control">
+                            <button onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}>−</button>
+                            <span>{item.quantity}</span>
+                            <button onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}>+</button>
+                          </div>
+                        </td>
+                        <td>${item.subtotal.toFixed(2)}</td>
+                        <td>
+                          <button className="cart-delete-btn" onClick={() => handleDelete(item.id)}>
+                            Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 

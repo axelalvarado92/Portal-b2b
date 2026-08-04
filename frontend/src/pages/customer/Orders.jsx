@@ -81,6 +81,20 @@ export default function Orders() {
     }
   }
 
+  function formatVariants(variantSelection) {
+
+    if (!variantSelection) return null;
+  
+    const entries = Object.entries(variantSelection);
+  
+    if (entries.length === 0) return null;
+  
+    return entries.map(([group, value]) => (
+      `${group}: ${value}`
+    ));
+  
+  }
+
   if (loading) return <p className="orders-loading">Cargando pedidos...</p>;
 
   // 🔍 Filtrado dinámico según la pestaña seleccionada
@@ -210,7 +224,22 @@ export default function Orders() {
             <tbody>
               {selectedOrder.items.map((item, i) => (
                 <tr key={i}>
-                  <td className="item-col-name">{item.product_name}</td>
+                  <td className="item-col-name">
+
+                    <div>{item.product_name}</div>
+                  
+                    {formatVariants(item.variant_selection)?.map((text, index) => (
+                  
+                      <div
+                        key={index}
+                        className="order-variant-line"
+                      >
+                        {text}
+                      </div>
+                  
+                    ))}
+                  
+                  </td>
                   <td className="item-col-price">${Number(item.unit_price).toFixed(2)}</td>
                   <td className="item-col-qty">{item.quantity}</td>
                   <td className="item-col-sub">${Number(item.subtotal).toFixed(2)}</td>

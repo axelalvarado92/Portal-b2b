@@ -102,12 +102,13 @@ def create_order(user, body):
 
         # Traemos los items del carrito con precio actual
         cur.execute("""
-            SELECT 
+            SELECT
                 ci.product_id,
                 p.name,
-                p.price,
+                ci.unit_price,
                 ci.quantity,
-                ci.observations
+                ci.observations,
+                ci.variant_selection
             FROM cart_items ci
             INNER JOIN products p ON ci.product_id = p.id
             WHERE ci.cart_id = %s
@@ -148,31 +149,33 @@ def create_order(user, body):
         # Guardamos nombre y precio al momento del pedido
         for row in items:
 
-            product_id, product_name, unit_price, quantity, observations = row
+            product_id, product_name, unit_price, quantity, observations, variant_selection = row
 
             subtotal = float(unit_price) * float(quantity)
 
             cur.execute("""
-                INSERT INTO order_items 
-                    (
-                        order_id,
-                        product_id,
-                        product_name,
-                        unit_price,
-                        quantity,
-                        subtotal,
-                        observations
-                    )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO order_items
+                (
+                    order_id,
+                    product_id,
+                    product_name,
+                    unit_price,
+                    quantity,
+                    subtotal,
+                    observations,
+                    variant_selection
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, [
-                order_id,
-                product_id,
-                product_name,
-                unit_price,
-                quantity,
-                subtotal,
-                observations
-            ])
+                    order_id,
+                    product_id,
+                    product_name,
+                    unit_price,
+                    quantity,
+                    subtotal,
+                    observations,
+                    json.dumps(variant_selection)
+                ])
 
         # Cerramos el carrito
         cur.execute("""
@@ -311,7 +314,8 @@ def get_order(user, order_id):
                 unit_price,
                 quantity,
                 subtotal,
-                observations
+                observations,
+                variant_selection
             FROM order_items
             WHERE order_id = %s
         """, [order_id])
@@ -320,12 +324,13 @@ def get_order(user, order_id):
 
         items = [
             {
-                "product_id":   str(item[0]),
+                "product_id": str(item[0]),
                 "product_name": item[1],
-                "unit_price":   float(item[2]),
-                "quantity":     float(item[3]),
-                "subtotal":     float(item[4]),
-                "observations": item[5]
+                "unit_price": float(item[2]),
+                "quantity": float(item[3]),
+                "subtotal": float(item[4]),
+                "observations": item[5],
+                "variant_selection": item[6] if item[6] else {}
             }
             for item in item_rows
         ]

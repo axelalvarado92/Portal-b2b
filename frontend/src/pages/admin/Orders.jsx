@@ -139,6 +139,23 @@ async function handleRejectCancel(orderId) {
     return matchesTab && matchesSearch;
   });
 
+  function formatVariants(variantSelection) {
+    if (!variantSelection) return null;
+  
+    const variants =
+      typeof variantSelection === "string"
+        ? JSON.parse(variantSelection)
+        : variantSelection;
+  
+    const entries = Object.entries(variants);
+  
+    if (entries.length === 0) return null;
+  
+    return entries
+      .map(([group, value]) => `${group}: ${value}`)
+      .join(" · ");
+  }
+
   return (
     <div className="admin-orders-page">
       

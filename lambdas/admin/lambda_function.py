@@ -259,6 +259,7 @@ def create_user(body):
 
     finally:
         cur.close()
+        conn.close()
 
     return created({
         "id": cognito_sub,
@@ -891,23 +892,37 @@ def get_order_admin(order_id):
                 quantity,
                 unit_price,
                 subtotal,
-                observations
+                observations,
+                variant_selection
             FROM order_items
             WHERE order_id = %s
         """, [order_id])
 
         rows = cur.fetchall()
 
-        items = [
-            {
+        items = []
+
+        for row in rows:
+        
+            variant_selection = row[5]
+        
+            if isinstance(variant_selection, str):
+                try:
+                    variant_selection = json.loads(variant_selection)
+                except json.JSONDecodeError:
+                    variant_selection = {}
+        
+            if variant_selection is None:
+                variant_selection = {}
+        
+            items.append({
                 "product_name": row[0],
                 "quantity": float(row[1]),
                 "unit_price": float(row[2]),
                 "subtotal": float(row[3]),
-                "observations": row[4]
-            }
-            for row in rows
-        ]
+                "observations": row[4],
+                "variant_selection": variant_selection
+            })
 
         return success({
             "id": str(order[0]),
@@ -977,6 +992,10 @@ def update_order_status(order_id, status):
     finally:
         cur.close()
         conn.close()
+
+# =========================================================
+# ACCOUNTS REQUESTS
+# =========================================================
 
 def list_account_requests():
 
@@ -1237,6 +1256,10 @@ def reject_account_request(request_id):
     finally:
         cur.close()
         conn.close()
+
+# =========================================================
+# HANDLER PRINCIPAL
+# =========================================================
 
 def handler(event, context):
 
