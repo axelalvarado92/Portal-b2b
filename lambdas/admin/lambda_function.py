@@ -586,13 +586,8 @@ def list_products(params):
                p.code,
                p.name,
                p.price,
-               p.price_per_kg,
-               p.price_bulk,
                p.attributes,
                p.is_active,
-               p.unit_type,
-               p.has_stock,
-               p.stock_quantity,
                p.image_url,
                c.id,
                c.name
@@ -615,25 +610,35 @@ def list_products(params):
     cur.close()
     conn.close()
 
-    products = [
-        {
+    products = []
+
+    for r in rows:
+    
+        attributes = r[6]
+    
+        if isinstance(attributes, str):
+            try:
+                attributes = json.loads(attributes)
+            except:
+                attributes = {}
+    
+        if attributes is None:
+            attributes = {}
+
+        has_variants = attributes.get("has_variants", False)
+        variant_groups = attributes.get("variant_groups", [])
+    
+        products.append({
             "id": str(r[0]),
             "code": r[1],
             "name": r[2],
             "price": safe_float(r[3]),
-            "price_per_kg": safe_float(r[4]),
-            "price_bulk": safe_float(r[5]),
-            "attributes": r[6] if r[6] else {},
-            "is_active": r[7],
-            "unit_type": r[8],
-            "has_stock": r[9],
-            "stock_quantity": r[10],
-            "image_url": r[11],
-            "company_id": str(r[12]),
-            "company_name": r[13]
-        }
-        for r in rows
-    ]
+            "attributes": attributes,
+            "is_active": r[5],
+            "image_url": r[6],
+            "company_id": str(r[7]),
+            "company_name": r[8]
+        })
 
     return success({
         "products": products,
@@ -647,9 +652,17 @@ def get_product(product_id):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT id, code, name, description, image_url, price,
-               price_per_kg, price_bulk, attributes,
-               is_active, unit_type, has_stock, stock_quantity, category_id, company_id
+        SELECT
+            id,
+            code,
+            name,
+            description,
+            image_url,
+            price,
+            attributes,
+            is_active,
+            category_id,
+            company_id
         FROM products
         WHERE id = %s
     """, [product_id])
@@ -660,7 +673,7 @@ def get_product(product_id):
 
     # Parsear attributes de JSONB a dict
 
-    attributes = row[8]
+    attributes = row[6]
     if isinstance(attributes, str):
         try:
             attributes = json.loads(attributes)
@@ -669,22 +682,23 @@ def get_product(product_id):
     elif attributes is None:
         attributes = {}
 
+    has_variants = attributes.get("has_variants", False)
+
+    variant_groups = attributes.get("variant_groups", [])
+
     return success({
         "id": str(row[0]),
         "code": row[1],
         "name": row[2],
         "description": row[3],
         "image_url": row[4],
-        "price": float(row[5]) if row[5] else None,
-        "price_per_kg": float(row[6]) if row[6] else None,
-        "price_bulk": float(row[7]) if row[7] else None,
+        "price": safe_float(row[5]),
         "attributes": attributes,
-        "is_active": row[9],
-        "unit_type": row[10],
-        "has_stock": row[11],
-        "stock_quantity": row[12],
-        "category_id": str(row[13]) if row[13] else None,
-        "company_id": str(row[14]) if row[14] else None
+        "is_active": row[7],
+        "category_id": str(row[8]) if row[8] else None,
+        "company_id": str(row[9]) if row[9] else None,
+        "has_variants": has_variants,
+        "variant_groups": variant_groups,
     })
 
 def create_product(body):
@@ -701,10 +715,16 @@ def create_product(body):
 
     cur.execute("""
         INSERT INTO products
-        (company_id, category_id, code, name, description, image_url, price,
-         price_per_kg, price_bulk, attributes,
-         has_stock, stock_quantity, unit_type)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        (company_id,
+         category_id,
+         code,
+         name,
+         description,
+         image_url,
+         price,
+         attributes,
+         is_active)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
         RETURNING id
     """, [
         body["company_id"],
@@ -714,12 +734,8 @@ def create_product(body):
         body.get("description"),
         body.get("image_url"),
         body["price"],
-        body.get("price_per_kg"),
-        body.get("price_bulk"),
         json.dumps(body.get("attributes", {})),
-        body.get("has_stock", False),
-        body.get("stock_quantity"),
-        body.get("unit_type", "unit")
+        body.get("is_active", True)
     ])
 
 
@@ -741,9 +757,13 @@ def update_product(product_id, body):
         return not_found("Producto no encontrado")
 
     allowed = [
-        "name", "code", "description", "image_url", "price",
-        "price_per_kg", "price_bulk", "attributes",
-        "has_stock", "stock_quantity", "unit_type", "is_active"
+        "name",
+        "code",
+        "description",
+        "image_url",
+        "price",
+        "attributes",
+        "is_active"
     ]
 
     updates = []
