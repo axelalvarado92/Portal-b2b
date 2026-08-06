@@ -347,6 +347,7 @@ def update_user(user_id, body):
 
     conn.commit()
     cur.close()
+    conn.close()
     return success({"message": "Usuario actualizado"})
 
 
@@ -434,10 +435,10 @@ def update_company(company_id, body):
     
     if cur.rowcount == 0:
         cur.close()
-        return error("Empresa no encontrada", 404)
+        return not_found("Empresa no encontrada", 404)
 
     cur.close()
-    conn.close() # No olvides cerrar la conexión también
+    conn.close()
 
     return success({"message": "Empresa actualizada"})
 
@@ -486,6 +487,7 @@ def get_company(company_id):
     row = cur.fetchone()
 
     cur.close()
+    conn.close()  
 
     if not row:
         return not_found("Empresa no encontrada")
@@ -553,18 +555,6 @@ def delete_company(company_id):
 # PRODUCTS
 # =========================================================
 
-def safe_float(value):
-    if value is None:
-        return None
-    try:
-        f = float(value)
-        if math.isnan(f) or math.isinf(f):
-            return None
-        return f
-    except (TypeError, ValueError):
-        return None
-
-
 def list_products(params):
     company_id = params.get("company_id")
     page = int(params.get("page", 1))
@@ -583,18 +573,37 @@ def list_products(params):
     total = cur.fetchone()[0]
 
     query = """
-        SELECT p.id,
-               p.code,
-               p.name,
-               p.price,
-               p.attributes,
-               p.is_active,
-               p.image_url,
-               c.id,
-               c.name
-        FROM products p
-        INNER JOIN companies c
-            ON p.company_id = c.id
+    SELECT
+        p.id,
+        p.code,
+        p.name,
+        p.is_active,
+        p.image_url,
+    
+        c.id,
+        c.name,
+    
+        pv.id,
+        pv.sku,
+        pv.price,
+        pv.attributes
+    
+    FROM products p
+    
+    INNER JOIN companies c
+        ON c.id = p.company_id
+    
+    LEFT JOIN LATERAL (
+        SELECT
+            id,
+            sku,
+            price,
+            attributes
+        FROM product_variants
+        WHERE product_id = p.id
+        ORDER BY created_at
+        LIMIT 1
+    ) pv ON TRUE
     """
 
     args = []
@@ -613,9 +622,9 @@ def list_products(params):
 
     products = []
 
-    for r in rows:
+    for row in rows:
     
-        attributes = r[6]
+        attributes = row[10]
     
         if isinstance(attributes, str):
             try:
@@ -625,20 +634,27 @@ def list_products(params):
     
         if attributes is None:
             attributes = {}
-
-        has_variants = attributes.get("has_variants", False)
-        variant_groups = attributes.get("variant_groups", [])
     
         products.append({
-            "id": str(r[0]),
-            "code": r[1],
-            "name": r[2],
-            "price": safe_float(r[3]),
-            "attributes": attributes,
-            "is_active": r[5],
-            "image_url": r[6],
-            "company_id": str(r[7]),
-            "company_name": r[8]
+    
+            "id": str(row[0]),
+            "code": row[1],
+            "name": row[2],
+            "is_active": row[3],
+            "image_url": row[4],
+    
+            "company": {
+                "id": str(row[5]),
+                "name": row[6]
+            },
+    
+            "default_variant": {
+                "id": str(row[7]) if row[7] else None,
+                "sku": row[8],
+                "price": safe_float(row[9]),
+                "attributes": attributes
+            }
+    
         })
 
     return success({
@@ -654,52 +670,82 @@ def get_product(product_id):
     cur = conn.cursor()
     cur.execute("""
         SELECT
-            id,
-            code,
-            name,
-            description,
-            image_url,
-            price,
-            attributes,
-            is_active,
-            category_id,
-            company_id
-        FROM products
-        WHERE id = %s
+            p.id,
+            p.code,
+            p.name,
+            p.description,
+            p.image_url,
+            p.is_active,
+            p.category_id,
+            p.company_id
+        
+        FROM products p
+        
+        WHERE p.id = %s
     """, [product_id])
     row = cur.fetchone()
-    cur.close()
+
     if not row:
         return not_found("Producto no encontrado")
 
-    # Parsear attributes de JSONB a dict
+    cur.execute("""
+        SELECT
+            id,
+            sku,
+            price,
+            stock,
+            attributes,
+            is_active
+    
+        FROM product_variants
+    
+        WHERE product_id = %s
+    
+        ORDER BY created_at
+    """, [product_id])
+    
+    variant_rows = cur.fetchall()
 
-    attributes = row[6]
-    if isinstance(attributes, str):
-        try:
-            attributes = json.loads(attributes)
-        except:
+    variants = []
+
+    for variant in variant_rows:
+    
+        attributes = variant[4]
+    
+        if isinstance(attributes, str):
+            try:
+                attributes = json.loads(attributes)
+            except:
+                attributes = {}
+    
+        if attributes is None:
             attributes = {}
-    elif attributes is None:
-        attributes = {}
-
-    has_variants = attributes.get("has_variants", False)
-
-    variant_groups = attributes.get("variant_groups", [])
+    
+        variants.append({
+    
+            "id": str(variant[0]),
+            "sku": variant[1],
+            "price": safe_float(variant[2]),
+            "stock": variant[3],
+            "attributes": attributes,
+            "is_active": variant[5]
+    
+        })
 
     return success({
+
         "id": str(row[0]),
         "code": row[1],
         "name": row[2],
         "description": row[3],
         "image_url": row[4],
-        "price": safe_float(row[5]),
-        "attributes": attributes,
-        "is_active": row[7],
-        "category_id": str(row[8]) if row[8] else None,
-        "company_id": str(row[9]) if row[9] else None,
-        "has_variants": has_variants,
-        "variant_groups": variant_groups,
+        "is_active": row[5],
+    
+        "category_id": str(row[6]) if row[6] else None,
+        "company_id": str(row[7]) if row[7] else None,
+    
+        "variants": variants
+    
     })
 
 def create_product(body):
@@ -715,35 +761,52 @@ def create_product(body):
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO products
-        (company_id,
-         category_id,
-         code,
-         name,
-         description,
-         image_url,
-         price,
-         attributes,
-         is_active)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        INSERT INTO products(
+        company_id,
+        category_id,
+        code,
+        name,
+        description,
+        image_url,
+        is_active
+        )
         RETURNING id
     """, [
+        
         body["company_id"],
         body.get("category_id"),
         code,
         body["name"],
         body.get("description"),
         body.get("image_url"),
-        body["price"],
-        json.dumps(body.get("attributes", {})),
         body.get("is_active", True)
+        
     ])
-
 
     product_id = cur.fetchone()[0]
 
+    cur.execute("""
+        INSERT INTO product_variants (
+            product_id,
+            sku,
+            price,
+            stock,
+            attributes,
+            is_active
+        )
+        VALUES (%s,%s,%s,%s,%s,%s)
+    """, [
+        product_id,
+        body.get("sku"),
+        body.get("price"),
+        0,
+        json.dumps(body.get("attributes", {})),
+        True
+    ])
+
     conn.commit()
     cur.close()
+    conn.close()
 
     return created({"id": str(product_id)})
 
@@ -762,8 +825,6 @@ def update_product(product_id, body):
         "code",
         "description",
         "image_url",
-        "price",
-        "attributes",
         "is_active"
     ]
 
@@ -780,21 +841,54 @@ def update_product(product_id, body):
                 updates.append(f"{f} = %s")
                 args.append(body[f])
 
-    args.append(product_id)
+    if updates:
 
-    # Agregamos un log para ver qué SQL se está ejecutando realmente
-    sql_query = f"UPDATE products SET {', '.join(updates)}, updated_at = now() WHERE id = %s"
-    print("DEBUG: SQL a ejecutar:", sql_query)
-    print("DEBUG: Argumentos:", args)
+        args.append(product_id)
+    
+        cur.execute(f"""
+            UPDATE products
+            SET {', '.join(updates)},
+                updated_at = now()
+            WHERE id = %s
+        """, args)
 
-    cur.execute(f"""
-        UPDATE products SET {', '.join(updates)}, updated_at = now()
-        WHERE id = %s
-    """, args)
+    variants = body.get("variants", [])
 
+    for variant in variants:
+    
+        variant_id = variant.get("id")
+    
+        if not variant_id:
+            continue
+    
+        sku = variant.get("sku")
+        price = variant.get("price")
+        stock = variant.get("stock", 0)
+        attributes = variant.get("attributes", {})
+        is_active = variant.get("is_active", True)
+
+        cur.execute("""
+            UPDATE product_variants
+            SET
+                sku = %s,
+                price = %s,
+                stock = %s,
+                attributes = %s,
+                is_active = %s,
+                updated_at = now()
+            WHERE id = %s
+        """, (
+            sku,
+            price,
+            stock,
+            json.dumps(attributes),
+            is_active,
+            variant_id
+        ))
+    
     conn.commit()
     cur.close()
-
+    conn.close()
     return success({"message": "Producto actualizado"})
 
 
@@ -808,6 +902,7 @@ def delete_product(product_id):
 
     conn.commit()
     cur.close()
+    conn.close()
 
     return success({"message": "Producto desactivado"})
 
@@ -841,6 +936,7 @@ def list_orders():
     rows = cur.fetchall()
 
     cur.close()
+    conn.close()
 
     return success([
         {
@@ -1360,25 +1456,6 @@ def handler(event, context):
             if method == "DELETE" and resource_id:
                 return delete_product(resource_id)
         
-        # ==========================
-        # ORDERS
-        # ==========================
-        
-        if path.startswith("/admin/companies"):
-
-            if method == "GET":
-                if resource_id:
-                    return get_company(resource_id)
-                return list_companies()
-        
-            if method == "POST":
-                return create_company(body)
-        
-            if method == "PATCH" and resource_id:
-                return update_company(resource_id, body)
-        
-            if method == "DELETE" and resource_id:
-                return delete_company(resource_id)
 
     except Exception as e:
         print(str(e))

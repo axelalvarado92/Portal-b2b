@@ -299,7 +299,21 @@ async function handleRejectCancel(orderId) {
             <tbody>
               {selectedOrder.items.map(item => (
                 <tr key={item.product_name}>
-                  <td>{item.product_name}</td>
+                  <td>
+                    <div>{item.product_name}</div>
+                  
+                    {formatVariants(item.variant_selection) && (
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#666",
+                          marginTop: "4px"
+                        }}
+                      >
+                        {formatVariants(item.variant_selection)}
+                      </div>
+                    )}
+                  </td>
                   <td>{item.quantity}</td>
                   <td>${item.unit_price}</td>
                   <td>${item.subtotal}</td>

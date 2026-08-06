@@ -5,6 +5,7 @@ import psycopg2
 import uuid
 import os
 import math
+from itertools import product
 from io import BytesIO
 import logging
 from datetime import datetime, timezone
@@ -37,7 +38,7 @@ REQUIRED_VARIANT_COLS = [
     "Código Producto",
     "Grupo",
     "Valor",
-    "Precio Extra",
+    "Precio",
     "SKU",
     "Activo",
 ]
@@ -112,11 +113,6 @@ def build_variant_json(df_variants: pd.DataFrame, product_code: str) -> dict:
         option = {
             "value": str(row["Valor"]).strip()
         }
-        
-        price_extra = _to_float(row.get("Precio Extra"), 0)
-        
-        if price_extra != 0:
-            option["price_extra"] = price_extra
         
         sku = str(row.get("SKU", "")).strip()
         
@@ -197,11 +193,8 @@ def upsert_product(
     name,
     description,
     category_id,
-    price,
-    attributes,
     is_active
 ):
-    attributes_json = json.dumps(attributes, ensure_ascii=False)
 
     cursor.execute(
         """
@@ -211,15 +204,13 @@ def upsert_product(
             name,
             description,
             category_id,
-            price,
-            attributes,
             is_active,
             created_at,
             updated_at
         )
         VALUES (
-            %s,%s,%s,%s,
-            %s,%s,%s,%s,
+            %s,%s,%s,
+            %s,%s,%s,
             NOW(),NOW()
         )
     
@@ -229,12 +220,12 @@ def upsert_product(
             name = EXCLUDED.name,
             description = EXCLUDED.description,
             category_id = EXCLUDED.category_id,
-            price = EXCLUDED.price,
             attributes = EXCLUDED.attributes,
             is_active = EXCLUDED.is_active,
             updated_at = NOW()
     
         RETURNING
+            id,
             (xmax = 0) AS inserted
         """,
         (
@@ -243,15 +234,218 @@ def upsert_product(
             name,
             description,
             category_id,
-            price,
-            attributes_json,
             is_active
         )
     )
     
-    return cursor.fetchone()[0]
+    row = cursor.fetchone()
 
+    return {
+        "product_id": row[0],
+        "inserted": row[1]
+    }
 
+def upsert_variant(
+    cursor,
+    product_id,
+    sku,
+    price,
+    stock,
+    attributes,
+    is_active
+):
+    cursor.execute(
+        """
+        INSERT INTO product_variants (
+            product_id,
+            sku,
+            price,
+            stock,
+            attributes,
+            is_active,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            %s,%s,%s,%s,%s,%s,
+            NOW(),NOW()
+        )
+
+        ON CONFLICT (sku)
+
+        DO UPDATE SET
+            price = EXCLUDED.price,
+            stock = EXCLUDED.stock,
+            attributes = EXCLUDED.attributes,
+            is_active = EXCLUDED.is_active,
+            updated_at = NOW()
+        """,
+        (
+            product_id,
+            sku,
+            price,
+            stock,
+            json.dumps(attributes, ensure_ascii=False),
+            is_active
+        )
+    )
+
+def replace_variants(
+    cursor,
+    product_id,
+    product_code,
+    base_price,
+    df_variants
+):
+    """
+    Elimina todas las variantes del producto
+    y vuelve a crearlas desde el Excel.
+    """
+
+    cursor.execute(
+        "DELETE FROM product_variants WHERE product_id=%s",
+        (product_id,)
+    )
+
+    rows = df_variants[
+        df_variants["Código Producto"]
+        .astype(str)
+        .str.strip()
+        == product_code
+    ]
+
+    if rows.empty:
+
+        cursor.execute("""
+            INSERT INTO product_variants
+            (
+                product_id,
+                sku,
+                price,
+                stock,
+                attributes,
+                is_active
+            )
+            VALUES
+            (%s,%s,%s,%s,%s,%s)
+        """,(
+            product_id,
+            product_code,
+            base_price,
+            0,
+            json.dumps({}),
+            True
+        ))
+
+        return
+
+    groups = {}
+
+    for _, row in rows.iterrows():
+    
+        if not _is_active(row.get("Activo")):
+            continue
+    
+        group = str(row["Grupo"]).strip()
+    
+        option = {
+            "value": str(row["Valor"]).strip(),
+            "price_extra": _to_float(row.get("Precio Extra"), 0),
+            "sku": str(row.get("SKU", "")).strip()
+        }
+    
+        groups.setdefault(group, []).append(option)
+
+        sku = str(row.get("SKU", "")).strip()
+
+        if not sku:
+            sku = f"{product_code}-{uuid.uuid4().hex[:6].upper()}"
+
+        price = _to_float(
+            row.get("Precio"),
+            base_price
+        )
+
+        attributes = {
+            row["Grupo"]: row["Valor"]
+        }
+
+        cursor.execute("""
+            INSERT INTO product_variants
+            (
+                product_id,
+                sku,
+                price,
+                stock,
+                attributes,
+                is_active
+            )
+            VALUES
+            (%s,%s,%s,%s,%s,%s)
+        """,(
+            product_id,
+            sku,
+            price,
+            0,
+            json.dumps(attributes),
+            _is_active(row.get("Activo"))
+        ))
+
+def create_variants(
+    cursor,
+    product_id,
+    product_code,
+    base_price,
+    df_variants
+):
+    rows = df_variants[
+        df_variants["Código Producto"].astype(str).str.strip()
+        == product_code
+    ]
+
+    if rows.empty:
+        return
+
+    for _, row in rows.iterrows():
+
+        if not _is_active(row.get("Activo")):
+            continue
+
+        price_extra = _to_float(
+            row.get("Precio Extra"),
+            0
+        )
+
+        price = base_price + price_extra
+
+        sku = str(
+            row.get("SKU", "")
+        ).strip()
+
+        attributes = {
+            str(row["Grupo"]).strip():
+            str(row["Valor"]).strip()
+        }
+
+        cursor.execute("""
+            INSERT INTO product_variants (
+                product_id,
+                sku,
+                price,
+                stock,
+                attributes,
+                is_active
+            )
+            VALUES (%s,%s,%s,%s,%s,%s)
+        """, (
+            product_id,
+            sku,
+            price,
+            0,
+            json.dumps(attributes),
+            True
+        ))
+        
 # ─────────────────────────────────────────────────────────────
 # Validaciones y utilidades
 # ─────────────────────────────────────────────────────────────
@@ -428,25 +622,32 @@ def process_import(company_id: str, s3_key: str) -> dict:
             name = str(row["Nombre"]).strip()
             description = str(row.get("Descripción", "")).strip()
             category_name = str(row.get("Categoría", "")).strip()
-            price = _to_float(row["Precio Base"], 0.0)
+            base_price = _to_float(row.get("Precio Base"), 0)
             is_active = _is_active(row.get("Activo"))
 
             category_id = get_category_id(cursor, company_id, category_name)
-            attributes = build_variant_json(df_variants, code)
 
-            was_inserted = upsert_product(
+            product_result = upsert_product(
                 cursor=cursor,
                 company_id=company_id,
                 code=code,
                 name=name,
                 description=description,
                 category_id=category_id,
-                price=price,
-                attributes=attributes,
                 is_active=is_active,
             )
             
-            if was_inserted:
+            product_id = product_result["product_id"]
+            
+            replace_variants(
+                cursor=cursor,
+                product_id=product_id,
+                product_code=code,
+                base_price=base_price,
+                df_variants=df_variants,
+            )
+            
+            if product_result["inserted"]:
                 inserted += 1
             else:
                 updated += 1

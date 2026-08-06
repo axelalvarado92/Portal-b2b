@@ -42,7 +42,10 @@ export default function AdminProductDetail() {
     description: "",
     image_url: "",
     company_id: "",
-    attributes: {}  // ← NUEVO: atributos dinámicos (color, talle, etc.)
+    attributes: {
+      has_variants: false,
+      variant_groups: []
+    }  
   });
   
   const [imageFile, setImageFile] = useState(null);
@@ -77,7 +80,11 @@ export default function AdminProductDetail() {
         description: p.description || "",
         image_url: p.image_url || "",
         company_id: p.company_id || "",
-        attributes: p.attributes || {}  // ← NUEVO
+        attributes:
+          p.attributes || {
+            has_variants: false,
+            variant_groups: []
+          }  
       });
     } catch (err) {
       console.error(err);
@@ -99,6 +106,32 @@ export default function AdminProductDetail() {
       attributes: {
         ...prev.attributes,
         [key]: value
+      }
+    }));
+  }
+
+  function toggleVariants(enabled) {
+    setFormData(prev => ({
+      ...prev,
+      attributes: {
+        ...prev.attributes,
+        has_variants: enabled
+      }
+    }));
+  }
+  
+  function addVariantGroup() {
+    setFormData(prev => ({
+      ...prev,
+      attributes: {
+        ...prev.attributes,
+        variant_groups: [
+          ...(prev.attributes.variant_groups || []),
+          {
+            name: "",
+            options: []
+          }
+        ]
       }
     }));
   }
@@ -230,8 +263,64 @@ export default function AdminProductDetail() {
             value={formData.description || ""} 
             onChange={(e) => setFormData({...formData, description: e.target.value})} 
           />
+
+          <div style={{ marginTop: "20px", marginBottom: "20px" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                cursor: "pointer",
+                fontWeight: "bold"
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={formData.attributes?.has_variants || false}
+                onChange={(e) => toggleVariants(e.target.checked)}
+              />
+          
+              Este producto tiene variantes
+            </label>
+          </div>
+
+          {formData.attributes?.has_variants && (
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "15px",
+                border: "1px solid #ddd",
+                borderRadius: "8px"
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "15px"
+                }}
+              >
+                <h3 style={{ margin: 0 }}>Variantes</h3>
+          
+                <button
+                  type="button"
+                  className="snb-btn"
+                  onClick={addVariantGroup}
+                >
+                  + Agregar grupo
+                </button>
+              </div>
+          
+              {formData.attributes.variant_groups.length === 0 && (
+                <p style={{ color: "#777" }}>
+                  Todavía no hay grupos de variantes.
+                </p>
+              )}
+            </div>
+          )}
         
-          {/* ← NUEVO: Atributos dinámicos (color, talle, tamaño, etc.) */}
+         {/* ← NUEVO: Atributos dinámicos (color, talle, tamaño, etc.) 
           {formData.attributes && Object.keys(formData.attributes).length > 0 && (
             <div style={{ marginTop: "15px", marginBottom: "15px" }}>
               <label style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>
@@ -248,7 +337,7 @@ export default function AdminProductDetail() {
                 </div>
               ))}
             </div>
-          )}
+          )}*/}
         
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
             <button className="snb-btn" onClick={handleSave} disabled={uploading}>
