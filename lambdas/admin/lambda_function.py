@@ -557,6 +557,8 @@ def delete_company(company_id):
 
 def list_products(params):
     company_id = params.get("company_id")
+    search = params.get("search", "").strip()
+
     page = int(params.get("page", 1))
     limit = int(params.get("limit", 12))
     offset = (page - 1) * limit
@@ -564,11 +566,31 @@ def list_products(params):
     conn = get_connection()
     cur = conn.cursor()
 
-    count_query = "SELECT COUNT(*) FROM products"
+    count_query = """
+        SELECT COUNT(*)
+        FROM products p
+        WHERE 1 = 1
+    """
+    
     count_args = []
+    
     if company_id:
-        count_query += " WHERE company_id = %s"
+        count_query += " AND p.company_id = %s"
         count_args.append(company_id)
+    
+    if search:
+        count_query += """
+            AND (
+                p.name ILIKE %s
+                OR p.code ILIKE %s
+            )
+        """
+    
+        count_args.extend([
+            f"%{search}%",
+            f"%{search}%"
+        ])
+
     cur.execute(count_query, count_args)
     total = cur.fetchone()[0]
 
@@ -597,11 +619,25 @@ def list_products(params):
     if company_id:
         query += " AND p.company_id = %s"
         args.append(company_id)
-
+    
+    if search:
+        query += """
+            AND (
+                p.name ILIKE %s
+                OR p.code ILIKE %s
+            )
+        """
+    
+        args.extend([
+            f"%{search}%",
+            f"%{search}%"
+        ])
+    
     query += " ORDER BY p.name LIMIT %s OFFSET %s"
+    
     args.append(limit)
     args.append(offset)
-
+    
     cur.execute(query, args)
     rows = cur.fetchall()
 

@@ -14,6 +14,7 @@ export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
 
@@ -59,25 +60,34 @@ export default function AdminProducts() {
   }
 
 // Cargar empresas - INDEPENDIENTE
-async function loadCompanies() {
-  try {
-    const companiesRes = await getCompanies();
-    console.log("RAW companiesRes:", companiesRes);
-    console.log("typeof companiesRes:", typeof companiesRes);
-    
-    let parsed = companiesRes;
-    if (typeof companiesRes === 'string') {
-      parsed = JSON.parse(companiesRes);
+  async function loadCompanies() {
+    try {
+      const companiesRes = await getCompanies();
+      console.log("RAW companiesRes:", companiesRes);
+      console.log("typeof companiesRes:", typeof companiesRes);
+      
+      let parsed = companiesRes;
+      if (typeof companiesRes === 'string') {
+        parsed = JSON.parse(companiesRes);
+      }
+      
+      setCompanies(parsed?.data || []);
+    } catch (e) {
+      console.error("Error cargando empresas:", e);
+      setCompanies([]);
     }
-    
-    setCompanies(parsed?.data || []);
-  } catch (e) {
-    console.error("Error cargando empresas:", e);
-    setCompanies([]);
   }
-}
 
-useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
+  useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 500);
+  
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
 
   function handleExcelSelected(e) {
     const file = e.target.files?.[0];
@@ -142,8 +152,6 @@ useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
     }
   }
 
-  useEffect(() => { setPage(1); }, [search]);
-
   useEffect(() => { loadProducts(); }, [page, filterCompany, search]);
 
   // Lógica de filtrado y ordenamiento en cliente (similar a customer)
@@ -197,8 +205,8 @@ useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
         <input
           className="catalog-search"
           placeholder="Buscar por nombre o código..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
         <div className="toolbar-filters">
           <select

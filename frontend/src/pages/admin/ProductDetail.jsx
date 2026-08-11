@@ -36,12 +36,21 @@ export default function AdminProductDetail() {
   const [formData, setFormData] = useState({
     name: "",
     code: "",
+    price: "",
+    price_per_kg: "",
+    price_bulk: "",
     description: "",
     image_url: "",
     company_id: "",
-    category_id: "",
+  
     has_variants: false,
-    variants: []
+  
+    variants: [],
+  
+    attributes: {
+      has_variants: false,
+      variant_groups: []
+    }
   });
   
   const [imageFile, setImageFile] = useState(null);
@@ -59,25 +68,31 @@ export default function AdminProductDetail() {
       setLoading(true);
       const response = await getProduct(id);
       
-      // La Lambda devuelve {data: {products: [...]}} o {data: {...}}
       const p = response.data.products 
         ? response.data.products.find(item => item.id === id) 
         : response.data;
   
       if (!p) throw new Error("Producto no encontrado");
   
-      // ← NUEVO: extraer price_per_kg, price_bulk y attributes
-      setFormData({
+      ssetFormData({
         name: p.name || "",
         code: p.code || "",
+        price: p.price || "",
+        price_per_kg: p.price_per_kg || "",
+        price_bulk: p.price_bulk || "",
         description: p.description || "",
         image_url: p.image_url || "",
         company_id: p.company_id || "",
-        category_id: p.category_id || "",
-        has_variants: p.has_variants || false,
-        variants: Array.isArray(p.variants)
-          ? p.variants
-          : []
+      
+        has_variants: p.has_variants === true,
+      
+        variants: p.variants || [],
+      
+        attributes: {
+          ...(p.attributes || {}),
+          has_variants: p.has_variants === true,
+          variant_groups: p.attributes?.variant_groups || []
+        }
       });
 
     } catch (err) {
@@ -531,26 +546,6 @@ export default function AdminProductDetail() {
               ))}
             </div>
           )}
-
-        
-         {/* ← NUEVO: Atributos dinámicos (color, talle, tamaño, etc.) 
-          {formData.attributes && Object.keys(formData.attributes).length > 0 && (
-            <div style={{ marginTop: "15px", marginBottom: "15px" }}>
-              <label style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>
-                Atributos:
-              </label>
-              {Object.entries(formData.attributes).map(([key, val]) => (
-                <div key={key} style={{ marginBottom: "8px" }}>
-                  <label style={{ textTransform: "capitalize" }}>{key}:</label>
-                  <input 
-                    className="product-input"
-                    value={val || ""}
-                    onChange={(e) => handleAttributeChange(key, e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-          )}*/}
         
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
             <button className="snb-btn" onClick={handleSave} disabled={uploading}>

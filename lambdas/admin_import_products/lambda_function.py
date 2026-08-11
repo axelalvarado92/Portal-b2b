@@ -191,6 +191,14 @@ def upsert_product(
     is_active
 ):
 
+    if pd.isna(description):
+        description = None
+    elif isinstance(description, str):
+        description = description.strip()
+
+        if description == "":
+            description = None
+
     cursor.execute(
         """
         INSERT INTO products (

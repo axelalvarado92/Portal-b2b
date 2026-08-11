@@ -13,6 +13,7 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState("");
 
   const [page, setPage] = useState(1);
@@ -22,7 +23,15 @@ export default function Products() {
 
   useEffect(() => {
     setPage(1);
-  }, [companyId]);
+  }, [companyId, search]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearchQuery(search);
+    }, 400);
+  
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   useEffect(() => {
     if (!companyId) {
@@ -35,7 +44,7 @@ export default function Products() {
       try {
         setLoading(true);
 
-        const response = await getProducts(companyId, page, 20);
+        const response = await getProducts(companyId, page, 20, searchQuery);
 
         const payload = response.data;
         console.log("DEBUG getProducts response:", response.data);
@@ -52,7 +61,7 @@ export default function Products() {
 
     loadProducts();
 
-  }, [companyId, page]);
+  }, [companyId, page, searchQuery]);
 
   async function handleAddToCart(product) {
     try {
@@ -67,10 +76,7 @@ export default function Products() {
     }
   }
 
-  let processedProducts = products.filter(p =>
-    p.name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.code?.toLowerCase().includes(search.toLowerCase())
-  );
+  let processedProducts = [...products];
 
   if (sortBy === "alpha-asc") {
     processedProducts.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
