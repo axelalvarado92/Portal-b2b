@@ -1,10 +1,21 @@
 import api from "../api/api";
 
-export async function getProducts(companyId = null, page = 1, limit = 12) {
-  let url = `/admin/products?page=${page}&limit=${limit}`;
-  if (companyId) url += `&company_id=${companyId}`;
+export async function getProducts(
+    companyId = null,
+    page = 1,
+    limit = 12,
+    search = "",
+    categoryId = null
+) {
+  const params = new URLSearchParams();
+  params.append("page", page);
+  params.append("limit", limit);
+  
+  if (companyId) params.append("company_id", companyId);
+  if (categoryId) params.append("category_id", categoryId);
+  if (search)    params.append("search", search);
 
-  const response = await api.get(url);
+  const response = await api.get(`/admin/products?${params.toString()}`);
   return response.data;
 }
 
@@ -30,15 +41,12 @@ export async function createProduct(
 
 // adminProductService.js
 export async function updateProduct(productId, data) {
-  // Aplanamos el objeto para que coincida con lo que espera el SQL
-  const payload = {
-    ...data,
-    category_id: data.category?.id || null // Extraemos el ID del objeto anidado
-  };
-  delete payload.category; // Eliminamos el objeto para no confundir a la Lambda
+    const response = await api.patch(
+        `/admin/products/${productId}`,
+        data
+    );
 
-  const response = await api.patch(`/admin/products/${productId}`, payload);
-  return response.data;
+    return response.data;
 }
 
 export async function deleteProduct(

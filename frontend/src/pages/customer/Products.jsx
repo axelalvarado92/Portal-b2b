@@ -38,6 +38,7 @@ export default function Products() {
         const response = await getProducts(companyId, page, 20);
 
         const payload = response.data;
+        console.log("DEBUG getProducts response:", response.data);
 
         setProducts(payload.items || []);
         setTotalPages(payload.total_pages || 1);
@@ -143,7 +144,9 @@ export default function Products() {
                 </p>
                 <div className="product-price-label">Precio unitario</div>
                 <div className="product-price">
-                  ${Number(product.price).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                  ${Number(product.default_variant?.price ?? 0).toLocaleString("es-AR", {
+                    minimumFractionDigits: 2,
+                  })}
                 </div>
                 <button
                   className="add-cart-btn"

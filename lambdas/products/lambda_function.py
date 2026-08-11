@@ -3,6 +3,7 @@
 import sys
 import os
 import traceback
+import json
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -32,8 +33,7 @@ def handler(event, context):
 
     except Exception:
         print("🔥 PRODUCTS ERROR FULL:")
-        print(str(e))
-        raise e
+        raise 
 
 
 def check_company_access(cur, user_id, company_id):
@@ -50,6 +50,28 @@ def check_company_access(cur, user_id, company_id):
     """, [user_id, company_id])
 
     return cur.fetchone() is not None
+
+def normalize_attributes(attributes):
+    if isinstance(attributes, str):
+        try:
+            attributes = json.loads(attributes)
+        except Exception:
+            attributes = {}
+
+    if attributes is None:
+        attributes = {}
+
+    return attributes
+
+
+def build_variant(row):
+    return {
+        "id": str(row[0]),
+        "sku": row[1],
+        "price": float(row[2]) if row[2] is not None else 0.0,
+        "stock": row[3],
+        "attributes": normalize_attributes(row[4])
+    }
 
 
 def list_products(user, params):
@@ -91,15 +113,16 @@ def list_products(user, params):
                 p.name,
                 p.description,
                 p.image_url,
-                p.price,
-                p.has_stock,
-                p.stock_quantity,
-                p.unit_type,
+                p.has_variants,
+        
                 c.id AS category_id,
                 c.name AS category_name
+        
             FROM products p
+        
             LEFT JOIN categories c
                 ON p.category_id = c.id
+        
             WHERE p.company_id = %s
               AND p.is_active = true
         """
@@ -158,25 +181,64 @@ def list_products(user, params):
 
         rows = cur.fetchall()
 
-        products = [
-            {
-                "id":             str(row[0]),
-                "code":           row[1],
-                "name":           row[2],
-                "description":    row[3],
-                "image_url":      row[4],
-                "price":          float(row[5]) if row[5] is not None else 0.0,
-                "has_stock":      row[6],
-                "stock_quantity": row[7],
-                "unit_type":      row[8],
-                "category": {
-                    "id":   str(row[9]) if row[9] else None,
-                    "name": row[10] if row[10] else None
-                }
-            }
-            for row in rows
-        ]
+        product_ids = [row[0] for row in rows]
 
+        variants_by_product = {}
+        
+        if product_ids:
+            cur.execute("""
+                SELECT
+                    id,
+                    product_id,
+                    sku,
+                    price,
+                    stock,
+                    attributes
+                FROM product_variants
+                WHERE product_id = ANY(%s::uuid[])
+                  AND is_active = true
+                ORDER BY created_at
+            """, [product_ids])
+        
+            variant_rows = cur.fetchall()
+        
+            for variant_row in variant_rows:
+                product_id = variant_row[1]
+        
+                variant = build_variant([
+                    variant_row[0],
+                    variant_row[2],
+                    variant_row[3],
+                    variant_row[4],
+                    variant_row[5]
+                ])
+        
+                variants_by_product.setdefault(product_id, []).append(variant)
+
+        products = []
+
+        for row in rows:
+
+            variants = variants_by_product.get(row[0], [])
+    
+            products.append({
+                "id": str(row[0]),
+                "code": row[1],
+                "name": row[2],
+                "description": row[3],
+                "image_url": row[4],
+                "has_variants": row[5],
+    
+                "default_variant": variants[0] if variants else None,
+    
+                "variants": variants,
+    
+                "category": {
+                    "id": str(row[6]) if row[6] else None,
+                    "name": row[7] if row[7] else None
+                }
+            })
+    
         return success({
             "items": products,
             "page": page,
@@ -186,7 +248,7 @@ def list_products(user, params):
                 (total + limit - 1) // limit
             )
         })
-
+    
     except Exception:
 
         conn.rollback()
@@ -204,26 +266,29 @@ def list_products(user, params):
 def get_product(user, product_id):
 
     conn = get_connection()
-    cur  = conn.cursor()
+    cur = conn.cursor()
 
     try:
 
+        # 1. Obtener el producto
         cur.execute("""
-            SELECT 
+            SELECT
                 p.id,
                 p.code,
                 p.name,
                 p.description,
                 p.image_url,
-                p.price,
-                p.has_stock,
-                p.stock_quantity,
-                p.unit_type,
+                p.has_variants,
                 p.company_id,
-                c.id   AS category_id,
+
+                c.id AS category_id,
                 c.name AS category_name
+
             FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
+
+            LEFT JOIN categories c
+                ON p.category_id = c.id
+
             WHERE p.id = %s
               AND p.is_active = true
         """, [product_id])
@@ -233,23 +298,63 @@ def get_product(user, product_id):
         if not row:
             return not_found("Producto no encontrado")
 
-        # Verificamos acceso a la empresa del producto
-        if not check_company_access(cur, user["id"], str(row[9])):
+        # 2. Verificar acceso del usuario a la empresa
+        if not check_company_access(
+            cur,
+            user["id"],
+            str(row[6])
+        ):
             return not_found("Producto no encontrado")
 
+        # 3. Obtener TODAS las variantes activas
+        cur.execute("""
+            SELECT
+                id,
+                sku,
+                price,
+                stock,
+                attributes
+            FROM product_variants
+            WHERE product_id = %s
+              AND is_active = true
+            ORDER BY created_at ASC
+        """, [product_id])
+
+        variant_rows = cur.fetchall()
+
+        variants = []
+
+        for variant_row in variant_rows:
+
+            variant = build_variant([
+                variant_row[0],
+                variant_row[1],
+                variant_row[2],
+                variant_row[3],
+                variant_row[4]
+            ])
+
+            variants.append(variant)
+
+        # 4. La primera variante activa es la default
+        default_variant = variants[0] if variants else None
+
+        # 5. Construir respuesta
         return success({
-            "id":             str(row[0]),
-            "code":           row[1],
-            "name":           row[2],
-            "description":    row[3],
-            "image_url":      row[4],
-            "price":          float(row[5]),
-            "has_stock":      row[6],
-            "stock_quantity": row[7],
-            "unit_type":      row[8],
+            "id": str(row[0]),
+            "code": row[1],
+            "name": row[2],
+            "description": row[3],
+            "image_url": row[4],
+            "has_variants": row[5],
+
+            "default_variant": default_variant,
+
+            "variants": variants,
+
             "category": {
-                "id":   str(row[10]) if row[10] else None,
-                "name": row[11] if row[11] else None
+                "id": str(row[7]) if row[7] else None,
+                "name": row[8] if row[8] else None
             }
         })
 
@@ -264,3 +369,4 @@ def get_product(user, product_id):
     finally:
 
         cur.close()
+        conn.close()

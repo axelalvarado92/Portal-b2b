@@ -29,6 +29,9 @@
 
 .detail-info h1{
     margin-bottom:8px;
+    font-size:28px;
+    line-height:1.2;
+    overflow-wrap:break-word;
 }
 
 .detail-code{

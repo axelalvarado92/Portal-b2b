@@ -16,53 +16,26 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedVariants, setSelectedVariants] = useState({});
+  const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [finalPrice, setFinalPrice] = useState(0);
 
   useEffect(() => {
     loadProduct();
   }, [id]);
 
   useEffect(() => {
-
     if (!product) return;
   
-    const initialSelections = {};
+    const activeVariants = (product.variants || [])
+      .filter(variant => variant.is_active !== false);
   
-    if (product.variant_groups) {
-  
-      product.variant_groups.forEach(group => {
-  
-        if (group.options.length > 0) {
-          initialSelections[group.name] = group.options[0];
-        }
-  
-      });
-  
+    if (activeVariants.length > 0) {
+      setSelectedVariant(activeVariants[0]);
+    } else {
+      setSelectedVariant(null);
     }
   
-    setSelectedVariants(initialSelections);
-  
   }, [product]);
-
-  useEffect(() => {
-
-    if (!product) return;
-  
-    let price = Number(product.price);
-  
-    Object.values(selectedVariants).forEach(option => {
-  
-      if (option?.price_extra) {
-        price += Number(option.price_extra);
-      }
-  
-    });
-  
-    setFinalPrice(price);
-  
-  }, [product, selectedVariants]);
 
   async function loadProduct() {
 
@@ -94,6 +67,27 @@ export default function ProductDetail() {
   
   async function handleAddToCart() {
 
+    if (!selectedVariant) {
+      setToast("No hay una variante disponible.");
+      setTimeout(() => setToast(""), 2500);
+      return;
+    }
+    
+    if (selectedVariant.is_active === false) {
+      setToast("La variante seleccionada no está disponible.");
+      setTimeout(() => setToast(""), 2500);
+      return;
+    }
+    
+    if (
+      selectedVariant.stock !== null &&
+      selectedVariant.stock < quantity
+    ) {
+      setToast("No hay suficiente stock disponible.");
+      setTimeout(() => setToast(""), 2500);
+      return;
+    }
+
     if (!selectedCompany) {
   
       setToast("Seleccioná una empresa.");
@@ -114,7 +108,7 @@ export default function ProductDetail() {
       
         quantity,
       
-        selectedOptions: selectedVariants
+        selectedVariantId: selectedVariant?.id
       
       });
   
@@ -163,74 +157,53 @@ export default function ProductDetail() {
           <p className="detail-code">
             Código: {product.code}
           </p>
-
           <div className="detail-price">
             $
-            {Number(finalPrice).toLocaleString(
-              "es-AR",
-              {
-                minimumFractionDigits: 2
-              }
-            )}
+            {Number(
+              selectedVariant?.price ?? 0
+            ).toLocaleString("es-AR", {
+              minimumFractionDigits: 2
+            })}
           </div>
 
-          {product.has_variants && (
-
+          {product.has_variants && product.variants?.length > 1 && (
             <div className="variant-container">
           
-              {product.variant_groups.map(group => (
+              <label>Variante</label>
           
-                <div
-                  key={group.name}
-                  className="variant-group"
-                >
+              <select
+                value={selectedVariant?.id || ""}
+                onChange={(e) => {
+                  const variant = product.variants.find(
+                    v => v.id === e.target.value
+                  );
           
-                  <label>{group.name}</label>
+                  setSelectedVariant(variant || null);
+                  setQuantity(1);
+                }}
+              >
           
-                  <select
+                {product.variants
+                  .filter(variant => variant.is_active !== false)
+                  .map(variant => (
+                    <option
+                      key={variant.id}
+                      value={variant.id}
+                    >
+                      {variant.sku}
+                      {variant.attributes &&
+                        Object.entries(variant.attributes).length > 0
+                        ? ` - ${Object.entries(variant.attributes)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(", ")}`
+                        : ""
+                      }
+                    </option>
+                  ))}
           
-                    value={selectedVariants[group.name]?.value || ""}
-          
-                    onChange={(e) => {
-          
-                      const option = group.options.find(
-                        o => o.value === e.target.value
-                      );
-          
-                      setSelectedVariants(prev => ({
-                        ...prev,
-                        [group.name]: option
-                      }));
-          
-                    }}
-          
-                  >
-          
-                    {group.options.map(option => (
-          
-                      <option
-                        key={option.value}
-                        value={option.value}
-                      >
-          
-                        {option.value}
-          
-                        {option.price_extra > 0
-                          ? ` (+$${option.price_extra})`
-                          : ""}
-          
-                      </option>
-          
-                    ))}
-          
-                  </select>
-          
-                </div>
-          
-              ))}
+              </select>
           
             </div>
-          
           )}
 
           {product.description && (
@@ -253,11 +226,16 @@ export default function ProductDetail() {
           
               <button
                 type="button"
+                disabled={
+                  selectedVariant &&
+                  selectedVariant.stock !== null &&
+                  quantity >= selectedVariant.stock
+                }
                 onClick={() =>
-                  setQuantity(q => Math.max(1, q - 1))
+                  setQuantity(q => q + 1)
                 }
               >
-                -
+                +
               </button>
           
               <span>{quantity}</span>
@@ -278,8 +256,16 @@ export default function ProductDetail() {
           <button
             className="add-cart-btn"
             onClick={handleAddToCart}
+            disabled={
+              !selectedVariant ||
+              selectedVariant.is_active === false ||
+              selectedVariant.stock <= 0 ||
+              quantity > selectedVariant.stock
+            }
           >
-            Agregar al carrito
+            {selectedVariant?.stock <= 0
+              ? "Sin stock"
+              : "Agregar al carrito"}
           </button>
 
         </div>

@@ -573,42 +573,29 @@ def list_products(params):
     total = cur.fetchone()[0]
 
     query = """
-    SELECT
-        p.id,
-        p.code,
-        p.name,
-        p.is_active,
-        p.image_url,
-    
-        c.id,
-        c.name,
-    
-        pv.id,
-        pv.sku,
-        pv.price,
-        pv.attributes
-    
-    FROM products p
-    
-    INNER JOIN companies c
-        ON c.id = p.company_id
-    
-    LEFT JOIN LATERAL (
         SELECT
-            id,
-            sku,
-            price,
-            attributes
-        FROM product_variants
-        WHERE product_id = p.id
-        ORDER BY created_at
-        LIMIT 1
-    ) pv ON TRUE
+            p.id,
+            p.code,
+            p.name,
+            p.is_active,
+            p.image_url,
+            p.has_variants,
+    
+            c.id,
+            c.name
+    
+        FROM products p
+    
+        INNER JOIN companies c
+            ON c.id = p.company_id
+    
+        WHERE 1 = 1
     """
 
     args = []
+
     if company_id:
-        query += " WHERE p.company_id = %s"
+        query += " AND p.company_id = %s"
         args.append(company_id)
 
     query += " ORDER BY p.name LIMIT %s OFFSET %s"
@@ -617,23 +604,63 @@ def list_products(params):
 
     cur.execute(query, args)
     rows = cur.fetchall()
+
+    product_ids = [row[0] for row in rows]
+
+    variants_by_product = {}
+    
+    if product_ids:
+        cur.execute("""
+            SELECT
+                id,
+                product_id,
+                sku,
+                price,
+                stock,
+                attributes,
+                is_active
+            FROM product_variants
+            WHERE product_id = ANY(%s::uuid[])
+            ORDER BY created_at
+        """, [product_ids])
+    
+        variant_rows = cur.fetchall()
+    
+        for variant_row in variant_rows:
+    
+            attributes = variant_row[5]
+    
+            if isinstance(attributes, str):
+                try:
+                    attributes = json.loads(attributes)
+                except Exception:
+                    attributes = {}
+    
+            if attributes is None:
+                attributes = {}
+    
+            variant = {
+                "id": str(variant_row[0]),
+                "sku": variant_row[2],
+                "price": safe_float(variant_row[3]),
+                "stock": variant_row[4],
+                "attributes": attributes,
+                "is_active": variant_row[6]
+            }
+    
+            variants_by_product.setdefault(
+                variant_row[1],
+                []
+            ).append(variant)
+
     cur.close()
     conn.close()
 
     products = []
-
+    
     for row in rows:
-    
-        attributes = row[10]
-    
-        if isinstance(attributes, str):
-            try:
-                attributes = json.loads(attributes)
-            except:
-                attributes = {}
-    
-        if attributes is None:
-            attributes = {}
+
+        variants = variants_by_product.get(row[0], [])
     
         products.append({
     
@@ -642,18 +669,16 @@ def list_products(params):
             "name": row[2],
             "is_active": row[3],
             "image_url": row[4],
+            "has_variants": row[5],
     
             "company": {
-                "id": str(row[5]),
-                "name": row[6]
+                "id": str(row[6]),
+                "name": row[7]
             },
     
-            "default_variant": {
-                "id": str(row[7]) if row[7] else None,
-                "sku": row[8],
-                "price": safe_float(row[9]),
-                "attributes": attributes
-            }
+            "default_variant": variants[0] if variants else None,
+    
+            "variants": variants
     
         })
 
@@ -676,6 +701,7 @@ def get_product(product_id):
             p.description,
             p.image_url,
             p.is_active,
+            p.has_variants,
             p.category_id,
             p.company_id
         
@@ -740,9 +766,10 @@ def get_product(product_id):
         "description": row[3],
         "image_url": row[4],
         "is_active": row[5],
+        "has_variants": row[6],
     
-        "category_id": str(row[6]) if row[6] else None,
-        "company_id": str(row[7]) if row[7] else None,
+        "category_id": str(row[7]) if row[7] else None,
+        "company_id": str(row[8]) if row[8] else None,
     
         "variants": variants
     
@@ -760,49 +787,72 @@ def create_product(body):
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
-        INSERT INTO products(
-        company_id,
-        category_id,
-        code,
-        name,
-        description,
-        image_url,
-        is_active
-        )
-        RETURNING id
-    """, [
-        
-        body["company_id"],
-        body.get("category_id"),
-        code,
-        body["name"],
-        body.get("description"),
-        body.get("image_url"),
-        body.get("is_active", True)
-        
-    ])
-
     product_id = cur.fetchone()[0]
 
+    variants = body.get("variants", [])
+
+    if not variants:
+        variants = [{
+            "sku": body.get("sku"),
+            "price": body.get("price"),
+            "stock": 0,
+            "attributes": {},
+            "is_active": True
+        }]
+    
+    active_variants = [
+        variant
+        for variant in variants
+        if variant.get("is_active", True)
+    ]
+    
+    has_variants = len(active_variants) > 1
+
     cur.execute("""
-        INSERT INTO product_variants (
+            INSERT INTO products(
+            company_id,
+            category_id,
+            code,
+            name,
+            description,
+            image_url,
+            is_active,
+            has_variants
+            )
+            RETURNING id
+        """, [
+            
+            body["company_id"],
+            body.get("category_id"),
+            code,
+            body["name"],
+            body.get("description"),
+            body.get("image_url"),
+            body.get("is_active", True),
+            has_variants
+            
+        ])
+    
+    for variant in variants:
+    
+        cur.execute("""
+            INSERT INTO product_variants (
+                product_id,
+                sku,
+                price,
+                stock,
+                attributes,
+                is_active
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, [
             product_id,
-            sku,
-            price,
-            stock,
-            attributes,
-            is_active
-        )
-        VALUES (%s,%s,%s,%s,%s,%s)
-    """, [
-        product_id,
-        body.get("sku"),
-        body.get("price"),
-        0,
-        json.dumps(body.get("attributes", {})),
-        True
-    ])
+            variant.get("sku"),
+            variant.get("price"),
+            variant.get("stock", 0),
+            json.dumps(variant.get("attributes", {})),
+            variant.get("is_active", True)
+        ])
 
     conn.commit()
     cur.close()
@@ -832,14 +882,10 @@ def update_product(product_id, body):
     args = []
 
     for f in allowed:
+
         if f in body and body[f] is not None:
-            if f == "attributes":
-                # Convertir dict a JSON string para PostgreSQL
-                updates.append(f"{f} = %s")
-                args.append(json.dumps(body[f]))
-            else:
-                updates.append(f"{f} = %s")
-                args.append(body[f])
+            updates.append(f"{f} = %s")
+            args.append(body[f])
 
     if updates:
 
@@ -854,37 +900,116 @@ def update_product(product_id, body):
 
     variants = body.get("variants", [])
 
+    incoming_variant_ids = {
+        variant.get("id")
+        for variant in variants
+        if variant.get("id")
+    }
+
+    cur.execute("""
+        SELECT id
+        FROM product_variants
+        WHERE product_id = %s
+          AND is_active = true
+    """, [product_id])
+    
+    existing_variant_ids = {
+        str(row[0])
+        for row in cur.fetchall()
+    }
+
+    removed_variant_ids = existing_variant_ids - incoming_variant_ids
+
+    if removed_variant_ids:
+
+        cur.execute("""
+            UPDATE product_variants
+            SET
+                is_active = false,
+                updated_at = now()
+            WHERE product_id = %s
+              AND id = ANY(%s::uuid[])
+        """, [
+            product_id,
+            list(removed_variant_ids)
+        ])
+
+
     for variant in variants:
     
         variant_id = variant.get("id")
-    
-        if not variant_id:
-            continue
-    
+
         sku = variant.get("sku")
         price = variant.get("price")
         stock = variant.get("stock", 0)
         attributes = variant.get("attributes", {})
         is_active = variant.get("is_active", True)
+        
+        if variant_id:
+        
+            cur.execute("""
+                UPDATE product_variants
+                SET
+                    sku = %s,
+                    price = %s,
+                    stock = %s,
+                    attributes = %s,
+                    is_active = %s,
+                    updated_at = now()
+                WHERE id = %s
+                  AND product_id = %s
+            """, (
+                sku,
+                price,
+                stock,
+                json.dumps(attributes),
+                is_active,
+                variant_id,
+                product_id
+            ))
+        
+        else:
+        
+            cur.execute("""
+                INSERT INTO product_variants (
+                    product_id,
+                    sku,
+                    price,
+                    stock,
+                    attributes,
+                    is_active
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                product_id,
+                sku,
+                price,
+                stock,
+                json.dumps(attributes),
+                is_active
+            ))
 
-        cur.execute("""
-            UPDATE product_variants
-            SET
-                sku = %s,
-                price = %s,
-                stock = %s,
-                attributes = %s,
-                is_active = %s,
-                updated_at = now()
-            WHERE id = %s
-        """, (
-            sku,
-            price,
-            stock,
-            json.dumps(attributes),
-            is_active,
-            variant_id
-        ))
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM product_variants
+        WHERE product_id = %s
+          AND is_active = true
+    """, [product_id])
+    
+    active_variant_count = cur.fetchone()[0]
+    
+    has_variants = active_variant_count > 1
+    
+    cur.execute("""
+        UPDATE products
+        SET
+            has_variants = %s,
+            updated_at = now()
+        WHERE id = %s
+    """, [
+        has_variants,
+        product_id
+    ])
     
     conn.commit()
     cur.close()

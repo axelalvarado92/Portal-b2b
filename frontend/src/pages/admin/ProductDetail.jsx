@@ -32,20 +32,16 @@ export default function AdminProductDetail() {
     loadCompanies();
   }, []);
   
-  // Estado para el formulario — AHORA CON CAMPOS NUEVOS
+  // Estado para el formulario 
   const [formData, setFormData] = useState({
     name: "",
     code: "",
-    price: "",
-    price_per_kg: "",
-    price_bulk: "",
     description: "",
     image_url: "",
     company_id: "",
-    attributes: {
-      has_variants: false,
-      variant_groups: []
-    }  
+    category_id: "",
+    has_variants: false,
+    variants: []
   });
   
   const [imageFile, setImageFile] = useState(null);
@@ -74,18 +70,16 @@ export default function AdminProductDetail() {
       setFormData({
         name: p.name || "",
         code: p.code || "",
-        price: p.price || "",
-        price_per_kg: p.price_per_kg || "",
-        price_bulk: p.price_bulk || "",
         description: p.description || "",
         image_url: p.image_url || "",
         company_id: p.company_id || "",
-        attributes:
-          p.attributes || {
-            has_variants: false,
-            variant_groups: []
-          }  
+        category_id: p.category_id || "",
+        has_variants: p.has_variants || false,
+        variants: Array.isArray(p.variants)
+          ? p.variants
+          : []
       });
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -99,41 +93,66 @@ export default function AdminProductDetail() {
     setImageFile(file);
   }
 
-  // ← NUEVO: helper para actualizar un atributo específico
-  function handleAttributeChange(key, value) {
+  function updateVariant(index, field, value) {
     setFormData(prev => ({
       ...prev,
-      attributes: {
-        ...prev.attributes,
-        [key]: value
-      }
-    }));
-  }
-
-  function toggleVariants(enabled) {
-    setFormData(prev => ({
-      ...prev,
-      attributes: {
-        ...prev.attributes,
-        has_variants: enabled
-      }
+      variants: prev.variants.map((variant, i) =>
+        i === index
+          ? {
+              ...variant,
+              [field]: value
+            }
+          : variant
+      )
     }));
   }
   
-  function addVariantGroup() {
+  function updateVariantAttribute(index, key, value) {
     setFormData(prev => ({
       ...prev,
-      attributes: {
-        ...prev.attributes,
-        variant_groups: [
-          ...(prev.attributes.variant_groups || []),
-          {
-            name: "",
-            options: []
-          }
-        ]
-      }
+      variants: prev.variants.map((variant, i) =>
+        i === index
+          ? {
+              ...variant,
+              attributes: {
+                ...variant.attributes,
+                [key]: value
+              }
+            }
+          : variant
+      )
     }));
+  }
+  
+  function addVariant() {
+    setFormData(prev => ({
+      ...prev,
+      has_variants: true,
+      variants: [
+        ...prev.variants,
+        {
+          id: null,
+          sku: "",
+          price: "",
+          stock: 0,
+          attributes: {},
+          is_active: true
+        }
+      ]
+    }));
+  }
+  
+  function removeVariant(index) {
+    setFormData(prev => {
+      if (!prev.has_variants && prev.variants.length <= 1) {
+        return prev;
+      }
+  
+      return {
+        ...prev,
+        variants: prev.variants.filter((_, i) => i !== index)
+      };
+    });
   }
 
   async function handleSave() {
@@ -157,10 +176,12 @@ export default function AdminProductDetail() {
       // ← NUEVO: payload incluye precios alternativos y atributos
       const payload = {
         ...formData,
-        price: Number(formData.price) || null,
-        price_per_kg: formData.price_per_kg ? Number(formData.price_per_kg) : null,
-        price_bulk: formData.price_bulk ? Number(formData.price_bulk) : null,
-        image_url: finalImageUrl
+        image_url: finalImageUrl,
+        variants: formData.variants.map(variant => ({
+          ...variant,
+          price: variant.price === "" ? null : Number(variant.price),
+          stock: Number(variant.stock) || 0
+        }))
       };
 
       console.log("PAYLOAD A ENVIAR:", payload);
@@ -231,32 +252,6 @@ export default function AdminProductDetail() {
             onChange={(e) => setFormData({...formData, code: e.target.value})} 
           />
         
-          {/* ← NUEVO: Precio principal */}
-          <label>Precio:</label>
-          <input 
-            className="product-input" 
-            type="number" 
-            value={formData.price || ""} 
-            onChange={(e) => setFormData({...formData, price: e.target.value})} 
-          />
-        
-          {/* ← NUEVO: Precios alternativos */}
-          <label>Precio por KG:</label>
-          <input 
-            className="product-input" 
-            type="number" 
-            value={formData.price_per_kg || ""} 
-            onChange={(e) => setFormData({...formData, price_per_kg: e.target.value})} 
-          />
-        
-          <label>Precio por Bulto:</label>
-          <input 
-            className="product-input" 
-            type="number" 
-            value={formData.price_bulk || ""} 
-            onChange={(e) => setFormData({...formData, price_bulk: e.target.value})} 
-          />
-        
           <label>Descripción:</label>
           <textarea 
             className="product-input" 
@@ -276,15 +271,136 @@ export default function AdminProductDetail() {
             >
               <input
                 type="checkbox"
-                checked={formData.attributes?.has_variants || false}
-                onChange={(e) => toggleVariants(e.target.checked)}
+                checked={formData.has_variants || false}
+                onChange={(e) =>
+                  setFormData(prev => ({
+                    ...prev,
+                    has_variants: e.target.checked
+                  }))
+                }
               />
           
               Este producto tiene variantes
             </label>
           </div>
 
-          {formData.attributes?.has_variants && (
+          {!formData.has_variants && (
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "15px",
+                border: "1px solid #ddd",
+                borderRadius: "8px"
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>
+                Datos comerciales
+              </h3>
+          
+              <label>SKU:</label>
+          
+              <input
+                className="product-input"
+                value={formData.variants[0]?.sku || ""}
+                onChange={(e) => {
+                  setFormData(prev => {
+                    const variants = [...prev.variants];
+          
+                    if (!variants[0]) {
+                      variants[0] = {
+                        id: null,
+                        sku: "",
+                        price: "",
+                        stock: 0,
+                        attributes: {},
+                        is_active: true
+                      };
+                    }
+          
+                    variants[0] = {
+                      ...variants[0],
+                      sku: e.target.value
+                    };
+          
+                    return {
+                      ...prev,
+                      variants
+                    };
+                  });
+                }}
+              />
+          
+              <label>Precio:</label>
+          
+              <input
+                className="product-input"
+                type="number"
+                value={formData.variants[0]?.price ?? ""}
+                onChange={(e) => {
+                  setFormData(prev => {
+                    const variants = [...prev.variants];
+          
+                    if (!variants[0]) {
+                      variants[0] = {
+                        id: null,
+                        sku: "",
+                        price: "",
+                        stock: 0,
+                        attributes: {},
+                        is_active: true
+                      };
+                    }
+          
+                    variants[0] = {
+                      ...variants[0],
+                      price: e.target.value
+                    };
+          
+                    return {
+                      ...prev,
+                      variants
+                    };
+                  });
+                }}
+              />
+          
+              <label>Stock:</label>
+          
+              <input
+                className="product-input"
+                type="number"
+                value={formData.variants[0]?.stock ?? 0}
+                onChange={(e) => {
+                  setFormData(prev => {
+                    const variants = [...prev.variants];
+          
+                    if (!variants[0]) {
+                      variants[0] = {
+                        id: null,
+                        sku: "",
+                        price: "",
+                        stock: 0,
+                        attributes: {},
+                        is_active: true
+                      };
+                    }
+          
+                    variants[0] = {
+                      ...variants[0],
+                      stock: e.target.value
+                    };
+          
+                    return {
+                      ...prev,
+                      variants
+                    };
+                  });
+                }}
+              />
+            </div>
+          )}
+
+          {formData.has_variants && (
             <div
               style={{
                 marginTop: "20px",
@@ -301,24 +417,121 @@ export default function AdminProductDetail() {
                   marginBottom: "15px"
                 }}
               >
-                <h3 style={{ margin: 0 }}>Variantes</h3>
+                <h3 style={{ margin: 0 }}>
+                  Variantes
+                </h3>
           
                 <button
                   type="button"
                   className="snb-btn"
-                  onClick={addVariantGroup}
+                  onClick={addVariant}
                 >
-                  + Agregar grupo
+                  + Agregar variante
                 </button>
               </div>
           
-              {formData.attributes.variant_groups.length === 0 && (
-                <p style={{ color: "#777" }}>
-                  Todavía no hay grupos de variantes.
-                </p>
-              )}
+              {formData.variants.map((variant, index) => (
+                <div
+                  key={variant.id || `new-${index}`}
+                  style={{
+                    padding: "15px",
+                    marginBottom: "15px",
+                    border: "1px solid #eee",
+                    borderRadius: "6px"
+                  }}
+                >
+                  <label>SKU:</label>
+          
+                  <input
+                    className="product-input"
+                    value={variant.sku || ""}
+                    onChange={(e) =>
+                      updateVariant(index, "sku", e.target.value)
+                    }
+                  />
+          
+                  <label>Precio:</label>
+          
+                  <input
+                    className="product-input"
+                    type="number"
+                    value={variant.price ?? ""}
+                    onChange={(e) =>
+                      updateVariant(index, "price", e.target.value)
+                    }
+                  />
+          
+                  <label>Stock:</label>
+          
+                  <input
+                    className="product-input"
+                    type="number"
+                    value={variant.stock ?? 0}
+                    onChange={(e) =>
+                      updateVariant(index, "stock", e.target.value)
+                    }
+                  />
+          
+                  <label>Activo:</label>
+          
+                  <input
+                    type="checkbox"
+                    checked={variant.is_active ?? true}
+                    onChange={(e) =>
+                      updateVariant(
+                        index,
+                        "is_active",
+                        e.target.checked
+                      )
+                    }
+                  />
+          
+                  <label>Atributos:</label>
+          
+                  {Object.entries(variant.attributes || {}).map(
+                    ([key, value]) => (
+                      <div
+                        key={key}
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          marginBottom: "8px"
+                        }}
+                      >
+                        <input
+                          className="product-input"
+                          value={key}
+                          disabled
+                        />
+          
+                        <input
+                          className="product-input"
+                          value={value || ""}
+                          onChange={(e) =>
+                            updateVariantAttribute(
+                              index,
+                              key,
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                    )
+                  )}
+          
+                  <button
+                    type="button"
+                    className="snb-btn-cancel"
+                    onClick={() => removeVariant(index)}
+                    style={{ marginTop: "10px" }}
+                  >
+                    Eliminar variante
+                  </button>
+                </div>
+              ))}
             </div>
           )}
+
         
          {/* ← NUEVO: Atributos dinámicos (color, talle, tamaño, etc.) 
           {formData.attributes && Object.keys(formData.attributes).length > 0 && (

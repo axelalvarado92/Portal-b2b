@@ -390,8 +390,13 @@ s3_bucket_arns = [
   ]
 
   environment_variables = {
-    DATABASE_URL = module.postgresql.database_url
+    DATABASE_URL   = module.postgresql.database_url
     IMPORTS_BUCKET = module.imports_bucket.bucket_name
+    DB_HOST        = var.db_host
+    DB_PORT        = var.db_port
+    DB_NAME        = var.db_name
+    DB_USER        = var.db_user
+    DB_PASSWORD    = var.db_password
   }
 }
 

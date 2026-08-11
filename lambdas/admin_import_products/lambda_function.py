@@ -4,12 +4,8 @@ import pandas as pd
 import psycopg2
 import uuid
 import os
-import math
-from itertools import product
 from io import BytesIO
 import logging
-from datetime import datetime, timezone
-from psycopg2.extras import RealDictCursor
 
 # ─────────────────────────────────────────────────────────────
 # Configuración
@@ -18,12 +14,12 @@ from psycopg2.extras import RealDictCursor
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-S3_BUCKET = os.environ.get("S3_BUCKET")
-DB_HOST = os.environ.get("DB_HOST")
-DB_PORT = os.environ.get("DB_PORT", "5432")
-DB_NAME = os.environ.get("DB_NAME")
-DB_USER = os.environ.get("DB_USER")
-DB_PASSWORD = os.environ.get("DB_PASSWORD")
+IMPORTS_BUCKET = os.environ.get("IMPORTS_BUCKET")
+DB_HOST        = os.environ.get("DB_HOST")
+DB_PORT        = os.environ.get("DB_PORT")
+DB_NAME        = os.environ.get("DB_NAME")
+DB_USER        = os.environ.get("DB_USER")
+DB_PASSWORD    = os.environ.get("DB_PASSWORD")
 
 REQUIRED_PRODUCT_COLS = [
     "Código",
@@ -31,17 +27,43 @@ REQUIRED_PRODUCT_COLS = [
     "Descripción",
     "Categoría",
     "Precio Base",
-    "Activo",
 ]
 
 REQUIRED_VARIANT_COLS = [
     "Código Producto",
-    "Grupo",
-    "Valor",
-    "Precio",
     "SKU",
-    "Activo",
+    "Precio",
+    "Stock",
 ]
+
+COLUMN_MAP_PRODUCTS = {
+    "codigo": "Código",
+    "nombre": "Nombre",
+    "descripcion": "Descripción",
+    "categoria": "Categoría",
+    "precio base": "Precio Base",
+    "activo": "Activo",
+    "marca": "Marca",
+}
+
+COLUMN_MAP_VARIANTS = {
+    "codigo del producto": "Código Producto",
+    "sku": "SKU",
+    "precio": "Precio",
+    "stock": "Stock",
+    "activo": "Activo",
+    "color": "Color",
+    "talle": "Talle",
+    "peso": "Peso",
+    "presentacion": "Presentación",
+}
+
+ATTRIBUTE_COLUMNS = [
+        "Color",
+        "Talle",
+        "Peso",
+        "Presentación",
+    ]
 
 # ─────────────────────────────────────────────────────────────
 # S3
@@ -49,7 +71,7 @@ REQUIRED_VARIANT_COLS = [
 
 def download_excel_from_s3(key: str) -> BytesIO:
     s3 = boto3.client("s3")
-    response = s3.get_object(Bucket=S3_BUCKET, Key=key)
+    response = s3.get_object(Bucket=IMPORTS_BUCKET, Key=key)
     return BytesIO(response["Body"].read())
 
 
@@ -67,8 +89,15 @@ def load_excel(buffer: BytesIO) -> tuple[pd.DataFrame, pd.DataFrame]:
     df_variants = pd.read_excel(xls, sheet_name="Variantes", dtype=str)
 
     # Normalizar nombres de columnas (strip + título exacto)
-    df_products.columns = [c.strip() for c in df_products.columns]
-    df_variants.columns = [c.strip() for c in df_variants.columns]
+    df_products.columns = [
+        COLUMN_MAP_PRODUCTS.get(c.strip().lower(), c.strip())
+        for c in df_products.columns
+    ]
+    
+    df_variants.columns = [
+        COLUMN_MAP_VARIANTS.get(c.strip().lower(), c.strip())
+        for c in df_variants.columns
+    ]
 
     missing_products = [c for c in REQUIRED_PRODUCT_COLS if c not in df_products.columns]
     missing_variants = [c for c in REQUIRED_VARIANT_COLS if c not in df_variants.columns]
@@ -82,63 +111,29 @@ def load_excel(buffer: BytesIO) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 # ─────────────────────────────────────────────────────────────
-# Variantes → JSON
+# atributos
 # ─────────────────────────────────────────────────────────────
 
-def build_variant_json(df_variants: pd.DataFrame, product_code: str) -> dict:
-    """
-    Construye el JSON de variantes que se almacenará
-    en products.attributes.
-    """
 
-    rows = df_variants[
-        df_variants["Código Producto"].astype(str).str.strip()
-        == str(product_code).strip()
-    ]
+def build_attributes_from_row(row):
+    attributes = {}
 
-    if rows.empty:
-        return {
-            "variant_groups": []
-        }
+    for column in ATTRIBUTE_COLUMNS:
 
-    groups = {}
-
-    for _, row in rows.iterrows():
-
-        if not _is_active(row.get("Activo")):
+        if column not in row:
             continue
 
-        group_name = str(row["Grupo"]).strip()
+        value = row[column]
 
-        option = {
-            "value": str(row["Valor"]).strip()
-        }
-        
-        sku = str(row.get("SKU", "")).strip()
-        
-        if sku:
-            option["sku"] = sku
+        if pd.isna(value):
+            continue
 
-        groups.setdefault(group_name, []).append(option)
+        value = str(value).strip()
 
-    variant_groups = []
+        if value:
+            attributes[column] = value
 
-    for group_name in sorted(groups.keys()):
-
-        options = sorted(
-            groups[group_name],
-            key=lambda x: x["value"]
-        )
-
-        variant_groups.append({
-            "name": group_name,
-            "type": "single",
-            "options": options
-        })
-
-    return {
-        "variant_groups": variant_groups
-    }
+    return attributes
 
 
 # ─────────────────────────────────────────────────────────────
@@ -161,7 +156,7 @@ def get_category_id(cursor, company_id, category_name):
     category_name = category_name.strip()
 
     if not category_name:
-        raise ValueError("La categoría es obligatoria.")
+        return None
 
     cursor.execute(
         """
@@ -215,12 +210,11 @@ def upsert_product(
         )
     
         ON CONFLICT (company_id, code)
-    
+
         DO UPDATE SET
             name = EXCLUDED.name,
             description = EXCLUDED.description,
             category_id = EXCLUDED.category_id,
-            attributes = EXCLUDED.attributes,
             is_active = EXCLUDED.is_active,
             updated_at = NOW()
     
@@ -328,47 +322,96 @@ def replace_variants(
             )
             VALUES
             (%s,%s,%s,%s,%s,%s)
-        """,(
+        """, (
             product_id,
             product_code,
             base_price,
-            0,
+            1,
             json.dumps({}),
             True
         ))
 
         return
 
-    groups = {}
+    used_skus = set()
 
     for _, row in rows.iterrows():
-    
+
         if not _is_active(row.get("Activo")):
             continue
-    
-        group = str(row["Grupo"]).strip()
-    
-        option = {
-            "value": str(row["Valor"]).strip(),
-            "price_extra": _to_float(row.get("Precio Extra"), 0),
-            "sku": str(row.get("SKU", "")).strip()
-        }
-    
-        groups.setdefault(group, []).append(option)
 
-        sku = str(row.get("SKU", "")).strip()
+        # ---------------------------------------------------
+        # Atributos de la variante
+        # ---------------------------------------------------
 
+        attributes = build_attributes_from_row(row)
+
+        # ---------------------------------------------------
+        # SKU
+        # ---------------------------------------------------
+
+        raw_sku = row.get("SKU")
+
+        sku = (
+            str(raw_sku).strip()
+            if pd.notna(raw_sku)
+            else ""
+        )
+
+        # Si el Excel no trae SKU, lo generamos automáticamente
         if not sku:
-            sku = f"{product_code}-{uuid.uuid4().hex[:6].upper()}"
+
+            attribute_values = [
+                str(value).strip()
+                for value in attributes.values()
+                if str(value).strip()
+            ]
+
+            if attribute_values:
+                sku = (
+                    f"{product_code}-"
+                    + "-".join(attribute_values)
+                )
+            else:
+                sku = product_code
+
+        # ---------------------------------------------------
+        # Validar SKU duplicado
+        # ---------------------------------------------------
+
+        if sku in used_skus:
+            raise ValueError(
+                f"SKU duplicado: {sku}"
+            )
+
+        used_skus.add(sku)
+
+        # ---------------------------------------------------
+        # Precio
+        # ---------------------------------------------------
 
         price = _to_float(
             row.get("Precio"),
-            base_price
+            None
         )
 
-        attributes = {
-            row["Grupo"]: row["Valor"]
-        }
+        if price is None:
+            price = base_price
+
+        # ---------------------------------------------------
+        # Stock
+        # ---------------------------------------------------
+
+        raw_stock = row.get("Stock")
+
+        if pd.isna(raw_stock) or str(raw_stock).strip() == "":
+            stock = 1
+        else:
+            stock = _to_float(raw_stock, 0)
+
+        # ---------------------------------------------------
+        # Insertar variante
+        # ---------------------------------------------------
 
         cursor.execute("""
             INSERT INTO product_variants
@@ -382,69 +425,18 @@ def replace_variants(
             )
             VALUES
             (%s,%s,%s,%s,%s,%s)
-        """,(
-            product_id,
-            sku,
-            price,
-            0,
-            json.dumps(attributes),
-            _is_active(row.get("Activo"))
-        ))
-
-def create_variants(
-    cursor,
-    product_id,
-    product_code,
-    base_price,
-    df_variants
-):
-    rows = df_variants[
-        df_variants["Código Producto"].astype(str).str.strip()
-        == product_code
-    ]
-
-    if rows.empty:
-        return
-
-    for _, row in rows.iterrows():
-
-        if not _is_active(row.get("Activo")):
-            continue
-
-        price_extra = _to_float(
-            row.get("Precio Extra"),
-            0
-        )
-
-        price = base_price + price_extra
-
-        sku = str(
-            row.get("SKU", "")
-        ).strip()
-
-        attributes = {
-            str(row["Grupo"]).strip():
-            str(row["Valor"]).strip()
-        }
-
-        cursor.execute("""
-            INSERT INTO product_variants (
-                product_id,
-                sku,
-                price,
-                stock,
-                attributes,
-                is_active
-            )
-            VALUES (%s,%s,%s,%s,%s,%s)
         """, (
             product_id,
             sku,
             price,
-            0,
-            json.dumps(attributes),
-            True
+            stock,
+            json.dumps(
+                attributes,
+                ensure_ascii=False
+            ),
+            _is_active(row.get("Activo"))
         ))
+
         
 # ─────────────────────────────────────────────────────────────
 # Validaciones y utilidades
@@ -509,108 +501,12 @@ def process_import(company_id: str, s3_key: str) -> dict:
             + "\n".join(invalid_codes)
         )
 
-    # ---------------------------------------------------
-    # Validar códigos de producto duplicados
-    # ---------------------------------------------------
-    
-    duplicate_codes = (
-        df_products["Código"]
-        .astype(str)
-        .str.strip()
-    )
-    
-    duplicate_codes = duplicate_codes[
-        duplicate_codes.duplicated()
-    ]
-    
-    if not duplicate_codes.empty:
-    
-        duplicates = sorted(
-            duplicate_codes.unique().tolist()
-        )
-    
-        raise ValueError(
-            "Hay códigos de producto duplicados:\n"
-            + "\n".join(duplicates)
-        )
-
-    # ---------------------------------------------------
-    # Variantes duplicadas
-    # ---------------------------------------------------
-    
-    duplicate_variants = (
-        df_variants[
-            ["Código Producto", "Grupo", "Valor"]
-        ]
-        .astype(str)
-        .apply(lambda s: s.str.strip())
-    )
-    
-    duplicates = duplicate_variants[
-        duplicate_variants.duplicated()
-    ]
-    
-    if not duplicates.empty:
-    
-        duplicated_rows = duplicates.values.tolist()
-    
-        raise ValueError(
-            "Existen variantes duplicadas:\n"
-            + "\n".join(
-                f"{r[0]} | {r[1]} | {r[2]}"
-                for r in duplicated_rows
-            )
-        )
-
-    # ---------------------------------------------------
-    # Grupo vacío
-    # ---------------------------------------------------
-    
-    if (
-        df_variants["Grupo"]
-        .astype(str)
-        .str.strip()
-        .eq("")
-        .any()
-    ):
-    
-        raise ValueError(
-            "Hay variantes sin Grupo."
-        )
-
-    # ---------------------------------------------------
-    # Valor vacío
-    # ---------------------------------------------------
-    
-    if (
-        df_variants["Valor"]
-        .astype(str)
-        .str.strip()
-        .eq("")
-        .any()
-    ):
-    
-        raise ValueError(
-            "Hay variantes sin Valor."
-        )
-
-    # ---------------------------------------------------
-    # Normalizar grupos
-    # ---------------------------------------------------
-    
-    df_variants["Grupo"] = (
-        df_variants["Grupo"]
-        .astype(str)
-        .str.strip()
-        .str.title()
-    )
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
     inserted = 0
     updated = 0
     discarded = 0
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
 
     try:
         for _, row in df_products.iterrows():
@@ -621,7 +517,8 @@ def process_import(company_id: str, s3_key: str) -> dict:
             code = str(row["Código"]).strip()
             name = str(row["Nombre"]).strip()
             description = str(row.get("Descripción", "")).strip()
-            category_name = str(row.get("Categoría", "")).strip()
+            raw_category = row.get("Categoría")
+            category_name = str(raw_category).strip() if pd.notna(raw_category) else ""
             base_price = _to_float(row.get("Precio Base"), 0)
             is_active = _is_active(row.get("Activo"))
 
@@ -673,7 +570,7 @@ def process_import(company_id: str, s3_key: str) -> dict:
 # Handler
 # ─────────────────────────────────────────────────────────────
 
-def lambda_handler(event, context):
+def handler(event, context):
     try:
         company_id = event.get("company_id")
         s3_key = event.get("s3_key")

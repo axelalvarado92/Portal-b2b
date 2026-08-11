@@ -57,7 +57,7 @@ def validate_update_company(body):
 
 # Admin - productos
 def validate_create_product(body):
-    return validate_required_fields(body, ["company_id", "name", "price"])
+    return validate_required_fields(body, ["company_id", "name"])
 
 def validate_update_product(body):
     if not isinstance(body, dict):

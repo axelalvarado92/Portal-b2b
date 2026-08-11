@@ -2,9 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
   importProductsExcel,
   getImportPresignedUrl
 } from "../../services/adminProductService";
@@ -37,21 +34,21 @@ export default function AdminProducts() {
   async function loadProducts() {
     try {
       setLoading(true);
-      
-      // Pasar filterCompany al backend
+  
       const companyId = filterCompany || null;
-      const productsData = await getProducts(companyId, page, 20);
-      
-      let parsed = productsData;
-      if (typeof productsData === 'string') {
-        const cleaned = productsData.replace(/:\s*NaN\b/g, ': null');
-        parsed = JSON.parse(cleaned);
-      }
-      
-      const payload = parsed?.data || {};
+  
+      const productsData = await getProducts(
+        companyId,
+        page,
+        20,
+        search
+      );
+  
+      const payload = productsData?.data || {};
+  
       setProducts(payload.products || []);
       setTotalPages(payload.total_pages || 1);
-      
+  
     } catch (err) {
       console.error("Error cargando productos:", err);
       setProducts([]);
@@ -80,7 +77,6 @@ async function loadCompanies() {
   }
 }
 
-useEffect(() => { loadProducts(); }, [page]);
 useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
 
   function handleExcelSelected(e) {
@@ -145,17 +141,13 @@ useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
       }, 2500);
     }
   }
-  useEffect(() => { loadProducts(); }, [page, filterCompany]);
+
+  useEffect(() => { setPage(1); }, [search]);
+
+  useEffect(() => { loadProducts(); }, [page, filterCompany, search]);
 
   // Lógica de filtrado y ordenamiento en cliente (similar a customer)
-  let processedProducts = products.filter(p =>
-    p.name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.code?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (filterCompany) {
-    processedProducts = processedProducts.filter(p => p.company_id === filterCompany);
-  }
+  let processedProducts = products;
 
   if (sortBy === "alpha-asc") processedProducts.sort((a, b) => a.name.localeCompare(b.name));
   else if (sortBy === "alpha-desc") processedProducts.sort((a, b) => b.name.localeCompare(a.name));
@@ -307,7 +299,9 @@ useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
             <div className="product-body">
               <h3 className="product-title">{product.name}</h3>
               <p className="product-description">Cod: {product.code}</p>
-              <div className="product-price">${Number(product.price).toFixed(2)}</div>
+              <div className="product-price">
+                ${Number(product.default_variant?.price ?? 0).toFixed(2)}
+              </div>
               <button 
                 className="add-cart-btn" 
                 onClick={() => navigate(`/admin/products/${product.id}`)}
