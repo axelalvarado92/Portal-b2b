@@ -1208,8 +1208,6 @@ def update_order_status(order_id, status):
     cur = conn.cursor()
 
     try:
-        # 💡 Dejamos order_id como el string que viene de Axios, 
-        # y le agregamos '::uuid' en el SQL para que Postgres lo convierta nativamente.
         cur.execute("""
             UPDATE orders
             SET status = %s
@@ -1218,33 +1216,18 @@ def update_order_status(order_id, status):
 
         conn.commit()
 
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type,Authorization",
-                "Access-Control-Allow-Methods": "OPTIONS,GET,PUT"
-            },
-            "body": json.dumps({
-                "message": "Estado del pedido actualizado correctamente",
-                "status": status
-            })
-        }
+        if cur.rowcount == 0:
+            return not_found("Pedido no encontrado")
+
+        return success({
+            "message": "Estado del pedido actualizado correctamente",
+            "status": status
+        })
 
     except Exception as e:
-        print("ERROR EN ENRUTAMIENTO O POSTGRESQL:", str(e))
+        print("ERROR EN UPDATE ORDER STATUS:", str(e))
         conn.rollback()
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type,Authorization",
-                "Access-Control-Allow-Methods": "OPTIONS,GET,PUT"
-            },
-            "body": json.dumps({"error": str(e)})
-        }
+        return server_error()
 
     finally:
         cur.close()
@@ -1616,6 +1599,21 @@ def handler(event, context):
 
             if method == "DELETE" and resource_id:
                 return delete_product(resource_id)
+
+        # ==========================
+        # ORDERS
+        # ==========================
+
+        if path.startswith("/admin/orders"):
+
+            if method == "GET" and not resource_id:
+                return list_orders()
+
+            if method == "GET" and resource_id:
+                return get_order_admin(resource_id)
+
+            if method == "PATCH" and resource_id:
+                return update_order_status(resource_id, body.get("status"))
         
 
     except Exception as e:

@@ -409,11 +409,11 @@ def replace_variants(
         # ---------------------------------------------------
         # Stock
         # ---------------------------------------------------
-
+        
         raw_stock = row.get("Stock")
-
+        
         if pd.isna(raw_stock) or str(raw_stock).strip() == "":
-            stock = 1
+            stock = None
         else:
             stock = _to_float(raw_stock, 0)
 

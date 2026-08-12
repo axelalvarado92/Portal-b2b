@@ -67,6 +67,12 @@ export default function ProductDetail() {
   
   async function handleAddToCart() {
 
+    console.log("DEBUG PRODUCT DETAIL:", {
+      variant: selectedVariant,
+      quantity,
+      stock: selectedVariant?.stock
+    });
+
     if (!selectedVariant) {
       setToast("No hay una variante disponible.");
       setTimeout(() => setToast(""), 2500);
@@ -75,15 +81,6 @@ export default function ProductDetail() {
     
     if (selectedVariant.is_active === false) {
       setToast("La variante seleccionada no está disponible.");
-      setTimeout(() => setToast(""), 2500);
-      return;
-    }
-    
-    if (
-      selectedVariant.stock !== null &&
-      selectedVariant.stock < quantity
-    ) {
-      setToast("No hay suficiente stock disponible.");
       setTimeout(() => setToast(""), 2500);
       return;
     }
@@ -101,15 +98,13 @@ export default function ProductDetail() {
     try {
   
       await addToCart({
-
         productId: product.id,
-      
         companyId: selectedCompany.id,
-      
         quantity,
-      
-        selectedVariantId: selectedVariant?.id
-      
+        selectedOptions: {
+          variant_id: selectedVariant?.id,
+          ...(selectedVariant?.attributes || {})
+        }
       });
   
       setToast("✓ Producto agregado al carrito");
@@ -125,6 +120,7 @@ export default function ProductDetail() {
     setTimeout(() => setToast(""), 2500);
   
   }
+  
   return (
 
     <div className="product-detail">
@@ -226,16 +222,12 @@ export default function ProductDetail() {
           
               <button
                 type="button"
-                disabled={
-                  selectedVariant &&
-                  selectedVariant.stock !== null &&
-                  quantity >= selectedVariant.stock
-                }
+                disabled={quantity <= 1}
                 onClick={() =>
-                  setQuantity(q => q + 1)
+                  setQuantity(q => Math.max(1, q - 1))
                 }
               >
-                +
+                −
               </button>
           
               <span>{quantity}</span>
@@ -258,14 +250,10 @@ export default function ProductDetail() {
             onClick={handleAddToCart}
             disabled={
               !selectedVariant ||
-              selectedVariant.is_active === false ||
-              selectedVariant.stock <= 0 ||
-              quantity > selectedVariant.stock
+              selectedVariant.is_active === false
             }
           >
-            {selectedVariant?.stock <= 0
-              ? "Sin stock"
-              : "Agregar al carrito"}
+            Agregar al carrito
           </button>
 
         </div>

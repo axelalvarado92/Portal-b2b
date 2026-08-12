@@ -226,8 +226,8 @@ def handler(event, context):
                 "statusCode": 200,
                 "headers": {
                     "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Methods": "*"
+                    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+                    "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
                 },
                 "body": ""
             }
@@ -236,28 +236,52 @@ def handler(event, context):
             event.get("body") or "{}"
         )
 
+        response = None
+
         if path == "/auth/login":
-            return login(body)
+            response = login(body)
         
-        if path == "/auth/complete-new-password":
-            return complete_new_password(body)
+        elif path == "/auth/complete-new-password":
+            response = complete_new_password(body)
 
-        if path == "/auth/refresh":
-            return refresh_token(body)
+        elif path == "/auth/refresh":
+            response = refresh_token(body)
         
-        if path == "/auth/forgot-password":
-            return forgot_password(body)
+        elif path == "/auth/forgot-password":
+            response = forgot_password(body)
         
-        if path == "/auth/confirm-forgot-password":
-            return confirm_forgot_password(body)
+        elif path == "/auth/confirm-forgot-password":
+            response = confirm_forgot_password(body)
         
-        if path == "/auth/register":
-            return register(body)
+        elif path == "/auth/register":
+            response = register(body)
 
-        return bad_request("Ruta inválida")
+        else:
+            response = bad_request("Ruta inválida")
+
+        # ── GARANTIZAR CORS EN TODAS LAS RESPUESTAS ──
+        if not isinstance(response, dict):
+            response = {}
+
+        if "headers" not in response or response["headers"] is None:
+            response["headers"] = {}
+
+        response["headers"]["Access-Control-Allow-Origin"] = "*"
+        response["headers"]["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+        response["headers"]["Access-Control-Allow-Methods"] = "OPTIONS,POST,GET"
+
+        return response
 
     except Exception as e:
 
         print(str(e))
 
-        return server_error()
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type,Authorization",
+                "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
+            },
+            "body": json.dumps({"error": "Error interno del servidor"})
+        }

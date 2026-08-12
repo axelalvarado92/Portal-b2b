@@ -30,7 +30,7 @@ export default function OrdersAdmin() {
     try {
       setLoading(true);
       const response = await getAdminOrders();
-      setOrders(response.data || []);
+      setOrders(response?.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -45,6 +45,7 @@ export default function OrdersAdmin() {
   async function handleViewOrder(orderId) {
     try {
       const response = await getAdminOrder(orderId);
+      console.log("DEBUG getAdminOrder response:", response.data);
       setSelectedOrder(response.data);
     } catch (err) {
       console.error(err);
@@ -62,6 +63,9 @@ export default function OrdersAdmin() {
     
     try {
       setIsClosing(true);
+      console.log("DEBUG: Cerrando orden", orderToClose);
+      const response = await updateAdminOrderStatus(orderToClose, "COMPLETED");
+      console.log("DEBUG: Respuesta del backend:", response);
       
       // 1. Enviamos el término exacto en inglés y mayúsculas que PostgreSQL acepta
       await updateAdminOrderStatus(orderToClose, "COMPLETED");
@@ -139,6 +143,8 @@ async function handleRejectCancel(orderId) {
     return matchesTab && matchesSearch;
   });
 
+  // DESPUÉS
+  // DESPUÉS
   function formatVariants(variantSelection) {
     if (!variantSelection) return null;
   
@@ -147,7 +153,8 @@ async function handleRejectCancel(orderId) {
         ? JSON.parse(variantSelection)
         : variantSelection;
   
-    const entries = Object.entries(variants);
+    // Ignorar variant_id interno; mostrar solo atributos legibles
+    const entries = Object.entries(variants).filter(([key]) => key !== "variant_id");
   
     if (entries.length === 0) return null;
   
@@ -297,8 +304,8 @@ async function handleRejectCancel(orderId) {
               </tr>
             </thead>
             <tbody>
-              {selectedOrder.items.map(item => (
-                <tr key={item.product_name}>
+              {selectedOrder.items.map((item, index) => (
+                <tr key={item.id || `${item.product_name}-${index}`}>
                   <td>
                     <div>{item.product_name}</div>
                   

@@ -82,17 +82,16 @@ export default function Orders() {
   }
 
   function formatVariants(variantSelection) {
-
     if (!variantSelection) return null;
-  
-    const entries = Object.entries(variantSelection);
-  
+    
+    const variants = typeof variantSelection === "string"
+      ? JSON.parse(variantSelection)
+      : variantSelection;
+
+    const entries = Object.entries(variants).filter(([key]) => key !== "variant_id");
     if (entries.length === 0) return null;
-  
-    return entries.map(([group, value]) => (
-      `${group}: ${value}`
-    ));
-  
+
+    return entries.map(([group, value]) => `${group}: ${value}`);
   }
 
   if (loading) return <p className="orders-loading">Cargando pedidos...</p>;
@@ -142,9 +141,9 @@ export default function Orders() {
               ? "No tenés pedidos activos en este momento." 
               : "Todavía no tenés compras finalizadas en el historial."}
           </p>
-          {activeTab === "actives" && (
-            <button className="snb-btn" onClick={() => navigate("/products")}>
-              Ver catálogo
+            {activeTab === "actives" && (
+            <button className="snb-btn" onClick={() => navigate("/companies")}>
+              Ver proveedores
             </button>
           )}
         </div>

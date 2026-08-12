@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getProducts } from "../../services/productService";
 import { addToCart } from "../../services/cartService";
 import { useCart } from "../../context/CartContext";
+import { useCompany } from "../../context/CompanyContext";
 import "./Products.css";
 
 export default function Products() {
@@ -65,13 +66,24 @@ export default function Products() {
 
   async function handleAddToCart(product) {
     try {
-      await addToCart(product.id, companyId, 1);
+      await addToCart({
+        productId: product.id,
+        companyId,
+        quantity: 1,
+        selectedOptions: {}
+      });
+  
       await refreshCart();
+  
       setToast("✓ Producto agregado al carrito");
+  
       setTimeout(() => setToast(""), 2500);
+  
     } catch (err) {
       console.error(err);
+  
       setToast("✗ Error al agregar producto");
+  
       setTimeout(() => setToast(""), 2500);
     }
   }
@@ -82,6 +94,10 @@ export default function Products() {
     processedProducts.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   } else if (sortBy === "alpha-desc") {
     processedProducts.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+  } else if (sortBy === "price-asc") {
+    processedProducts.sort((a, b) => (a.default_variant?.price ?? 0) - (b.default_variant?.price ?? 0));
+  } else if (sortBy === "price-desc") {
+    processedProducts.sort((a, b) => (b.default_variant?.price ?? 0) - (a.default_variant?.price ?? 0));
   }
 
   const pages = [];
@@ -118,6 +134,8 @@ export default function Products() {
               <option value="default">Relevancia / Código</option>
               <option value="alpha-asc">Nombre (A - Z)</option>
               <option value="alpha-desc">Nombre (Z - A)</option>
+              <option value="price-asc">Precio (Menor a Mayor)</option>
+              <option value="price-desc">Precio (Mayor a Menor)</option>
             </select>
           </div>
         </div>

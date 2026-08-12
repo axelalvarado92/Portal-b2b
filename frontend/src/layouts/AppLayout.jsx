@@ -1,4 +1,4 @@
-import { useState } from "react"; // 1. Importar useState
+import { useState, useRef } from "react"; // 1. Importar useState
 import { Outlet, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCompany } from "../context/CompanyContext";
@@ -19,6 +19,19 @@ export default function AppLayout() {
     navigate("/");
   };
 
+  const timeoutRef = useRef(null);
+
+  const openMenu = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsMenuOpen(true);
+  };
+
+  const closeMenu = () => {
+    timeoutRef.current = setTimeout(() => {
+      setIsMenuOpen(false);
+    }, 200); // 200ms de gracia para cruzar el gap
+  };
+
   return (
     <div className="app-layout">
       <header className="app-header">
@@ -31,19 +44,31 @@ export default function AppLayout() {
           <Link className="app-nav-link" to="/companies">Proveedores</Link>
           <Link className="app-nav-link" to="/orders">Pedidos</Link>
 
-          {/* 3. Dropdown de Mi Cuenta */}
-          <div className="dropdown-container">
-            <button 
-              className="app-nav-link dropdown-toggle" 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
+          <div 
+            className="dropdown-container"
+            onMouseEnter={openMenu}
+            onMouseLeave={closeMenu}
+          >
+            <button className="app-nav-link dropdown-toggle">
               Mi cuenta
             </button>
             
             {isMenuOpen && (
               <div className="dropdown-menu">
-                <Link to="/profile" className="dropdown-item">Mi perfil</Link>
-                <button className="dropdown-item" onClick={handleLogout}>
+                <Link 
+                  to="/profile" 
+                  className="dropdown-item"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Mi perfil
+                </Link>
+                <button 
+                  className="dropdown-item" 
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
                   Cerrar sesión
                 </button>
               </div>

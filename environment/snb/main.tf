@@ -515,7 +515,9 @@ module "apigateway" {
         { method = "POST", path = "/auth/confirm", protected = false },
         { method = "POST", path = "/auth/login", protected = false },
         { method = "POST", path = "/auth/refresh", protected = false },
-        { method = "POST", path = "/auth/complete-new-password", protected = false }
+        { method = "POST", path = "/auth/complete-new-password", protected = false },
+        { method = "POST", path = "/auth/forgot-password", protected = false },
+        { method = "POST", path = "/auth/confirm-forgot-password", protected = false }
       ]
     }
     
@@ -593,7 +595,7 @@ module "apigateway" {
         { method = "GET", path = "/admin/products/{id}", protected = true },
         { method = "GET", path = "/admin/orders", protected = true },
         { method = "GET", path = "/admin/orders/{id}", protected = true },
-        { method = "PUT", path = "/admin/orders/{id}", protected = true },
+        { method = "PATCH", path = "/admin/orders/{id}", protected = true },
         { method = "GET", path = "/admin/account-requests", protected = true },
         { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true }
       ]

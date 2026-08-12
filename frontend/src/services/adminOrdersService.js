@@ -12,6 +12,6 @@ export async function getAdminOrder(orderId) {
 
 // NUEVA FUNCIÓN: Envía el nuevo estado a tu API de Node/Express o Lambda
 export async function updateAdminOrderStatus(orderId, status) {
-  const response = await api.put(`/admin/orders/${orderId}`, { status });
+  const response = await api.patch(`/admin/orders/${orderId}`, { status });
   return response.data;
 }

@@ -105,14 +105,16 @@ def get_cart(user, company_id):
             p.name,
             p.code,
             ci.unit_price,
-            p.unit_type,
-            p.has_stock,
-            p.stock_quantity,
             ci.quantity,
             ci.observations,
-            ci.variant_selection
+            ci.variant_selection,
+            pv.sku,
+            pv.attributes
         FROM cart_items ci
-        INNER JOIN products p ON ci.product_id = p.id
+        INNER JOIN products p
+            ON ci.product_id = p.id
+        LEFT JOIN product_variants pv
+            ON pv.id = (ci.variant_selection->>'variant_id')::uuid
         WHERE ci.cart_id = %s
         ORDER BY ci.created_at ASC
     """, [cart_id])
@@ -127,13 +129,12 @@ def get_cart(user, company_id):
             "product_name":   row[2],
             "product_code":   row[3],
             "price":          float(row[4]),
-            "unit_type":      row[5],
-            "has_stock":      row[6],
-            "stock_quantity": row[7],
-            "quantity":       float(row[8]),
-            "observations": row[9],
-            "variant_selection": row[10] if row[10] else {},
-            "subtotal": float(row[4]) * float(row[8])
+            "quantity": float(row[5]),
+            "observations": row[6],
+            "variant_selection": row[7] if row[7] else {},
+            "variant_sku": row[8],
+            "variant_attributes": row[9] if row[9] else {},
+            "subtotal": float(row[4]) * float(row[5])
         }
         for row in rows
     ]
@@ -176,14 +177,16 @@ def get_all_carts(user):
                 p.name,
                 p.code,
                 ci.unit_price,
-                p.unit_type,
-                p.has_stock,
-                p.stock_quantity,
                 ci.quantity,
                 ci.observations,
-                ci.variant_selection
+                ci.variant_selection,
+                pv.sku,
+                pv.attributes
             FROM cart_items ci
-            INNER JOIN products p ON ci.product_id = p.id
+            INNER JOIN products p
+                ON ci.product_id = p.id
+            LEFT JOIN product_variants pv
+                ON pv.id = (ci.variant_selection->>'variant_id')::uuid
             WHERE ci.cart_id = %s
             ORDER BY ci.created_at ASC
         """, [cart_id])
@@ -197,13 +200,12 @@ def get_all_carts(user):
                 "product_name":   row[2],
                 "product_code":   row[3],
                 "price":          float(row[4]),
-                "unit_type":      row[5],
-                "has_stock":      row[6],
-                "stock_quantity": row[7],
-                "quantity":       float(row[8]),
-                "observations":   row[9],
-                "subtotal":       float(row[4]) * float(row[8]),
-                "variant_selection": row[10] if row[10] else {},
+                "quantity": float(row[5]),
+                "observations": row[6],
+                "subtotal": float(row[4]) * float(row[5]),
+                "variant_selection": row[7] if row[7] else {},
+                "variant_sku": row[8],
+                "variant_attributes": row[9] if row[9] else {},
             }
             for row in item_rows
         ]
@@ -240,6 +242,7 @@ def add_cart_item(user, body):
     quantity   = body["quantity"]
     observations = body.get("observations", "")
     variant_selection = body.get("variant_selection", {})
+    variant_id = variant_selection.get("variant_id")
 
     if quantity <= 0:
         return bad_request("La cantidad debe ser mayor a 0")
@@ -251,8 +254,13 @@ def add_cart_item(user, body):
 
     # Verificamos que el producto pertenezca a la empresa
     cur.execute("""
-        SELECT id, price, attributes FROM products
-        WHERE id = %s AND company_id = %s AND is_active = true
+        SELECT
+            id,
+            has_variants
+        FROM products
+        WHERE id = %s
+          AND company_id = %s
+          AND is_active = true
     """, [product_id, company_id])
 
     product = cur.fetchone()
@@ -261,30 +269,69 @@ def add_cart_item(user, body):
         cur.close()
         return not_found("Producto no encontrado")
     
-    base_price = float(product[1])
+    has_variants = product[1]
+
+    variant_id = variant_selection.get("variant_id")
     
-    attributes = product[2] or {}
+    unit_price = None
+
+    if has_variants:
     
-    try:
-        if isinstance(attributes, str):
-            attributes = json.loads(attributes)
-    except:
-        attributes = {}
+        if not variant_id:
+            cur.close()
+            conn.rollback()
+            return bad_request("Debe seleccionar una variante")
     
-    unit_price = base_price
+        cur.execute("""
+            SELECT
+                id,
+                price,
+                stock,
+                is_active
+            FROM product_variants
+            WHERE id = %s
+              AND product_id = %s
+              AND is_active = true
+        """, [
+            variant_id,
+            product_id
+        ])
     
-    for group in attributes.get("variant_groups", []):
+        variant = cur.fetchone()
     
-        selected = variant_selection.get(group["name"])
+        if not variant:
+            cur.close()
+            conn.rollback()
+            return not_found("Variante no encontrada")
     
-        if not selected:
-            continue
+        unit_price = float(variant[1])
+
+    else:
+
+        cur.execute("""
+            SELECT
+                id,
+                price,
+                stock,
+                is_active
+            FROM product_variants
+            WHERE product_id = %s
+              AND is_active = true
+            ORDER BY created_at ASC
+            LIMIT 1
+        """, [product_id])
     
-        for option in group["options"]:
+        variant = cur.fetchone()
     
-            if option["value"] == selected:
-                unit_price += float(option.get("price_extra", 0))
-                break
+        if not variant:
+            cur.close()
+            conn.rollback()
+            return not_found(
+                "El producto no tiene una variante activa"
+            )
+    
+        variant_id = str(variant[0])
+        unit_price = float(variant[1])
 
     # Si el producto ya está en el carrito, sumamos cantidad
     cur.execute("""

@@ -87,14 +87,14 @@ export default function Cart() {
 
   // ── helpers ───────────────────────────────────────────────
 
-  function formatVariants(variantSelection) {
-    if (!variantSelection) return null;
-    // Si viene como string (por si acaso), parsearlo
-    const variants = typeof variantSelection === "string"
-      ? JSON.parse(variantSelection)
-      : variantSelection;
+  function formatVariants(variantAttributes) {
+    if (!variantAttributes) return null;
+    
+    const attrs = typeof variantAttributes === "string"
+      ? JSON.parse(variantAttributes)
+      : variantAttributes;
 
-    const entries = Object.entries(variants);
+    const entries = Object.entries(attrs);
     if (entries.length === 0) return null;
 
     return entries.map(([group, value]) => `${group}: ${value}`).join(" · ");
@@ -108,8 +108,8 @@ export default function Cart() {
     <div className="cart-wrapper">
 
       <div className="cart-header">
-        <button className="cart-back-btn" onClick={() => navigate("/products")}>
-          ← Volver al catálogo
+        <button className="cart-back-btn" onClick={() => navigate("/companies")}>
+          ← Volver a proveedores
         </button>
         <h1>Mi carrito</h1>
       </div>
@@ -117,8 +117,8 @@ export default function Cart() {
       {carts.length === 0 ? (
         <div className="cart-empty">
           <p>Tu carrito está vacío.</p>
-          <button className="snb-btn" onClick={() => navigate("/products")}>
-            Ver catálogo
+          <button className="snb-btn" onClick={() => navigate("/companies")}>
+            Ver proveedores
           </button>
         </div>
       ) : (
@@ -147,7 +147,7 @@ export default function Cart() {
                 </thead>
                 <tbody>
                   {cart.items.map(item => {
-                    const variantText = formatVariants(item.variant_selection);
+                    const variantText = formatVariants(item.variant_attributes);
 
                     return (
                       <tr key={item.id}>

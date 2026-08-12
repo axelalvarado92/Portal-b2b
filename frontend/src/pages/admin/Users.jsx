@@ -7,9 +7,8 @@ import {
   updateUser,
   toggleUserStatus,
 } from "../../services/adminUserService";
-
-// 1. Importamos el servicio correcto de administración de empresas
 import { getCompanies as getAdminCompanies } from "../../services/adminCompanyService";
+import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -41,6 +40,10 @@ export default function Users() {
   const [telefonoOficina, setTelefonoOficina] = useState("");
   const [telefonoAdicional, setTelefonoAdicional] = useState("");
   const [mailAdicional, setMailAdicional] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState("actives"); // "actives" o "deleted"
 
 // Y haz lo mismo para los estados de edición (ejemplo: editCuit, setEditCuit, etc.)
 // ... (asegúrate de crear todos los estados "edit..." correspondientes)
@@ -239,6 +242,30 @@ export default function Users() {
     }
   }
 
+  function handleOpenDeleteModal(user) {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (!userToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      await updateUser(userToDelete.id, { is_active: false });
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      await loadInitialData();
+      setToast("✓ Usuario eliminado correctamente");
+      setTimeout(() => setToast(""), 3000);
+    } catch (err) {
+      console.error(err);
+      alert("Error al eliminar el usuario");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   if (loading) {
     return <div className="users-loading">Cargando datos de administración...</div>;
   }
@@ -252,8 +279,8 @@ export default function Users() {
         </button>
       </div>
 
-      {/* CREAR USUARIO */}
-{showForm && (
+  {/* CREAR USUARIO */}
+ {showForm && (
   <div className="card">
     <h3>Crear usuario</h3>
 
@@ -578,7 +605,7 @@ export default function Users() {
     {/* ESTADO DEL USUARIO */}
     <div className="form-section">
       <div className="form-section-title">Estado de la cuenta</div>
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "14px", color: "#555" }}>
           El usuario está actualmente{" "}
           <strong style={{ color: editingUser?.is_active ? "#16a34a" : "#dc2626" }}>
@@ -590,6 +617,15 @@ export default function Users() {
           onClick={() => handleToggleUser(editingUser)}
         >
           {editingUser?.is_active ? "Desactivar" : "Activar"}
+        </button>
+
+        {/* BOTÓN ELIMINAR */}
+        <button
+          className="btn-danger"
+          onClick={() => handleOpenDeleteModal(editingUser)}
+          style={{ backgroundColor: "#ef4444", color: "white", border: "none", marginLeft: "auto" }}
+        >
+          Eliminar usuario
         </button>
       </div>
     </div>
@@ -657,7 +693,7 @@ export default function Users() {
     </tbody>
   </table>
         
-        {selectedUser && (
+  {selectedUser && (
   <div id="user-detail-card" className="user-detail-card">
     <h2>Detalle del usuario</h2>
 
@@ -781,9 +817,20 @@ export default function Users() {
 
     </div>
   </div>
-)}
+  )}
+      {showDeleteModal && userToDelete && (
+        <ConfirmDeleteModal
+          userName={userToDelete.full_name || userToDelete.email}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setUserToDelete(null);
+          }}
+          isDeleting={isDeleting}
+        />
+      )}
 
-{toast && <div className="toast">{toast}</div>}
+      {toast && <div className="toast">{toast}</div>}
       </div>
     </div>
   );

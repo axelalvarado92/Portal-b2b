@@ -15,14 +15,13 @@ export async function addToCart({
   quantity = 1,
   selectedOptions = {}
 }) {
-
   const response = await api.post(
     "/cart/items",
     {
       product_id: productId,
       company_id: companyId,
       quantity,
-      selected_options: selectedOptions
+      variant_selection: selectedOptions
     }
   );
 
