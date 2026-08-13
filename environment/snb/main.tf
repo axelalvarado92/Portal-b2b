@@ -780,6 +780,17 @@ resource "aws_route53_zone" "main" {
   }
 }
 
+resource "aws_route53_record" "google_verification" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "snbrepresentaciones.com.ar"
+  type    = "TXT"
+  ttl     = 300
+
+  records = [
+    "google-site-verification=P8uV5r9EpkNwmcaeYk7wM9FHoCnY4xklEUBnLN2yl5U"
+  ]
+}
+
 resource "aws_route53_record" "frontend" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "snbrepresentaciones.com.ar"

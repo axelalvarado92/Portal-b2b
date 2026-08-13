@@ -75,8 +75,6 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
   }
 }
 
-
-
 data "aws_iam_policy_document" "cloudfront_policy_document" {
   statement {
     sid    = "AllowCloudFrontServicePrincipalReadOnly"

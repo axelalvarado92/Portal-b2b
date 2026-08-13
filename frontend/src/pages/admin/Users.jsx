@@ -242,6 +242,18 @@ export default function Users() {
     }
   }
 
+  async function handleRestoreUser(user) {
+    try {
+      await updateUser(user.id, { is_active: true });
+      await loadInitialData();
+      setToast("✓ Usuario restaurado correctamente");
+      setTimeout(() => setToast(""), 3000);
+    } catch (err) {
+      console.error(err);
+      alert("Error al restaurar el usuario");
+    }
+  }
+
   function handleOpenDeleteModal(user) {
     setUserToDelete(user);
     setShowDeleteModal(true);
@@ -256,6 +268,10 @@ export default function Users() {
       setShowDeleteModal(false);
       setUserToDelete(null);
       await loadInitialData();
+
+      setShowEditForm(false);
+      setEditingUser(null);
+      
       setToast("✓ Usuario eliminado correctamente");
       setTimeout(() => setToast(""), 3000);
     } catch (err) {
@@ -265,6 +281,10 @@ export default function Users() {
       setIsDeleting(false);
     }
   }
+  
+  const filteredUsers = users.filter(user => 
+    activeTab === "actives" ? user.is_active : !user.is_active
+  );
 
   if (loading) {
     return <div className="users-loading">Cargando datos de administración...</div>;
@@ -612,12 +632,6 @@ export default function Users() {
             {editingUser?.is_active ? "Activo" : "Inactivo"}
           </strong>
         </span>
-        <button
-          className={editingUser?.is_active ? "btn-danger" : "btn-success"}
-          onClick={() => handleToggleUser(editingUser)}
-        >
-          {editingUser?.is_active ? "Desactivar" : "Activar"}
-        </button>
 
         {/* BOTÓN ELIMINAR */}
         <button
@@ -637,6 +651,22 @@ export default function Users() {
   </div>
 )}
 
+    {/* PESTAÑAS ACTIVOS / ELIMINADOS */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        <button 
+          className={activeTab === "actives" ? "snb-btn" : "snb-btn-secondary"}
+          onClick={() => setActiveTab("actives")}
+        >
+          Usuarios activos
+        </button>
+        <button 
+          className={activeTab === "deleted" ? "snb-btn" : "snb-btn-secondary"}
+          onClick={() => setActiveTab("deleted")}
+        >
+          Eliminados
+        </button>
+      </div>
+
 {/* TABLA DE USUARIOS */}
 <div className="table-wrapper">
   <table className="users-table">
@@ -650,7 +680,7 @@ export default function Users() {
       </tr>
     </thead>
     <tbody>
-      {users.map((user) => (
+      {filteredUsers.map((user) => (
         <tr key={user.id}>
 
           <td>{user.full_name || "-"}</td>
@@ -666,26 +696,24 @@ export default function Users() {
           </td>
 
           <td className="actions">
-            <button
-              className="btn-secondary"
-              onClick={() => handleEditUser(user)}
-            >
-              Editar
-            </button>
-
-            <button
-              className="btn-secondary"
-              onClick={() => {
-                setSelectedUser(user);
-                setTimeout(() => {
-                  document
-                    .getElementById("user-detail-card")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }, 100);
-              }}
-            >
-              Ver detalle
-            </button>
+            {user.is_active ? (
+              <>
+                <button className="btn-secondary" onClick={() => handleEditUser(user)}>
+                  Editar
+                </button>
+                <button className="btn-secondary" onClick={() => { /* ver detalle */ }}>
+                  Ver detalle
+                </button>
+              </>
+            ) : (
+              <button 
+                className="btn-success" 
+                onClick={() => handleRestoreUser(user)}
+                style={{ backgroundColor: "#16a34a", color: "white", border: "none" }}
+              >
+                Restaurar
+              </button>
+            )}
           </td>
 
         </tr>
