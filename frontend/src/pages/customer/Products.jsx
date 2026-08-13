@@ -172,15 +172,27 @@ export default function Products() {
                     minimumFractionDigits: 2,
                   })}
                 </div>
-                <button
-                  className="add-cart-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToCart(product);
-                  }}
-                >
-                  Agregar al carrito
-                </button>
+                {product.has_variants ? (
+                  <button
+                    className="add-cart-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/product/${product.id}`);
+                    }}
+                  >
+                    Elegir opciones
+                  </button>
+                ) : (
+                  <button
+                    className="add-cart-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToCart(product);
+                    }}
+                  >
+                    Agregar al carrito
+                  </button>
+                )}
               </div>
             </div>
           ))
