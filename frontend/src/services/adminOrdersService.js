@@ -15,3 +15,8 @@ export async function updateAdminOrderStatus(orderId, status) {
   const response = await api.patch(`/admin/orders/${orderId}`, { status });
   return response.data;
 }
+
+export async function sendOrderPDFByEmail(orderId) {
+  const response = await api.post(`/admin/orders/${orderId}/send-pdf`);
+  return response.data;
+}

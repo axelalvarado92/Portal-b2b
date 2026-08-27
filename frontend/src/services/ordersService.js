@@ -3,7 +3,8 @@ import api from "../api/api";
 export async function createOrder(
   companyId,
   cartId,
-  notes = ""
+  notes = "",
+  customerNotes = ""
 ) {
 
   const response = await api.post(
@@ -11,7 +12,8 @@ export async function createOrder(
     {
       company_id: companyId,
       cart_id: cartId,
-      notes
+      notes,
+      customer_notes: customerNotes
     }
   );
 

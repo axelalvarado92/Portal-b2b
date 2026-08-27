@@ -3,7 +3,8 @@ import { ClipboardList, History, CheckCircle2 } from "lucide-react";
 import {
   getAdminOrders,
   getAdminOrder,
-  updateAdminOrderStatus
+  updateAdminOrderStatus,
+  sendOrderPDFByEmail,
   // updateAdminOrder // Descomenta esta línea cuando integres tu servicio de actualización
 } from "../../services/adminOrdersService";
 import "./Orders.css";
@@ -13,6 +14,8 @@ export default function OrdersAdmin() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailToast, setEmailToast] = useState("");
   
   // Estados de control para la interfaz optimizada
   const [activeTab, setActiveTab] = useState("actives"); // "actives" o "closed"
@@ -105,20 +108,43 @@ export default function OrdersAdmin() {
   }
 }
 
-async function handleRejectCancel(orderId) {
-  try {
-    await updateAdminOrderStatus(orderId, "PENDING");
-    setOrders(prev =>
-      prev.map(o => o.id === orderId ? { ...o, status: "PENDING" } : o)
-    );
-    if (selectedOrder?.id === orderId) {
-      setSelectedOrder(prev => ({ ...prev, status: "PENDING" }));
+  async function handleRejectCancel(orderId) {
+    try {
+      await updateAdminOrderStatus(orderId, "PENDING");
+      setOrders(prev =>
+        prev.map(o => o.id === orderId ? { ...o, status: "PENDING" } : o)
+      );
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => ({ ...prev, status: "PENDING" }));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al rechazar la cancelación");
     }
-  } catch (err) {
-    console.error(err);
-    alert("Error al rechazar la cancelación");
   }
-}
+  
+  async function handleDownloadPDF() {
+    if (!selectedOrder) return;
+    
+    // Carga jsPDF solo cuando se necesita (code-splitting)
+    const { generateOrderPDF } = await import("../../utils/generateOrderPDF");
+    await generateOrderPDF(selectedOrder);
+  }
+
+  async function handleSendEmail() {
+    if (!selectedOrder) return;
+    setSendingEmail(true);
+    try {
+      await sendOrderPDFByEmail(selectedOrder.id);
+      setEmailToast("✓ Email enviado a la empresa");
+    } catch (err) {
+      console.error(err);
+      setEmailToast("✗ Error al enviar email");
+    } finally {
+      setSendingEmail(false);
+      setTimeout(() => setEmailToast(""), 3000);
+    }
+  }
 
   if (loading) {
     return <div className="admin-orders-page">Cargando pedidos...</div>;
@@ -292,6 +318,21 @@ async function handleRejectCancel(orderId) {
               <span className="order-info-value">{selectedOrder.notes || "-"}</span>
             </div>
           </div>
+
+          {selectedOrder.customer_notes && (
+            <div style={{
+              background: "#fef3c7",
+              borderLeft: "4px solid #f59e0b",
+              padding: "12px 16px",
+              marginBottom: "20px",
+              borderRadius: "4px"
+            }}>
+              <strong style={{ color: "#92400e", fontSize: "13px" }}>📝 Nota del cliente:</strong>
+              <p style={{ margin: "4px 0 0 0", color: "#78350f", fontSize: "14px" }}>
+                {selectedOrder.customer_notes}
+              </p>
+            </div>
+          )}
         
           <h3>Productos</h3>
           <table className="products-table">
@@ -308,15 +349,13 @@ async function handleRejectCancel(orderId) {
                 <tr key={item.id || `${item.product_name}-${index}`}>
                   <td>
                     <div>{item.product_name}</div>
-                  
+                    {item.variant_sku && (
+                      <div style={{ fontSize: "13px", color: "#2563eb", fontWeight: "600", marginTop: "4px" }}>
+                        SKU: {item.variant_sku}
+                      </div>
+                    )}
                     {formatVariants(item.variant_selection) && (
-                      <div
-                        style={{
-                          fontSize: "12px",
-                          color: "#666",
-                          marginTop: "4px"
-                        }}
-                      >
+                      <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
                         {formatVariants(item.variant_selection)}
                       </div>
                     )}
@@ -332,6 +371,24 @@ async function handleRejectCancel(orderId) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "20px" }}>
             <div className="order-total" style={{ margin: 0 }}>
               Total: ${selectedOrder.total_amount}
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              className="snb-btn-secondary"
+              onClick={handleDownloadPDF}
+              style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            >
+              Descargar PDF
+            </button>
+
+            <button
+              className="snb-btn"
+              onClick={handleSendEmail}
+              disabled={sendingEmail}
+              style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            >
+              {sendingEmail ? "Enviando..." : "Enviar por email"}
+            </button>
             </div>
 
             {/* BOTÓN NATIVO PARA EJECUTAR EL CIERRE PROPIO */}
@@ -422,6 +479,8 @@ async function handleRejectCancel(orderId) {
           </div>
         </div>
       )}
+
+      {emailToast && <div className="toast">{emailToast}</div>}
 
     </div>
   );

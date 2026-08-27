@@ -324,3 +324,73 @@
   color: #666;
   margin-top: 2px;
 }
+
+.cart-color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* ── MODAL DE NOTAS ── */
+.note-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.note-modal {
+  background: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.note-modal h3 {
+  margin: 0 0 15px 0;
+  color: #6b1426;
+  font-size: 18px;
+}
+
+.note-modal textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.note-modal textarea:focus {
+  outline: none;
+  border-color: #6b1426;
+}
+
+.note-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: flex-end;
+}
+
+.note-btn {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

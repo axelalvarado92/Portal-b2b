@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getProducts } from "../../services/productService";
 import { addToCart } from "../../services/cartService";
 import { useCart } from "../../context/CartContext";
@@ -16,6 +16,8 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState("");
+  const [searching, setSearching] = useState(false);
+  const isFirstLoad = useRef(true);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -29,7 +31,7 @@ export default function Products() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       setSearchQuery(search);
-    }, 400);
+    }, 800);
   
     return () => clearTimeout(timeout);
   }, [search]);
@@ -43,7 +45,11 @@ export default function Products() {
 
     async function loadProducts() {
       try {
-        setLoading(true);
+        if (isFirstLoad.current) {
+          setLoading(true);
+        } else {
+          setSearching(true);
+        }
 
         const response = await getProducts(companyId, page, 20, searchQuery);
 
@@ -57,6 +63,8 @@ export default function Products() {
         console.error(err);
       } finally {
         setLoading(false);
+        setSearching(false);
+        isFirstLoad.current = false;
       }
     }
 
@@ -107,7 +115,7 @@ export default function Products() {
     pages.push(i);
   }
 
-  if (loading) {
+  if (loading && isFirstLoad.current) {
     return <p className="catalog-loading">Cargando productos...</p>;
   }
 
@@ -140,6 +148,12 @@ export default function Products() {
           </div>
         </div>
       </div>
+
+      {searching && (
+        <div style={{ textAlign: "center", padding: "12px", color: "#666", fontSize: "14px" }}>
+          Buscando productos...
+        </div>
+      )}
 
       <p className="catalog-count">
         Mostrando <strong>{processedProducts.length}</strong> productos

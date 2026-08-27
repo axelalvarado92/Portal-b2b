@@ -347,11 +347,9 @@ def get_product(user, product_id):
             "description": row[3],
             "image_url": row[4],
             "has_variants": row[5],
-
+            "company_id": str(row[6]) if row[6] else None,  # ← AGREGAR ESTA LÍNEA
             "default_variant": default_variant,
-
             "variants": variants,
-
             "category": {
                 "id": str(row[7]) if row[7] else None,
                 "name": row[8] if row[8] else None

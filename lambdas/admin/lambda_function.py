@@ -20,6 +20,7 @@ from shared.schemas import (
 
 cognito = boto3.client("cognito-idp")
 USER_POOL_ID = os.environ["USER_POOL_ID"]
+ses = boto3.client("ses", region_name="sa-east-1")
 
 #############################################################
 #                FUNCION PARA EVITAR VALOR NaN
@@ -1127,6 +1128,7 @@ def get_order_admin(order_id):
                 o.status,
                 o.total_amount,
                 o.notes,
+                o.customer_notes,
                 o.created_at
             FROM orders o
             INNER JOIN users u
@@ -1145,14 +1147,17 @@ def get_order_admin(order_id):
 
         cur.execute("""
             SELECT
-                product_name,
-                quantity,
-                unit_price,
-                subtotal,
-                observations,
-                variant_selection
-            FROM order_items
-            WHERE order_id = %s
+                oi.product_name,
+                oi.quantity,
+                oi.unit_price,
+                oi.subtotal,
+                oi.observations,
+                oi.variant_selection,
+                pv.sku AS variant_sku
+            FROM order_items oi
+            LEFT JOIN product_variants pv
+                ON pv.id = (oi.variant_selection->>'variant_id')::uuid
+            WHERE oi.order_id = %s
         """, [order_id])
 
         rows = cur.fetchall()
@@ -1178,7 +1183,8 @@ def get_order_admin(order_id):
                 "unit_price": float(row[2]),
                 "subtotal": float(row[3]),
                 "observations": row[4],
-                "variant_selection": variant_selection
+                "variant_selection": variant_selection,
+                "variant_sku": row[6]  # ← AGREGAR
             })
 
         return success({
@@ -1189,10 +1195,11 @@ def get_order_admin(order_id):
             "status": order[4],
             "total_amount": float(order[5]),
             "notes": order[6],
-            "created_at": str(order[7]),
+            "customer_notes": order[7],
+            "created_at": str(order[8]),
             "items": items
         })
-
+    
     except Exception as e:
 
         print(str(e))
@@ -1229,6 +1236,129 @@ def update_order_status(order_id, status):
         conn.rollback()
         return server_error()
 
+    finally:
+        cur.close()
+        conn.close()
+
+
+def send_order_pdf(user, order_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # 1. Traer pedido con company_id
+        cur.execute("""
+            SELECT
+                o.id,
+                u.full_name,
+                u.email,
+                c.name,
+                c.id AS company_id,
+                o.status,
+                o.total_amount,
+                o.notes,
+                o.created_at
+            FROM orders o
+            INNER JOIN users u ON o.user_id = u.id
+            INNER JOIN companies c ON o.company_id = c.id
+            WHERE o.id = %s
+        """, [order_id])
+
+        order = cur.fetchone()
+        if not order:
+            return not_found("Pedido no encontrado")
+
+        company_id = order[4]
+
+        # 2. Buscar email de la empresa (intenta con 'email', si no existe, devuelve None sin fallar)
+        contact_email = None
+        try:
+            cur.execute("""
+                SELECT email FROM companies WHERE id = %s
+            """, [company_id])
+            email_row = cur.fetchone()
+            if email_row:
+                contact_email = email_row[0]
+        except Exception as e:
+            print(f"Email no encontrado o columna no existe: {e}")
+            contact_email = None
+
+        if not contact_email:
+            return bad_request("La empresa no tiene email configurado")
+
+        # 2. Traer items con SKU
+        cur.execute("""
+            SELECT
+                oi.product_name,
+                oi.quantity,
+                oi.unit_price,
+                oi.subtotal,
+                pv.sku AS variant_sku
+            FROM order_items oi
+            LEFT JOIN product_variants pv
+                ON pv.id = (oi.variant_selection->>'variant_id')::uuid
+            WHERE oi.order_id = %s
+        """, [order_id])
+
+        rows = cur.fetchall()
+
+        # 3. Construir HTML del email
+        items_html = ""
+        for row in rows:
+            items_html += f"""
+            <tr>
+                <td style="border:1px solid #ddd;padding:8px;">{row[0]}</td>
+                <td style="border:1px solid #ddd;padding:8px;text-align:center;">{row[1]}</td>
+                <td style="border:1px solid #ddd;padding:8px;text-align:right;">${float(row[2]):.2f}</td>
+                <td style="border:1px solid #ddd;padding:8px;text-align:right;">${float(row[3]):.2f}</td>
+            </tr>
+            """
+
+        html_body = f"""
+        <html>
+        <body style="font-family:Arial,sans-serif;color:#333;">
+            <h2 style="color:#6b1426;">SNB Representaciones - Nuevo Pedido</h2>
+            <p><strong>Pedido N°:</strong> #{order[0][:8].upper()}</p>
+            <p><strong>Cliente:</strong> {order[1]}</p>
+            <p><strong>Email cliente:</strong> {order[2]}</p>
+            <p><strong>Empresa:</strong> {order[3]}</p>
+            <p><strong>Total:</strong> ${float(order[6]):.2f}</p>
+            <hr>
+            <h3>Productos solicitados:</h3>
+            <table style="border-collapse:collapse;width:100%;">
+                <thead style="background:#6b1426;color:white;">
+                    <tr>
+                        <th style="padding:8px;text-align:left;">Producto</th>
+                        <th style="padding:8px;text-align:center;">Cant.</th>
+                        <th style="padding:8px;text-align:right;">P. Unit.</th>
+                        <th style="padding:8px;text-align:right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {items_html}
+                </tbody>
+            </table>
+            <hr>
+            <p style="font-size:12px;color:#666;">Este es un pedido del sistema B2B de SNB Representaciones.</p>
+        </body>
+        </html>
+        """
+
+        # 4. Enviar por SES
+        ses.send_email(
+            Source="no-reply@snbb2b.com",  # ← CAMBIÁ por tu var.ses_sender_email
+            Destination={"ToAddresses": [company_email]},
+            Message={
+                "Subject": {"Data": f"Nuevo pedido #{order[0][:8]} - SNB B2B"},
+                "Body": {"Html": {"Data": html_body}}
+            }
+        )
+
+        return success({"message": "Email enviado correctamente"})
+
+    except Exception as e:
+        print(str(e))
+        return server_error()
     finally:
         cur.close()
         conn.close()
@@ -1614,7 +1744,9 @@ def handler(event, context):
 
             if method == "PATCH" and resource_id:
                 return update_order_status(resource_id, body.get("status"))
-        
+
+            if method == "POST" and resource_id and path.endswith("/send-pdf"):
+                return send_order_pdf(user, resource_id)
 
     except Exception as e:
         print(str(e))

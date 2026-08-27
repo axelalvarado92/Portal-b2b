@@ -224,20 +224,17 @@ export default function Orders() {
               {selectedOrder.items.map((item, i) => (
                 <tr key={i}>
                   <td className="item-col-name">
-
                     <div>{item.product_name}</div>
-                  
+                    {item.variant_sku && (
+                      <div style={{ fontSize: "13px", color: "#2563eb", fontWeight: "600", marginTop: "4px" }}>
+                        SKU: {item.variant_sku}
+                      </div>
+                    )}
                     {formatVariants(item.variant_selection)?.map((text, index) => (
-                  
-                      <div
-                        key={index}
-                        className="order-variant-line"
-                      >
+                      <div key={index} className="order-variant-line">
                         {text}
                       </div>
-                  
                     ))}
-                  
                   </td>
                   <td className="item-col-price">${Number(item.unit_price).toFixed(2)}</td>
                   <td className="item-col-qty">{item.quantity}</td>

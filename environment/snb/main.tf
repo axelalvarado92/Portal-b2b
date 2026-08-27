@@ -596,6 +596,7 @@ module "apigateway" {
         { method = "GET", path = "/admin/orders", protected = true },
         { method = "GET", path = "/admin/orders/{id}", protected = true },
         { method = "PATCH", path = "/admin/orders/{id}", protected = true },
+        { method = "POST", path = "/admin/orders/{id}/send-pdf", protected = true },
         { method = "GET", path = "/admin/account-requests", protected = true },
         { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true }
       ]

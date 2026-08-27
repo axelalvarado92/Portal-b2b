@@ -69,12 +69,12 @@ export default function AdminProductDetail() {
       const response = await getProduct(id);
       
       const p = response.data.products 
-        ? response.data.products.find(item => item.id === id) 
+        ? response.data.products.find(item => String(item.id) === String(id)) 
         : response.data;
   
       if (!p) throw new Error("Producto no encontrado");
   
-      ssetFormData({
+      setFormData({
         name: p.name || "",
         code: p.code || "",
         price: p.price || "",

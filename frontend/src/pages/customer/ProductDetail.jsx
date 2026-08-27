@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getProduct } from "../../services/productService";
 import { addToCart } from "../../services/cartService";
 import { useCompany } from "../../context/CompanyContext";
+import { useCart } from "../../context/CartContext";
 
 import "./ProductDetail.css";
 
@@ -23,7 +24,55 @@ const COLOR_MAP = {
   beige: "#d6c0a3",
   dorado: "#fbbf24",
   plateado: "#9ca3af",
+  turquesa: "#14b8a6",
+  fucsia: "#d946ef",
+  coral: "#f43f5e",
 };
+
+function normalizeText(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // saca tildes
+    .trim();
+}
+
+function getColorHex(colorName) {
+  if (!colorName) return null;
+
+  const normalized = normalizeText(colorName);
+
+  // 1. Match exacto primero
+  if (COLOR_MAP[normalized]) {
+    return COLOR_MAP[normalized];
+  }
+
+  // 2. Buscar si alguna clave está contenida en el nombre del color
+  // Ej: "amarillo fluo" contiene "amarillo"
+  const keys = Object.keys(COLOR_MAP);
+  
+  // Ordenar por longitud descendente para que "amarillo fluo" matchee con "amarillo" y no con "illo"
+  const sortedKeys = keys.sort((a, b) => b.length - a.length);
+  
+  for (const key of sortedKeys) {
+    const normalizedKey = normalizeText(key);
+    if (normalized.includes(normalizedKey)) {
+      return COLOR_MAP[key];
+    }
+  }
+
+  // 3. Fallback: buscar si el nombre del color está contenido en alguna clave
+  // Ej: "rojizo" está contenido en... ninguna, pero por si acaso
+  for (const key of sortedKeys) {
+    const normalizedKey = normalizeText(key);
+    if (normalizedKey.includes(normalized)) {
+      return COLOR_MAP[key];
+    }
+  }
+
+  return null; // No se encontró
+}
 
 export default function ProductDetail() {
 
@@ -31,6 +80,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const [toast, setToast] = useState("");
+  const { refreshCart } = useCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +112,11 @@ export default function ProductDetail() {
       const response = await getProduct(id);
 
       setProduct(response.data);
+      console.log("COMPANY_ID COMPARACION:", {
+        product_company_id: response.data.company_id,
+        product_code: response.data.code,
+        session_company_id: selectedCompany?.id
+      });
 
     } catch (err) {
 
@@ -103,27 +158,26 @@ export default function ProductDetail() {
       return;
     }
 
-    if (!selectedCompany) {
-  
-      setToast("Seleccioná una empresa.");
-  
+    const productCompanyId = product?.company_id;
+
+    if (!productCompanyId) {
+      setToast("Error: el producto no tiene empresa asignada.");
       setTimeout(() => setToast(""), 2500);
-  
       return;
-  
     }
-  
+    
     try {
-  
       await addToCart({
         productId: product.id,
-        companyId: selectedCompany.id,
+        companyId: productCompanyId,  // ← Usamos la empresa del producto, no del contexto
         quantity,
         selectedOptions: {
           variant_id: selectedVariant?.id,
           ...(selectedVariant?.attributes || {})
         }
       });
+
+      await refreshCart();
   
       setToast("✓ Producto agregado al carrito");
   
@@ -169,7 +223,12 @@ export default function ProductDetail() {
           <h1>{product.name}</h1>
 
           <p className="detail-code">
-            Código: {product.code}
+            Código base: {product.code}
+            {selectedVariant?.sku && (
+              <span style={{ marginLeft: "12px", fontWeight: "bold", color: "#2563eb" }}>
+                · SKU: {selectedVariant.sku}
+              </span>
+            )}
           </p>
           <div className="detail-price">
             $
@@ -209,7 +268,7 @@ export default function ProductDetail() {
                   
                   if (colorEntry) {
                     const colorName = colorEntry[1];
-                    const colorHex = COLOR_MAP[colorName.toLowerCase().trim()] || "#d1d5db";
+                    const colorHex = getColorHex(colorName) || "#d1d5db";
                     return (
                       <span
                         className="pill-color-dot"
@@ -224,6 +283,11 @@ export default function ProductDetail() {
                 <span className="pill-name">
                   {label}
                 </span>
+                {variant.sku && (
+                  <span className="pill-sku" style={{ fontSize: "11px", color: "#666", marginLeft: "6px" }}>
+                    ({variant.sku})
+                  </span>
+                )}
                 <span className="pill-price">
                   ${Number(variant.price ?? 0).toLocaleString("es-AR", {
                     minimumFractionDigits: 2,

@@ -20,59 +20,9 @@ sqs = boto3.client("sqs")
 QUEUE_URL = os.environ["QUEUE_URL"]
 
 
-def handler(event, context):
-
-    method = event["requestContext"]["http"]["method"]
-
-    user, error = require_auth(event)
-
-    if error:
-        return error
-
-    try:
-
-        path_params = event.get("pathParameters") or {}
-        order_id    = path_params.get("id")
-        path        = event["requestContext"]["http"]["path"]
-
-
-        # POST /orders
-        if method == "POST":
-
-            body = json.loads(event.get("body") or "{}")
-
-            return create_order(user, body)
-        
-        # PATCH /orders/{id}/request-cancel
-        elif method == "PATCH" and order_id and path.endswith("/request-cancel"):
-            
-            return request_cancel_order(user, order_id)
-
-
-        # GET /orders/{id}
-        elif method == "GET" and order_id:
-
-            return get_order(user, order_id)
-
-        # GET /orders
-        elif method == "GET":
-
-            params = event.get("queryStringParameters") or {}
-
-            return list_orders(user, params)
-
-        else:
-
-            return bad_request("Método no permitido")
-
-    except Exception:
-
-        print(traceback.format_exc())
-
-        return server_error()
-
-
 def create_order(user, body):
+
+    customer_notes = body.get("customer_notes", "")
 
     error = validate_create_order(body)
 
@@ -133,16 +83,18 @@ def create_order(user, body):
                 cart_id,
                 total_amount,
                 status,
-                notes
+                notes,
+                customer_notes
             )
-            VALUES (%s, %s, %s, %s, %s, 'PENDING', %s)
+            VALUES (%s, %s, %s, %s, %s, 'PENDING', %s, %s)
         """, [
             order_id,
             user["id"],
             company_id,
             cart_id,
             total,
-            notes
+            notes,
+            customer_notes
         ])
 
         # Creamos los items del pedido
@@ -309,15 +261,18 @@ def get_order(user, order_id):
         # Traemos los items del pedido
         cur.execute("""
             SELECT 
-                product_id,
-                product_name,
-                unit_price,
-                quantity,
-                subtotal,
-                observations,
-                variant_selection
-            FROM order_items
-            WHERE order_id = %s
+                oi.product_id,
+                oi.product_name,
+                oi.unit_price,
+                oi.quantity,
+                oi.subtotal,
+                oi.observations,
+                oi.variant_selection,
+                pv.sku AS variant_sku
+            FROM order_items oi
+            LEFT JOIN product_variants pv
+                ON pv.id = (oi.variant_selection->>'variant_id')::uuid
+            WHERE oi.order_id = %s
         """, [order_id])
 
         item_rows = cur.fetchall()
@@ -330,7 +285,8 @@ def get_order(user, order_id):
                 "quantity": float(item[3]),
                 "subtotal": float(item[4]),
                 "observations": item[5],
-                "variant_selection": item[6] if item[6] else {}
+                "variant_selection": item[6] if item[6] else {},
+                "variant_sku": item[7]  # ← AGREGAR ESTA LÍNEA
             }
             for item in item_rows
         ]
@@ -397,3 +353,54 @@ def request_cancel_order(user, order_id):
 
     finally:
         cur.close()
+
+def handler(event, context):
+
+    method = event["requestContext"]["http"]["method"]
+
+    user, error = require_auth(event)
+
+    if error:
+        return error
+
+    try:
+
+        path_params = event.get("pathParameters") or {}
+        order_id    = path_params.get("id")
+        path        = event["requestContext"]["http"]["path"]
+
+
+        # POST /orders
+        if method == "POST":
+
+            body = json.loads(event.get("body") or "{}")
+
+            return create_order(user, body)
+        
+        # PATCH /orders/{id}/request-cancel
+        elif method == "PATCH" and order_id and path.endswith("/request-cancel"):
+            
+            return request_cancel_order(user, order_id)
+
+
+        # GET /orders/{id}
+        elif method == "GET" and order_id:
+
+            return get_order(user, order_id)
+
+        # GET /orders
+        elif method == "GET":
+
+            params = event.get("queryStringParameters") or {}
+
+            return list_orders(user, params)
+
+        else:
+
+            return bad_request("Método no permitido")
+
+    except Exception:
+
+        print(traceback.format_exc())
+
+        return server_error()

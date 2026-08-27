@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getProducts,
@@ -17,6 +17,8 @@ export default function AdminProducts() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
+  const [searching, setSearching] = useState(false);
+  const isFirstLoad = useRef(true);
 
   
   // Paginación y filtros
@@ -34,7 +36,11 @@ export default function AdminProducts() {
   // Cargar productos
   async function loadProducts() {
     try {
-      setLoading(true);
+      if (isFirstLoad.current) {
+        setLoading(true);
+      } else {
+        setSearching(true);
+      }
   
       const companyId = filterCompany || null;
   
@@ -56,6 +62,8 @@ export default function AdminProducts() {
       setTotalPages(1);
     } finally {
       setLoading(false);
+      setSearching(false);
+      isFirstLoad.current = false;
     }
   }
 
@@ -84,7 +92,7 @@ export default function AdminProducts() {
     const timeout = setTimeout(() => {
       setSearch(searchInput);
       setPage(1);
-    }, 500);
+    }, 800);
   
     return () => clearTimeout(timeout);
   }, [searchInput]);
@@ -162,7 +170,7 @@ export default function AdminProducts() {
 
   // ... (aquí mantén tu lógica de handleProcessImport y otros handlers)
 
-  if (loading) return <p className="catalog-loading">Cargando catálogo administrativo...</p>;
+  if (loading && isFirstLoad.current) return <p className="catalog-loading">Cargando catálogo administrativo...</p>;
 
   return (
     <div className="catalog-wrapper">
@@ -231,6 +239,12 @@ export default function AdminProducts() {
           </select>
         </div>
       </div>
+
+      {searching && (
+        <div style={{ textAlign: "center", padding: "12px", color: "#666", fontSize: "14px" }}>
+          Buscando productos...
+        </div>
+      )}
 
       {showImportForm && (
       <div className="modal-overlay">
