@@ -66,6 +66,7 @@ export default function Users() {
   const [editRole, setEditRole] = useState("customer");
   const [editCompanies, setEditCompanies] = useState([]);
   const [editFullName, setEditFullName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editBusinessName, setEditBusinessName] = useState("");
   const [editDeliveryMethod, setEditDeliveryMethod] = useState("");
@@ -187,6 +188,7 @@ export default function Users() {
   // NUEVO: Función para cargar los datos en el form de edición
   function handleEditUser(user) {
     setEditingUser(user);
+    setEditEmail(user.email || "");
     setEditRole(user.role || "customer");
     setEditFullName(user.full_name || "");
     setEditPhone(user.phone || "");
@@ -223,6 +225,7 @@ export default function Users() {
       
       const updatedData = {
         role: editRole,
+        email: editEmail.trim().toLowerCase(),
         companies: editCompanies,
         full_name: editFullName.trim(),
         phone: editPhone.trim(),
@@ -251,6 +254,8 @@ export default function Users() {
 
       setShowEditForm(false);
       setEditingUser(null);
+      setEditEmail("");
+      
       await loadInitialData(); // Recarga la lista limpia
       setToast("✓ Usuario actualizado con éxito");
       setTimeout(() => setToast(""), 3000); // Se oculta a los 3 segundos
@@ -543,7 +548,25 @@ export default function Users() {
       {showEditForm && editingUser && (
   <div className="card">
     <h3>Editar usuario</h3>
-    <p className="muted-email"><strong>Email:</strong> {editingUser.email}</p>
+
+    <div className="form-section">
+      <div className="form-section-title">Datos de acceso</div>
+    
+      <div className="form-grid-2">
+        <div className="form-group">
+          <label className="form-label">Email</label>
+          <input
+            type="email"
+            className="form-input"
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+          />
+          <span className="input-hint">
+            Este email será utilizado para iniciar sesión.
+          </span>
+        </div>
+      </div>
+    </div>
 
     {/* DATOS PERSONALES */}
     <div className="form-section">
@@ -590,6 +613,10 @@ export default function Users() {
         <div className="form-group">
           <label className="form-label">CUIT</label>
           <input className="form-input" value={editCuit} onChange={(e) => setEditCuit(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Dirección Fiscal</label>
+          <input className="form-input" value={editDireccion} onChange={(e) => setEditDireccion(e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label">Condición Fiscal</label>
@@ -696,7 +723,17 @@ export default function Users() {
 
     <div className="actions-row">
       <button className="btn-primary" onClick={handleUpdateUser}>Guardar</button>
-      <button className="btn-secondary" onClick={() => { setShowEditForm(false); setEditingUser(null); }}>Cancelar</button>
+      <button
+        className="btn-secondary"
+        onClick={() => {
+          setShowEditForm(false);
+          setEditingUser(null);
+          setEditEmail("");
+          
+        }}
+      >
+        Cancelar
+      </button>
     </div>
   </div>
 )}
@@ -829,16 +866,16 @@ export default function Users() {
             {selectedUser.condicion_fiscal || 'Sin datos'}
           </span>
         </div>
-      </div>
-
-      <div className="detail-section-card">
-        <h3>Logística y Ubicación</h3>
         <div className="detail-row">
           <span className="detail-label">Dirección Fiscal</span>
           <span className={`detail-value ${!selectedUser.direccion ? 'empty' : ''}`}>
             {selectedUser.direccion || 'Sin datos'}
           </span>
         </div>
+      </div>
+
+      <div className="detail-section-card">
+        <h3>Logística y Ubicación</h3>
         <div className="detail-row">
           <span className="detail-label">Dirección Entrega</span>
           <span className={`detail-value ${!selectedUser.delivery_address ? 'empty' : ''}`}>

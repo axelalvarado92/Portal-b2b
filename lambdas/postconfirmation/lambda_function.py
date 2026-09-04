@@ -2,7 +2,6 @@ import sys
 import os
 import json
 import boto3
-import uuid
 
 cognito = boto3.client("cognito-idp")
 
@@ -26,6 +25,16 @@ def handler(event, context):
         email = user_attributes["email"]
         full_name = user_attributes.get("name", "")
 
+        if not cognito_sub:
+            raise Exception("Cognito sub no disponible en Post Confirmation")
+        
+        if not email:
+            raise Exception("Email no disponible en Post Confirmation")
+
+        # El email solo se utiliza para determinar el rol
+        # durante el bootstrap inicial.
+        # Los cambios posteriores de email NO deben modificar el role.
+
         role = "customer"
 
         if (
@@ -41,7 +50,7 @@ def handler(event, context):
         # UPSERT USER
         # ---------------------------------------------------
 
-        user_id = str(uuid.uuid4())
+        user_id = cognito_sub
 
         cur.execute("""
             INSERT INTO users (
@@ -54,9 +63,10 @@ def handler(event, context):
             )
             VALUES (%s, %s, %s, %s, %s, true)
         
-            ON CONFLICT (email)
+            ON CONFLICT (id)
             DO UPDATE SET
                 cognito_sub = EXCLUDED.cognito_sub,
+                email = EXCLUDED.email,
                 full_name = EXCLUDED.full_name,
                 role = EXCLUDED.role,
                 is_active = true

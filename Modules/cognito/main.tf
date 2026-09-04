@@ -13,10 +13,10 @@ resource "aws_cognito_user_pool" "user_pool" {
     require_symbols   = false
   }
 
-    schema {
-  name                = "role"
-  attribute_data_type = "String"
-  mutable             = true
+  schema {
+    name                = "role"
+    attribute_data_type = "String"
+    mutable             = true
 
   string_attribute_constraints {
     min_length = 3

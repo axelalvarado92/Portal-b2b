@@ -301,10 +301,25 @@ def update_user(user_id, body):
     cur.execute("SELECT id, cognito_sub, email FROM users WHERE id = %s", [user_id])
     row = cur.fetchone()
     print(f"ROW: {row}")  # temporal para debug
+
     if not row:
         return not_found("Usuario no encontrado")
+
+    db_user_id = row[0]
+
+    if str(db_user_id) != str(user_id):
+        cur.close()
+        conn.close()
+        return server_error(
+            "La identidad del usuario no coincide con el registro solicitado"
+        )
     
-    cognito_sub = row[1] or row [2]
+    cognito_sub = row[1]
+
+    if not cognito_sub:
+        cur.close()
+        conn.close()
+        return server_error("El usuario no tiene cognito_sub asociado")
 
     # 1. Actualizar campos en Postgres (SQL Dinámico)
     # Lista de campos permitidos que vienen en el body
@@ -342,6 +357,40 @@ def update_user(user_id, body):
         if field in body:
             updates.append(f"{field} = %s")
             args.append(body[field])
+
+    new_email = body.get("email")
+
+    if new_email is not None:
+        new_email = new_email.strip().lower()
+    
+        if not new_email or "@" not in new_email:
+            cur.close()
+            conn.close()
+            return bad_request("El email no es válido")
+    
+        current_email = row[2]
+    
+        if current_email:
+            current_email = current_email.strip().lower()
+    
+        if new_email == current_email:
+            new_email = None
+
+    if new_email is not None:
+        cur.execute("""
+            SELECT id
+            FROM users
+            WHERE LOWER(email) = LOWER(%s)
+              AND id <> %s
+            LIMIT 1
+        """, [new_email, user_id])
+    
+        if cur.fetchone():
+            cur.close()
+            conn.close()
+            return bad_request(
+                "El email ya está asociado a otro usuario"
+            )
     
     if updates:
         args.append(user_id)
@@ -350,17 +399,79 @@ def update_user(user_id, body):
 
     # 2. Sincronizar atributos con Cognito
     cognito_attributes = []
+
     if "full_name" in body:
-        cognito_attributes.append({"Name": "name", "Value": body["full_name"]})
+        cognito_attributes.append({
+            "Name": "name",
+            "Value": body["full_name"]
+        })
+    
     if "role" in body:
-        cognito_attributes.append({"Name": "custom:role", "Value": body["role"]})
+        cognito_attributes.append({
+            "Name": "custom:role",
+            "Value": body["role"]
+        })
+    
+    if new_email is not None:
+        cognito_attributes.extend([
+            {
+                "Name": "email",
+                "Value": new_email
+            },
+            {
+                "Name": "email_verified",
+                "Value": "true"
+            }
+        ])
 
     if cognito_attributes:
-      cognito.admin_update_user_attributes(
-            UserPoolId=USER_POOL_ID,
-            Username=cognito_sub,
-            UserAttributes=cognito_attributes
-        )
+        try:
+            cognito.admin_update_user_attributes(
+                UserPoolId=USER_POOL_ID,
+                Username=cognito_sub,
+                UserAttributes=cognito_attributes
+            )
+    
+        except cognito.exceptions.UsernameExistsException:
+            cur.close()
+            conn.close()
+            return bad_request("El email ya está asociado a otro usuario en Cognito")
+    
+        except cognito.exceptions.InvalidParameterException as e:
+            print(f"Parámetro inválido en Cognito: {e}")
+            cur.close()
+            conn.close()
+            return bad_request("Los datos enviados no son válidos para Cognito")
+    
+        except Exception as e:
+            print(f"Error actualizando Cognito: {e}")
+            cur.close()
+            conn.close()
+            return server_error("No se pudo actualizar el usuario en Cognito")
+
+    if new_email is not None:
+        cur.execute("""
+            UPDATE users
+            SET email = %s
+            WHERE id = %s
+        """, [new_email, user_id])
+     
+        if cur.rowcount != 1:
+            conn.rollback()
+     
+            print(
+                f"⚠️ DESINCRONIZACIÓN COGNITO/DB: "
+                f"user_id={user_id}, "
+                f"cognito_sub={cognito_sub}, "
+                f"new_email={new_email}"
+            )
+     
+            cur.close()
+            conn.close()
+     
+            return server_error(
+                "Cognito fue actualizado, pero no se pudo sincronizar el usuario en la base de datos"
+            )
 
     # 3. Lógica específica de estados (disable/enable)
     if "is_active" in body:
@@ -375,11 +486,29 @@ def update_user(user_id, body):
         for company_id in body["companies"]:
             cur.execute("INSERT INTO user_companies (user_id, company_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", [user_id, company_id])
 
-    conn.commit()
+    try:
+        conn.commit()
+    
+    except Exception as e:
+        conn.rollback()
+    
+        print(f"Error haciendo commit de usuario: {e}")
+    
+        cur.close()
+        conn.close()
+    
+        return server_error(
+            "No se pudo guardar la actualización del usuario"
+        )
+    
     cur.close()
     conn.close()
-    return success({"message": "Usuario actualizado"})
-
+    
+    return success({
+        "message": "Usuario actualizado correctamente",
+        "email_changed": new_email is not None,
+        "email": new_email if new_email is not None else row[2]
+    })
 
 # =========================================================
 # COMPANIES
