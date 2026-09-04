@@ -57,19 +57,19 @@ export default function Login() {
 
     try {
       const data = await loginRequest(email, password);
-      console.log("🟡 LOGIN data:", data);
+
 
       const challenge = data?.data?.challenge || data?.challenge;
       const session = data?.data?.session || data?.session;
 
       if (challenge === "NEW_PASSWORD_REQUIRED") {
-        console.log("🟡 CHALLENGE DETECTED, session:", session);
+
         setChallengeSession(session);
         return;
       }
 
       const token = data?.data?.access_token || data?.access_token;
-      console.log("🟡 LOGIN token extraído:", token ? token.substring(0, 50) + "..." : "UNDEFINED");
+
 
       if (!token) {
         throw new Error("El backend no devolvió token. Revisá la consola.");
@@ -78,8 +78,8 @@ export default function Login() {
       login(token);
 
     } catch (err) {
-      console.error("🔴 LOGIN ERROR:", err);
-      setError(err.message || "Contraseña o email incorrectos.");
+
+      setError("Usuario o contraseña inválidos. Intentá nuevamente.");
     }
   };
 
@@ -96,10 +96,10 @@ export default function Login() {
 
     try {
       const data = await completeNewPassword(email, newPassword, challengeSession);
-      console.log("🟢 COMPLETE data:", data);
+
 
       const token = data?.data?.access_token || data?.access_token;
-      console.log("🟢 COMPLETE token extraído:", token ? token.substring(0, 50) + "..." : "UNDEFINED");
+
 
       if (!token) {
         throw new Error("El backend no devolvió token después del challenge.");
@@ -108,7 +108,7 @@ export default function Login() {
       login(token);
 
     } catch (err) {
-      console.error("🔴 COMPLETE ERROR:", err);
+
       setChallengeSession(null); // Limpiar para forzar nuevo login
       setNewPassword("");
       setConfirmNewPassword("");
