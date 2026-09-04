@@ -60,6 +60,12 @@ export default function CompanyDetail() {
   }
 
   async function saveCompany() {
+    if (!form.name || !form.name.trim()) {
+      setToast("✗ El nombre de la empresa es obligatorio");
+      setTimeout(() => setToast(""), 2500);
+      return;
+    }
+  
     try {
       setSaving(true);
       let finalLogoUrl = form.logo_url;
