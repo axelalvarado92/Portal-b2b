@@ -10,6 +10,19 @@ import {
 import { getCompanies as getAdminCompanies } from "../../services/adminCompanyService";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 
+function validateCUIT(cuit) {
+  if (!cuit) return true; // Si está vacío, es opcional, pasa
+  return /^\d{2}-\d{8}-\d$/.test(cuit);
+}
+
+function formatCUIT(value) {
+  // Auto-formatea mientras escribe: 20123456785 → 20-12345678-5
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 10) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`;
+}
+
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +106,28 @@ export default function Users() {
     loadInitialData();
   }, []);
 
+  // Sincronizar selectedUser cuando users cambia (ej: después de editar)
+  useEffect(() => {
+    if (selectedUser) {
+      const updated = users.find((u) => u.id === selectedUser.id);
+      if (updated) {
+        setSelectedUser(updated);
+      }
+    }
+  }, [users]);
+
   async function handleCreateUser() {
+
+    // Validaciones frontend
+    if (!email.trim() || !fullName.trim()) {
+      alert("Email y Nombre Completo son obligatorios.");
+      return;
+    }
+    if (!validateCUIT(cuit)) {
+      alert("El CUIT debe tener el formato XX-XXXXXXXX-X (ej: 20-12345678-5).");
+      return;
+    }
+
     try {
       await createUser({
         email,
@@ -106,7 +140,7 @@ export default function Users() {
         carrier_phone: carrierPhone,
         delivery_address: deliveryAddress,
         companies: selectedCompanies,
-        cuit: condicionFiscal,
+        cuit: cuit,
         condicion_fiscal: condicionFiscal,
         direccion: direccion,
         direccion_entrega: direccionEntrega,
@@ -139,8 +173,7 @@ export default function Users() {
       setTelefonoOficina("");
       setTelefonoAdicional("");
       setMailAdicional("");
-
-      await sendInvitationEmail(email); 
+ 
       alert("Usuario creado y correo de invitación enviado exitosamente.");
       setShowForm(false);
 
@@ -281,6 +314,15 @@ export default function Users() {
       setIsDeleting(false);
     }
   }
+
+  function handleViewUser(user) {
+    setSelectedUser(user);
+    // Opcional: scroll suave al detalle
+    setTimeout(() => {
+      const el = document.getElementById("user-detail-card");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }
   
   const filteredUsers = users.filter(user => 
     activeTab === "actives" ? user.is_active : !user.is_active
@@ -309,31 +351,31 @@ export default function Users() {
       <div className="form-section-title">Datos Personales</div>
       <div className="form-grid-2">
         <div className="form-group">
-          <label className="form-label">Email</label>
+          Email <span style={{color:'#c43f3f'}}>*</span>
           <input className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Nombre Completo</label>
+          Nombre Completo <span style={{color:'#c43f3f'}}>*</span>
           <input className="form-input" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Teléfono</label>
+          Teléfono <span style={{color:'#c43f3f'}}>*</span>
           <input className="form-input" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Teléfono Adicional</label>
+          Teléfono Adicional <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={telefonoAdicional} onChange={(e) => setTelefonoAdicional(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Teléfono Oficina</label>
+          Teléfono Oficina <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={telefonoOficina} onChange={(e) => setTelefonoOficina(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Mail Adicional</label>
+          Mail Adicional <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={mailAdicional} onChange={(e) => setMailAdicional(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Tipo de Usuario</label>
+          Tipo de Usuario <span style={{color:'#c43f3f'}}>*</span>
           <select className="form-select" value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="customer">Customer</option>
             <option value="admin">Admin</option>
@@ -347,15 +389,23 @@ export default function Users() {
       <div className="form-section-title">Datos Comerciales</div>
       <div className="form-grid-2">
         <div className="form-group">
-          <label className="form-label">Razón Social</label>
+          Razón Social <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">CUIT</label>
-          <input className="form-input" value={cuit} onChange={(e) => setCuit(e.target.value)} />
+          <label className="form-label">
+            CUIT <span className="optional-label">(Opcional)</span>
+          </label>
+          <input 
+            className="form-input" 
+            value={cuit} 
+            onChange={(e) => setCuit(formatCUIT(e.target.value))}
+            placeholder="20-12345678-5"
+          />
+          <span className="input-hint">Formato: XX-XXXXXXXX-X (11 dígitos)</span>
         </div>
         <div className="form-group">
-          <label className="form-label">Condición Fiscal</label>
+          Condición Fiscal <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={condicionFiscal} onChange={(e) => setCondicionFiscal(e.target.value)} />
         </div>
       </div>
@@ -366,19 +416,19 @@ export default function Users() {
       <div className="form-section-title">Logística y Ubicación</div>
       <div className="form-grid-2">
         <div className="form-group">
-          <label className="form-label">Dirección Fiscal</label>
+          Dirección Fiscal <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={direccion} onChange={(e) => setDireccion(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Dirección Entrega</label>
+          Dirección Entrega <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Ciudad</label>
+          Ciudad <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={ciudad} onChange={(e) => setCiudad(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Provincia</label>
+          Provincia <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={provincia} onChange={(e) => setProvincia(e.target.value)} />
         </div>
       </div>
@@ -389,19 +439,19 @@ export default function Users() {
       <div className="form-section-title">Transporte y Entrega</div>
       <div className="form-grid-2">
         <div className="form-group">
-          <label className="form-label">Forma de Entrega</label>
+          Forma de Entrega <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Transporte</label>
+          Transporte <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={carrierName} onChange={(e) => setCarrierName(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Dirección Transporte</label>
+          Dirección Transporte <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={direccionTransporte} onChange={(e) => setDireccionTransporte(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">Teléfono Transporte</label>
+          Teléfono Transporte <span className="optional-label">(Opcional)</span>
           <input className="form-input" value={carrierPhone} onChange={(e) => setCarrierPhone(e.target.value)} />
         </div>
       </div>
@@ -701,7 +751,7 @@ export default function Users() {
                 <button className="btn-secondary" onClick={() => handleEditUser(user)}>
                   Editar
                 </button>
-                <button className="btn-secondary" onClick={() => { /* ver detalle */ }}>
+                <button className="btn-secondary" onClick={() => handleViewUser(user)}>
                   Ver detalle
                 </button>
               </>

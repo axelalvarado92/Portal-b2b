@@ -23,12 +23,13 @@ def require_auth(event):
     conn = get_connection()
     cur = conn.cursor()
 
+    # 💡 Buscamos por cognito_sub primero, y si no, por id (que también es el sub)
     cur.execute("""
         SELECT id, email, role, company_id
         FROM users
-        WHERE cognito_sub = %s
+        WHERE cognito_sub = %s OR id = %s
         LIMIT 1
-    """, [sub])
+    """, [sub, sub])
 
     row = cur.fetchone()
 

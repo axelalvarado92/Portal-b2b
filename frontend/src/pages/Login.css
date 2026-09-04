@@ -260,3 +260,33 @@ padding: 14px 18px;
   color: #6e1423;
 }
 
+.code-boxes-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.code-box-input {
+  width: 48px;
+  height: 56px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 24px;
+  font-family: monospace;
+  font-weight: bold;
+  color: #333;
+  background: white;
+  outline: none;
+  transition: border-color 0.2s;
+  caret-color: #6b1426;
+}
+
+.code-box-input:focus {
+  border-color: #6b1426;
+}
+
+.code-box-input:not(:placeholder-shown) {
+  border-color: #6b1426;
+}

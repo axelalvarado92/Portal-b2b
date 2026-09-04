@@ -55,6 +55,7 @@ def create_order(user, body):
             SELECT
                 ci.product_id,
                 p.name,
+                p.code,
                 ci.unit_price,
                 ci.quantity,
                 ci.observations,
@@ -70,7 +71,7 @@ def create_order(user, body):
             return bad_request("El carrito está vacío")
 
         # Calculamos el total
-        total = sum(float(row[2]) * float(row[3]) for row in items)
+        total = sum(float(row[3]) * float(row[4]) for row in items)
 
         # Creamos el pedido
         order_id = str(uuid.uuid4())
@@ -100,28 +101,29 @@ def create_order(user, body):
         # Creamos los items del pedido
         # Guardamos nombre y precio al momento del pedido
         for row in items:
-
-            product_id, product_name, unit_price, quantity, observations, variant_selection = row
-
+            product_id, product_name, product_code, unit_price, quantity, observations, variant_selection = row
+        
             subtotal = float(unit_price) * float(quantity)
-
+        
             cur.execute("""
                 INSERT INTO order_items
                 (
                     order_id,
                     product_id,
                     product_name,
+                    product_code,
                     unit_price,
                     quantity,
                     subtotal,
                     observations,
                     variant_selection
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, [
                     order_id,
                     product_id,
                     product_name,
+                    product_code,
                     unit_price,
                     quantity,
                     subtotal,
@@ -263,6 +265,7 @@ def get_order(user, order_id):
             SELECT 
                 oi.product_id,
                 oi.product_name,
+                oi.product_code,
                 oi.unit_price,
                 oi.quantity,
                 oi.subtotal,
@@ -281,12 +284,13 @@ def get_order(user, order_id):
             {
                 "product_id": str(item[0]),
                 "product_name": item[1],
-                "unit_price": float(item[2]),
-                "quantity": float(item[3]),
-                "subtotal": float(item[4]),
-                "observations": item[5],
-                "variant_selection": item[6] if item[6] else {},
-                "variant_sku": item[7]  # ← AGREGAR ESTA LÍNEA
+                "product_code": item[2],
+                "unit_price": float(item[3]),
+                "quantity": float(item[4]),
+                "subtotal": float(item[5]),
+                "observations": item[6],
+                "variant_selection": item[7] if item[7] else {},
+                "variant_sku": item[8] 
             }
             for item in item_rows
         ]

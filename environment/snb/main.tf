@@ -92,8 +92,14 @@ module "lambda_auth" {
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers              = local.common_layers
 
+  enable_cognito_admin = true
+  cognito_user_pool_arn = module.cognito.user_pool_arn
+
+  ses_enabled = true
+
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
+    USER_POOL_ID = module.cognito.user_pool_id
     COGNITO_CLIENT_ID = var.cognito_client_id
   }
 }
@@ -112,6 +118,10 @@ module "lambda_account_requests" {
 
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers              = local.common_layers
+
+  ses_enabled = true
+
+  cognito_user_pool_arn = module.cognito.user_pool_arn
 
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
@@ -220,6 +230,8 @@ module "lambda_admin" {
   enable_cognito_admin = true
 
   cognito_user_pool_arn = module.cognito.user_pool_arn
+
+  ses_enabled = true
 
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
@@ -598,7 +610,9 @@ module "apigateway" {
         { method = "PATCH", path = "/admin/orders/{id}", protected = true },
         { method = "POST", path = "/admin/orders/{id}/send-pdf", protected = true },
         { method = "GET", path = "/admin/account-requests", protected = true },
-        { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true }
+        { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true },
+        { method = "POST", path = "/admin/forgot-password", protected = true },
+        { method = "POST", path = "/admin/confirm-forgot-password", protected = true },
       ]
     }
     payments = {

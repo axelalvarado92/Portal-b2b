@@ -169,8 +169,6 @@ export default function OrdersAdmin() {
     return matchesTab && matchesSearch;
   });
 
-  // DESPUÉS
-  // DESPUÉS
   function formatVariants(variantSelection) {
     if (!variantSelection) return null;
   

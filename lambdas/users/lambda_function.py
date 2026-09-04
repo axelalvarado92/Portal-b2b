@@ -33,7 +33,13 @@ def get_profile(user):
     cur  = conn.cursor()
 
     cur.execute("""
-        SELECT id, email, full_name, role, is_active, created_at, phone
+        SELECT
+            id, email, full_name, role, is_active, created_at, phone,
+            business_name, cuit, condicion_fiscal,
+            direccion, direccion_entrega, direccion_transporte,
+            ciudad, provincia,
+            telefono_oficina, telefono_adicional, mail_adicional,
+            delivery_method, carrier_name, carrier_phone, delivery_address
         FROM users
         WHERE id = %s
     """, [user["id"]])
@@ -60,14 +66,29 @@ def get_profile(user):
     cur.close()
 
     return success({
-        "id":         str(row[0]),
-        "email":      row[1],
-        "full_name":  row[2],
-        "role":       row[3],
-        "is_active":  row[4],
-        "created_at": str(row[5]),
-        "phone":      row[6],
-        "companies":  companies
+        "id":                    str(row[0]),
+        "email":                 row[1],
+        "full_name":             row[2],
+        "role":                  row[3],
+        "is_active":             row[4],
+        "created_at":            str(row[5]),
+        "phone":                 row[6],
+        "business_name":         row[7],
+        "cuit":                  row[8],
+        "condicion_fiscal":      row[9],
+        "direccion":             row[10],
+        "direccion_entrega":     row[11],
+        "direccion_transporte":  row[12],
+        "ciudad":                row[13],
+        "provincia":             row[14],
+        "telefono_oficina":      row[15],
+        "telefono_adicional":    row[16],
+        "mail_adicional":        row[17],
+        "delivery_method":       row[18],
+        "carrier_name":          row[19],
+        "carrier_phone":         row[20],
+        "delivery_address":      row[21],
+        "companies":             companies
     })
 
 def update_profile(user, body):

@@ -328,7 +328,38 @@ export default function ProductDetail() {
                 −
               </button>
           
-              <span>{quantity}</span>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Si el usuario borra, dejamos temporalmente vacío o 1
+                  if (val === "") {
+                    setQuantity("");
+                    return;
+                  }
+                  const num = parseInt(val, 10);
+                  if (!isNaN(num) && num >= 1) {
+                    setQuantity(num);
+                  }
+                }}
+                onBlur={() => {
+                  // Al salir del input, si quedó vacío o inválido, volvemos a 1
+                  if (quantity === "" || quantity < 1) {
+                    setQuantity(1);
+                  }
+                }}
+                style={{
+                  width: "50px",
+                  textAlign: "center",
+                  fontSize: "16px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  padding: "4px",
+                  MozAppearance: "textfield" // oculta flechas en Firefox
+                }}
+              />
           
               <button
                 type="button"

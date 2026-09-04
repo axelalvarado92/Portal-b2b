@@ -1,6 +1,10 @@
 import json
 import os
 import boto3
+import secrets
+import string
+from datetime import datetime, timedelta
+from shared.db import get_connection
 
 from shared.utils import (
     success,
@@ -12,8 +16,12 @@ cognito = boto3.client(
     "cognito-idp",
     region_name=os.environ["AWS_REGION"]
 )
+ses = boto3.client("ses", region_name=os.environ.get("AWS_REGION", "sa-east-1"))
+ADMIN_EMAIL = "noreply@snbrepresentaciones.com.ar"
 
 CLIENT_ID = os.environ["COGNITO_CLIENT_ID"]
+
+USER_POOL_ID = os.environ.get("USER_POOL_ID")
 
 
 def login(body):
@@ -72,17 +80,42 @@ def complete_new_password(body):
         return bad_request("email, new_password y session son requeridos")
 
     try:
+        # 1. Obtener TODOS los atributos del usuario desde Cognito
+        user_info = cognito.admin_get_user(
+            UserPoolId=USER_POOL_ID,
+            Username=email
+        )
+        
+        # 2. Convertir atributos a diccionario
+        user_attrs = {
+            attr["Name"]: attr["Value"] 
+            for attr in user_info.get("UserAttributes", [])
+        }
+        
+        print("ATRIBUTOS DEL USUARIO:", json.dumps(user_attrs, indent=2))
+        
+        # 3. Construir ChallengeResponses con TODOS los atributos
+        challenge_responses = {
+            "USERNAME": email,
+            "NEW_PASSWORD": new_password,
+        }
+        
+        # Agregar todos los atributos que tiene el usuario en Cognito
+        for attr_name, attr_value in user_attrs.items():
+            challenge_responses[attr_name] = attr_value
+        
+        print("ENVIANDO CHALLENGE CON:", {k: v for k, v in challenge_responses.items() if k != "NEW_PASSWORD"})
 
+        # 4. Responder el challenge
         response = cognito.respond_to_auth_challenge(
             ClientId=CLIENT_ID,
             ChallengeName="NEW_PASSWORD_REQUIRED",
             Session=session,
-            ChallengeResponses={
-                "USERNAME": email,
-                "NEW_PASSWORD": new_password
-            }
+            ChallengeResponses=challenge_responses
         )
 
+        print("CHALLENGE EXITOSO")
+        
         auth = response["AuthenticationResult"]
 
         return success({
@@ -93,15 +126,15 @@ def complete_new_password(body):
         })
 
     except cognito.exceptions.InvalidPasswordException:
-        return bad_request("La contraseña no cumple los requisitos de seguridad")
+        return bad_request("La contraseña no cumple los requisitos (mín. 8 caracteres, al menos 1 número)")
 
-    except cognito.exceptions.NotAuthorizedException:
-        return bad_request("Sesión inválida o expirada, iniciá sesión de nuevo")
+    except cognito.exceptions.NotAuthorizedException as e:
+        print("SESSION INVALIDO:", str(e))
+        return bad_request("Sesión expirada. Volvé a iniciar sesión con tu contraseña temporal.")
 
     except Exception as e:
-        print("COMPLETE NEW PASSWORD ERROR")
-        print(str(e))
-        return server_error()
+        print("ERROR COMPLETE NEW PASSWORD:", str(e))
+        return server_error(str(e))
 
 
 def refresh_token(body):
@@ -140,19 +173,87 @@ def forgot_password(body):
     if not email:
         return bad_request("email es requerido")
 
+    # 1. Verificar que el usuario existe en Cognito
     try:
-        cognito.forgot_password(
-            ClientId=CLIENT_ID,
+        cognito.admin_get_user(
+            UserPoolId=os.environ["USER_POOL_ID"],
             Username=email
         )
-        return success({"message": "Código enviado al email"})
-
     except cognito.exceptions.UserNotFoundException:
         return bad_request("Usuario no encontrado")
-
     except Exception as e:
-        print(str(e))
-        return server_error()
+        return server_error(f"Error verificando usuario: {str(e)}")
+
+    # 2. Generar código de 6 dígitos
+    reset_code = ''.join(secrets.choice(string.digits) for _ in range(6))
+
+    # 3. Guardar en DB con vencimiento de 15 minutos
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # Invalidar códigos anteriores no usados
+        cur.execute("""
+            UPDATE password_resets 
+            SET used = TRUE 
+            WHERE email = %s AND used = FALSE
+        """, [email])
+
+        # Insertar nuevo código
+        cur.execute("""
+            INSERT INTO password_resets (email, code, expires_at)
+            VALUES (%s, %s, NOW() + INTERVAL '15 minutes')
+        """, [email, reset_code])
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return server_error(f"Error guardando código: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+    # 4. Enviar email vía SES
+    try:
+        login_url = "https://snbrepresentaciones.com.ar/login"
+
+        ses.send_email(
+            Source=ADMIN_EMAIL,
+            Destination={"ToAddresses": [email]},
+            Message={
+                "Subject": {"Data": "Recuperación de contraseña - SNB Representaciones"},
+                "Body": {
+                    "Html": {
+                        "Data": f"""<html>
+<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
+    <div style="text-align:center;padding:20px 0;">
+        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
+    </div>
+    <h2 style="color:#6b1426;">Recuperación de contraseña</h2>
+    <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;text-align:center;">
+        <p style="margin:5px 0;font-size:14px;color:#666;">Tu código de verificación es:</p>
+        <p style="margin:10px 0;font-size:32px;font-weight:bold;color:#6b1426;letter-spacing:4px;">{reset_code}</p>
+    </div>
+    <p style="text-align:center;">Este código expira en <strong>15 minutos</strong>.</p>
+    <p style="text-align:center;">Si no solicitaste este cambio, ignorá este email.</p>
+    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
+    <p style="font-size:12px;color:#666;text-align:center;">
+        SNB Representaciones - Sistema B2B<br>
+        Este es un email automático, no respondas a esta dirección.
+    </p>
+</body>
+</html>"""
+                    }
+                }
+            }
+        )
+    except Exception as e:
+        print(f"Error enviando email de recuperación: {e}")
+
+    return success({
+        "message": "Si el email existe, recibirás un código de recuperación"
+    })
 
 
 def confirm_forgot_password(body):
@@ -163,24 +264,68 @@ def confirm_forgot_password(body):
     if not email or not code or not new_password:
         return bad_request("email, code y new_password son requeridos")
 
+    # 1. Buscar código válido en DB
+    conn = get_connection()
+    cur = conn.cursor()
+
     try:
-        cognito.confirm_forgot_password(
-            ClientId=CLIENT_ID,
-            Username=email,
-            ConfirmationCode=code,
-            Password=new_password
-        )
-        return success({"message": "Contraseña actualizada"})
+        cur.execute("""
+            SELECT code, expires_at, used 
+            FROM password_resets 
+            WHERE email = %s 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        """, [email])
 
-    except cognito.exceptions.CodeMismatchException:
-        return bad_request("Código inválido")
+        row = cur.fetchone()
 
-    except cognito.exceptions.ExpiredCodeException:
-        return bad_request("Código expirado")
+        if not row:
+            return bad_request("Código inválido o expirado")
+
+        db_code, expires_at, used = row
+
+        if used:
+            return bad_request("Este código ya fue utilizado")
+
+        if expires_at < datetime.now():
+            return bad_request("El código expiró. Solicitá uno nuevo")
+
+        if db_code != code:
+            return bad_request("Código incorrecto")
+
+        # 2. Cambiar contraseña en Cognito
+        try:
+            cognito.admin_set_user_password(
+                UserPoolId=os.environ["USER_POOL_ID"],
+                Username=email,
+                Password=new_password,
+                Permanent=True
+            )
+        except cognito.exceptions.InvalidPasswordException:
+            # 💡 IMPORTANTE: No marcamos el código como usado si la contraseña es inválida
+            return bad_request("La contraseña no cumple los requisitos de seguridad")
+        except Exception as e:
+            return server_error(f"Error actualizando contraseña: {str(e)}")
+
+        # 3. Solo si Cognito aceptó la contraseña, marcamos el código como usado
+        cur.execute("""
+            UPDATE password_resets 
+            SET used = TRUE 
+            WHERE email = %s AND code = %s
+        """, [email, code])
+
+        conn.commit()
 
     except Exception as e:
-        print(str(e))
-        return server_error()
+        conn.rollback()
+        return server_error(f"Error en proceso de recuperación: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+    return success({
+        "message": "Contraseña actualizada correctamente"
+    })
 
 
 def register(body):

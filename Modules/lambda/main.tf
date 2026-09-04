@@ -217,7 +217,9 @@ resource "aws_iam_role_policy" "admin_cognito" {
         "cognito-idp:AdminDeleteUser",
         "cognito-idp:AdminUpdateUserAttributes",
         "cognito-idp:AdminEnableUser",
-        "cognito-idp:AdminDisableUser"
+        "cognito-idp:AdminDisableUser",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminSetUserPassword",
       ]
 
       Resource = var.cognito_user_pool_arn

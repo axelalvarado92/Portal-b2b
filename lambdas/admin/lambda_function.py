@@ -6,6 +6,8 @@ import json
 import boto3
 import uuid
 import math
+import secrets
+import string
 
 from shared.db import get_connection
 from shared.auth_utils import require_admin
@@ -52,6 +54,7 @@ def list_users():
             u.ciudad, u.provincia,
             u.telefono_oficina, u.telefono_adicional,
             u.mail_adicional,
+            u.delivery_method, u.carrier_name, u.carrier_phone, u.delivery_address,
             u.role, u.is_active, u.created_at,
             c.id, c.name
         FROM users u
@@ -59,11 +62,11 @@ def list_users():
         LEFT JOIN companies c ON c.id = uc.company_id
         ORDER BY u.created_at DESC
     """)
-
+    
     rows = cur.fetchall()
     cur.close()
-    conn.close() # Importante cerrar conexión
-
+    conn.close()
+    
     users_map = {}
     for r in rows:
         user_id = str(r[0])
@@ -75,15 +78,18 @@ def list_users():
                 "ciudad": r[10], "provincia": r[11],
                 "telefono_oficina": r[12], "telefono_adicional": r[13],
                 "mail_adicional": r[14],
-                "role": r[15], "is_active": r[16], "created_at": str(r[17]),
+                "delivery_method": r[15], "carrier_name": r[16],
+                "carrier_phone": r[17], "delivery_address": r[18],
+                "role": r[19], "is_active": r[20], "created_at": str(r[21]),
                 "companies": []
             }
-        if r[18] is not None:
-            users_map[user_id]["companies"].append({"id": str(r[18]), "name": r[19]})
-
+        if r[22] is not None:
+            users_map[user_id]["companies"].append({"id": str(r[22]), "name": r[23]})
+    
     return success(list(users_map.values()))
 
 def create_user(body):
+
     error = validate_create_user(body)
     if error: return bad_request(error)
     
@@ -117,62 +123,49 @@ def create_user(body):
     # ─────────────────────────────
     # 1. Crear usuario en Cognito
     # ─────────────────────────────
+    temp_password = ''.join(
+        secrets.choice(string.ascii_letters + string.digits + "!@#$%^&*") 
+        for _ in range(12)
+    )
+
     try:
         response = cognito.admin_create_user(
             UserPoolId=USER_POOL_ID,
             Username=email,
+            TemporaryPassword=temp_password,
             UserAttributes=[
                 {"Name": "email", "Value": email},
                 {"Name": "name", "Value": full_name},
                 {"Name": "custom:role", "Value": role},
                 {"Name": "email_verified", "Value": "true"}
             ],
-            DesiredDeliveryMediums=["EMAIL"]
+            MessageAction="SUPPRESS"
         )
-
-        cognito_sub = next(
-            a["Value"]
-            for a in response["User"]["Attributes"]
-            if a["Name"] == "sub"
-        )
-
+        cognito_sub = response['User']['Username']
+        
     except cognito.exceptions.UsernameExistsException:
-        return bad_request("Usuario ya existe en Cognito")
+        return bad_request("El usuario ya existe en Cognito")
+    except Exception as e:
+        return server_error(f"Error creando usuario en Cognito: {str(e)}")
 
     # ─────────────────────────────
-    # 2. Persistir en Postgres (users)
+    # 2. Persistir en Postgres
     # ─────────────────────────────
-    conn = get_connection()
-    cur = conn.cursor()
+    conn = None
+    cur = None
 
     try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # 💡 18 columnas, 18 placeholders, 18 valores
         cur.execute("""
             INSERT INTO users (
-
-                id,
-                email,
-                full_name,
-                phone,
-            
-                business_name,
-                cuit,
-                condicion_fiscal,
-            
-                direccion,
-                direccion_entrega,
-                direccion_transporte,
-            
-                ciudad,
-                provincia,
-            
-                telefono_oficina,
-                telefono_adicional,
-            
-                mail_adicional,
-            
-                role,
-                is_active
-            
+                id, email, full_name, phone, business_name, cuit,
+                condicion_fiscal, direccion, direccion_entrega,
+                direccion_transporte, ciudad, provincia,
+                telefono_oficina, telefono_adicional, mail_adicional,
+                role, is_active, cognito_sub
             )
             VALUES (
                 %s,%s,%s,%s,
@@ -181,60 +174,39 @@ def create_user(body):
                 %s,%s,
                 %s,%s,
                 %s,
-                %s,%s
+                %s,%s,
+                %s
             )
             ON CONFLICT (id) DO UPDATE
             SET
                 email = EXCLUDED.email,
                 full_name = EXCLUDED.full_name,
                 phone = EXCLUDED.phone,
-            
                 business_name = EXCLUDED.business_name,
                 cuit = EXCLUDED.cuit,
                 condicion_fiscal = EXCLUDED.condicion_fiscal,
-            
                 direccion = EXCLUDED.direccion,
                 direccion_entrega = EXCLUDED.direccion_entrega,
                 direccion_transporte = EXCLUDED.direccion_transporte,
-            
                 ciudad = EXCLUDED.ciudad,
                 provincia = EXCLUDED.provincia,
-            
                 telefono_oficina = EXCLUDED.telefono_oficina,
                 telefono_adicional = EXCLUDED.telefono_adicional,
-            
                 mail_adicional = EXCLUDED.mail_adicional,
-            
-                role = EXCLUDED.role
+                role = EXCLUDED.role,
+                cognito_sub = EXCLUDED.cognito_sub
         """, [
-            cognito_sub,
-            email,
-            full_name,
-            phone,
-        
-            business_name,
-            cuit,
-            condicion_fiscal,
-        
-            direccion,
-            direccion_entrega,
-            direccion_transporte,
-        
-            ciudad,
-            provincia,
-        
-            telefono_oficina,
-            telefono_adicional,
-        
+            cognito_sub, email, full_name, phone,
+            business_name, cuit, condicion_fiscal,
+            direccion, direccion_entrega, direccion_transporte,
+            ciudad, provincia,
+            telefono_oficina, telefono_adicional,
             mail_adicional,
-        
-            role,
-            True
+            role, True,
+            cognito_sub
         ])
 
-        # ─────────────────────────────
-        # 3. Relación con companies
-        # ─────────────────────────────
+        # Relación con companies
         for company_id in companies:
             cur.execute("""
                 INSERT INTO user_companies (user_id, company_id)
@@ -244,23 +216,74 @@ def create_user(body):
 
         conn.commit()
 
-    except Exception as e:
-        conn.rollback()
+        # ─────────────────────────────
+        # 3. Enviar email profesional vía SES
+        # ─────────────────────────────
+        try:
+            login_url = "https://snbrepresentaciones.com.ar/login"
+            
+            ses.send_email(
+                Source="noreply@snbrepresentaciones.com.ar",
+                Destination={"ToAddresses": [email]},
+                Message={
+                    "Subject": {
+                        "Data": "Bienvenido a SNB Representaciones - Tu cuenta está lista"
+                    },
+                    "Body": {
+                        "Html": {
+                            "Data": f"""<html>
+<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
+    <div style="text-align:center;padding:20px 0;">
+        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
+    </div>
+    <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
+    <p>Tu cuenta en el portal B2B de <strong>SNB Representaciones</strong> ha sido creada exitosamente.</p>
+    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
+        <p style="margin:5px 0;"><strong>Email:</strong> {email}</p>
+        <p style="margin:5px 0;"><strong>Contraseña temporal:</strong> 
+            <code style="background:#fff;padding:4px 8px;border-radius:4px;font-size:16px;">{temp_password}</code>
+        </p>
+    </div>
+    <p>Al iniciar sesión por primera vez, se te pedirá cambiar esta contraseña por una propia.</p>
+    <div style="text-align:center;margin:30px 0;">
+        <a href="{login_url}" style="background:#6b1426;color:#fff;padding:12px 30px;text-decoration:none;border-radius:6px;display:inline-block;">
+            Iniciar sesión
+        </a>
+    </div>
+    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
+    <p style="font-size:12px;color:#666;text-align:center;">
+        SNB Representaciones - Sistema B2B<br>
+        Este es un email automático, no respondas a esta dirección.
+    </p>
+</body>
+</html>"""
+                        }
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"Error enviando email de bienvenida: {e}")
 
-        # rollback cognito si falla DB (opcional pero recomendado)
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        # Rollback de Cognito si falla la base de datos
         try:
             cognito.admin_delete_user(
                 UserPoolId=USER_POOL_ID,
                 Username=email
             )
-        except:
+        except Exception:
             pass
 
-        raise e
+        return server_error(f"Error guardando en base de datos: {str(e)}")
 
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
     return created({
         "id": cognito_sub,
@@ -268,6 +291,7 @@ def create_user(body):
         "full_name": full_name,
         "role": role
     })
+
 
 
 def update_user(user_id, body):
@@ -304,7 +328,12 @@ def update_user(user_id, body):
         "telefono_oficina",
         "telefono_adicional",
     
-        "mail_adicional"
+        "mail_adicional",
+    
+        "delivery_method",
+        "carrier_name",
+        "carrier_phone",
+        "delivery_address"
     ]
     updates = []
     args = []
@@ -1148,6 +1177,7 @@ def get_order_admin(order_id):
         cur.execute("""
             SELECT
                 oi.product_name,
+                oi.product_code,
                 oi.quantity,
                 oi.unit_price,
                 oi.subtotal,
@@ -1166,7 +1196,7 @@ def get_order_admin(order_id):
 
         for row in rows:
         
-            variant_selection = row[5]
+            variant_selection = row[6]
         
             if isinstance(variant_selection, str):
                 try:
@@ -1179,12 +1209,13 @@ def get_order_admin(order_id):
         
             items.append({
                 "product_name": row[0],
-                "quantity": float(row[1]),
-                "unit_price": float(row[2]),
-                "subtotal": float(row[3]),
-                "observations": row[4],
+                "product_code": row[1],
+                "quantity": float(row[2]),
+                "unit_price": float(row[3]),
+                "subtotal": float(row[4]),
+                "observations": row[5],
                 "variant_selection": variant_selection,
-                "variant_sku": row[6]  # ← AGREGAR
+                "variant_sku": row[7]  
             })
 
         return success({
@@ -1251,7 +1282,7 @@ def send_order_pdf(user, order_id):
             SELECT
                 o.id,
                 u.full_name,
-                u.email,
+                u.contact_email,
                 c.name,
                 c.id AS company_id,
                 o.status,
@@ -1270,11 +1301,10 @@ def send_order_pdf(user, order_id):
 
         company_id = order[4]
 
-        # 2. Buscar email de la empresa (intenta con 'email', si no existe, devuelve None sin fallar)
         contact_email = None
         try:
             cur.execute("""
-                SELECT email FROM companies WHERE id = %s
+                SELECT contact_email FROM companies WHERE id = %s
             """, [company_id])
             email_row = cur.fetchone()
             if email_row:
@@ -1347,7 +1377,7 @@ def send_order_pdf(user, order_id):
         # 4. Enviar por SES
         ses.send_email(
             Source="no-reply@snbb2b.com",  # ← CAMBIÁ por tu var.ses_sender_email
-            Destination={"ToAddresses": [company_email]},
+            Destination={"ToAddresses": [contact_email]},
             Message={
                 "Subject": {"Data": f"Nuevo pedido #{order[0][:8]} - SNB B2B"},
                 "Body": {"Html": {"Data": html_body}}
@@ -1439,8 +1469,13 @@ def approve_account_request(request_id, body):
     companies = body.get("companies", [])
     role = body.get("role", "customer")
 
-    conn = get_connection()
-    cur = conn.cursor()
+    conn = None
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+    except Exception:
+        return server_error("Error de conexión a base de datos")
 
     cur.execute("""
         SELECT
@@ -1474,26 +1509,31 @@ def approve_account_request(request_id, body):
         return bad_request("Esta solicitud ya fue aprobada")
 
     # ─────────────────────────────
+    # Generar contraseña temporal
+    # ─────────────────────────────
+    temp_password = ''.join(
+        secrets.choice(string.ascii_letters + string.digits + "!@#$%^&*") 
+        for _ in range(12)
+    )
+
+    # ─────────────────────────────
     # 1. Crear usuario en Cognito
     # ─────────────────────────────
     try:
         response = cognito.admin_create_user(
             UserPoolId=USER_POOL_ID,
             Username=email,
+            TemporaryPassword=temp_password,
             UserAttributes=[
                 {"Name": "email", "Value": email},
                 {"Name": "name", "Value": full_name},
                 {"Name": "custom:role", "Value": role},
                 {"Name": "email_verified", "Value": "true"}
             ],
-            DesiredDeliveryMediums=["EMAIL"]
+            MessageAction="SUPPRESS"  # ← Cognito NO envía nada
         )
 
-        cognito_sub = next(
-            a["Value"]
-            for a in response["User"]["Attributes"]
-            if a["Name"] == "sub"
-        )
+        cognito_sub = response["User"]["Username"]
 
     except cognito.exceptions.UsernameExistsException:
         cur.close()
@@ -1573,6 +1613,55 @@ def approve_account_request(request_id, body):
 
         conn.commit()
 
+        # ─────────────────────────────
+        # 5. Enviar email profesional vía SES
+        # ─────────────────────────────
+        try:
+            login_url = "https://snbrepresentaciones.com.ar/login"
+            
+            ses.send_email(
+                Source="noreply@snbrepresentaciones.com.ar",
+                Destination={"ToAddresses": [email]},
+                Message={
+                    "Subject": {
+                        "Data": "Bienvenido a SNB Representaciones - Tu cuenta está lista"
+                    },
+                    "Body": {
+                        "Html": {
+                            "Data": f"""<html>
+<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
+    <div style="text-align:center;padding:20px 0;">
+        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
+    </div>
+    <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
+    <p>Tu solicitud fue aprobada. Tu cuenta en el portal B2B de <strong>SNB Representaciones</strong> está lista.</p>
+    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
+        <p style="margin:5px 0;"><strong>Email:</strong> {email}</p>
+        <p style="margin:5px 0;"><strong>Contraseña temporal:</strong> 
+            <code style="background:#fff;padding:4px 8px;border-radius:4px;font-size:16px;">{temp_password}</code>
+        </p>
+    </div>
+    <p>Al iniciar sesión por primera vez, deberás cambiar esta contraseña por una propia.</p>
+    <div style="text-align:center;margin:30px 0;">
+        <a href="{login_url}" style="background:#6b1426;color:#fff;padding:12px 30px;text-decoration:none;border-radius:6px;display:inline-block;">
+            Iniciar sesión
+        </a>
+    </div>
+    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
+    <p style="font-size:12px;color:#666;text-align:center;">
+        SNB Representaciones - Sistema B2B<br>
+        Este es un email automático, no respondas a esta dirección.
+    </p>
+</body>
+</html>"""
+                        }
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"Error enviando email de bienvenida: {e}")
+            # No fallamos la aprobación si el email falla
+
     except Exception as e:
         conn.rollback()
 
@@ -1591,8 +1680,11 @@ def approve_account_request(request_id, body):
         print(str(e))
         return server_error()
 
-    cur.close()
-    conn.close()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
     return success({
         "id": cognito_sub,
@@ -1626,6 +1718,165 @@ def reject_account_request(request_id):
     finally:
         cur.close()
         conn.close()
+
+def forgot_password(body):
+    email = body.get("email")
+    if not email:
+        return bad_request("Email requerido")
+
+    # 1. Verificar que el usuario existe en Cognito
+    try:
+        cognito.admin_get_user(
+            UserPoolId=USER_POOL_ID,
+            Username=email
+        )
+    except cognito.exceptions.UserNotFoundException:
+        return bad_request("No existe un usuario con ese email")
+    except Exception as e:
+        return server_error(f"Error verificando usuario: {str(e)}")
+
+    # 2. Generar código de 6 dígitos
+    reset_code = ''.join(secrets.choice(string.digits) for _ in range(6))
+    
+    # 3. Guardar en DB con vencimiento de 15 minutos
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    try:
+        # Invalidar códigos anteriores no usados
+        cur.execute("""
+            UPDATE password_resets 
+            SET used = TRUE 
+            WHERE email = %s AND used = FALSE
+        """, [email])
+        
+        # Insertar nuevo código
+        cur.execute("""
+            INSERT INTO password_resets (email, code, expires_at)
+            VALUES (%s, %s, NOW() + INTERVAL '15 minutes')
+        """, [email, reset_code])
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return server_error(f"Error guardando código: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+    # 4. Enviar email con el código vía SES
+    try:
+        login_url = "https://snbrepresentaciones.com.ar/reset-password"
+        
+        ses.send_email(
+            Source="noreply@snbrepresentaciones.com.ar",
+            Destination={"ToAddresses": [email]},
+            Message={
+                "Subject": {"Data": "Recuperación de contraseña - SNB Representaciones"},
+                "Body": {
+                    "Html": {
+                        "Data": f"""<html>
+<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
+    <div style="text-align:center;padding:20px 0;">
+        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
+    </div>
+    <h2 style="color:#6b1426;">Recuperación de contraseña</h2>
+    <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;text-align:center;">
+        <p style="margin:5px 0;font-size:14px;color:#666;">Tu código de verificación es:</p>
+        <p style="margin:10px 0;font-size:32px;font-weight:bold;color:#6b1426;letter-spacing:4px;">{reset_code}</p>
+    </div>
+    <p style="text-align:center;">Este código expira en <strong>15 minutos</strong>.</p>
+    <p style="text-align:center;">Si no solicitaste este cambio, ignorá este email.</p>
+    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
+    <p style="font-size:12px;color:#666;text-align:center;">
+        SNB Representaciones - Sistema B2B<br>
+        Este es un email automático, no respondas a esta dirección.
+    </p>
+</body>
+</html>"""
+                    }
+                }
+            }
+        )
+    except Exception as e:
+        print(f"Error enviando email de recuperación: {e}")
+        # No revelamos al usuario si el email falló, por seguridad
+
+    return success({
+        "message": "Si el email existe, recibirás un código de recuperación"
+    })
+
+def confirm_forgot_password(body):
+    email = body.get("email")
+    code = body.get("code")
+    new_password = body.get("new_password")
+
+    if not email or not code or not new_password:
+        return bad_request("Email, código y nueva contraseña son requeridos")
+
+    # Validar fuerza de contraseña (mínimo 8 caracteres)
+    if len(new_password) < 8:
+        return bad_request("La contraseña debe tener al menos 8 caracteres")
+
+    # 1. Buscar código válido en DB
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("""
+            SELECT code, expires_at, used 
+            FROM password_resets 
+            WHERE email = %s 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        """, [email])
+        
+        row = cur.fetchone()
+        
+        if not row:
+            return bad_request("Código inválido o expirado")
+        
+        db_code, expires_at, used = row
+        
+        if used:
+            return bad_request("Este código ya fue utilizado")
+        
+        if expires_at < datetime.now():
+            return bad_request("El código expiró. Solicitá uno nuevo")
+
+        if db_code != code:
+            return bad_request("Código incorrecto")
+
+        # 2. Cambiar contraseña en Cognito
+        cognito.admin_set_user_password(
+            UserPoolId=USER_POOL_ID,
+            Username=email,
+            Password=new_password,
+            Permanent=True
+        )
+
+        # 3. Marcar código como usado
+        cur.execute("""
+            UPDATE password_resets 
+            SET used = TRUE 
+            WHERE email = %s AND code = %s
+        """, [email, code])
+        
+        conn.commit()
+
+    except cognito.exceptions.InvalidPasswordException as e:
+        return bad_request("La contraseña no cumple los requisitos de seguridad")
+    except Exception as e:
+        conn.rollback()
+        return server_error(f"Error actualizando contraseña: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+    return success({
+        "message": "Contraseña actualizada correctamente"
+    })
 
 # =========================================================
 # HANDLER PRINCIPAL

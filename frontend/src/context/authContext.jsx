@@ -20,9 +20,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     async function initAuth() {
-      console.log("INIT AUTH, TOKEN:", token?.substring(0, 50));
+      console.log("🔵 INIT AUTH, token:", token ? token.substring(0, 50) + "..." : "NULL/UNDEFINED");
 
       if (!token) {
         setLoading(false);
@@ -30,36 +29,30 @@ export function AuthProvider({ children }) {
       }
 
       try {
-
         const userData = await fetchCurrentUser();
-        console.log("AUTH USER:", userData);
+        console.log("🔵 USER DATA:", userData);
         setUser(userData);
-
       } catch (error) {
-
-        console.error("Auth error:", error);
-
-        logout();
-
+        console.error("🔴 FETCH USER FAILED:", error);
+        logout(); // Esto borra el token y explica por qué "no pasa nada"
       } finally {
         setLoading(false);
       }
-
     }
 
     initAuth();
-
   }, [token]);
 
   const login = (accessToken) => {
-    console.log("SAVING TOKEN:", accessToken?.substring(0, 50));
-
+    if (!accessToken || accessToken === "undefined") {
+        console.error("❌ Login llamado con token inválido:", accessToken);
+        return;
+    }
+    console.log("SAVING TOKEN:", accessToken.substring(0, 50) + "...");
     localStorage.setItem("accessToken", accessToken);
-
     setToken(accessToken);
-
   };
-
+  
   const logout = () => {
 
     localStorage.removeItem("accessToken");
