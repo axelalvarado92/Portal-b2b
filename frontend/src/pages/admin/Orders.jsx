@@ -4,8 +4,8 @@ import {
   getAdminOrders,
   getAdminOrder,
   updateAdminOrderStatus,
+  updateAdminOrder,
   sendOrderPDFByEmail,
-  // updateAdminOrder // Descomenta esta línea cuando integres tu servicio de actualización
 } from "../../services/adminOrdersService";
 import "./Orders.css";
 
@@ -16,6 +16,7 @@ export default function OrdersAdmin() {
   const [search, setSearch] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailToast, setEmailToast] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
   
   // Estados de control para la interfaz optimizada
   const [activeTab, setActiveTab] = useState("actives"); // "actives" o "closed"
@@ -129,6 +130,32 @@ export default function OrdersAdmin() {
     // Carga jsPDF solo cuando se necesita (code-splitting)
     const { generateOrderPDF } = await import("../../utils/generateOrderPDF");
     await generateOrderPDF(selectedOrder);
+  }
+
+  async function handleSaveNotes() {
+    if (!selectedOrder) return;
+  
+    try {
+      setSavingNotes(true);
+  
+      await updateAdminOrder(selectedOrder.id, {
+        notes: selectedOrder.notes || ""
+      });
+  
+      setEmailToast("✓ Descripción guardada");
+  
+    } catch (err) {
+  
+      console.error("Error al guardar la descripción:", err);
+  
+      setEmailToast("✗ No se pudo guardar la descripción");
+  
+    } finally {
+  
+      setSavingNotes(false);
+  
+      setTimeout(() => setEmailToast(""), 3000);
+    }
   }
 
   async function handleSendEmail() {
@@ -312,8 +339,43 @@ export default function OrdersAdmin() {
               <span className="order-info-value">{new Date(selectedOrder.created_at).toLocaleDateString()}</span>
             </div>
             <div className="order-info-item">
-              <span className="order-info-label">Observaciones</span>
-              <span className="order-info-value">{selectedOrder.notes || "-"}</span>
+              <span className="order-info-label">
+                Descripción para el fabricante
+              </span>
+            
+              <textarea
+                value={selectedOrder.notes || ""}
+                onChange={(e) =>
+                  setSelectedOrder(prev => ({
+                    ...prev,
+                    notes: e.target.value
+                  }))
+                }
+                placeholder="Ej.: Facturar solamente el 50% del pedido y enviar el resto sin factura..."
+                rows={4}
+                style={{
+                  width: "100%",
+                  marginTop: "6px",
+                  padding: "10px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  fontSize: "14px",
+                  boxSizing: "border-box"
+                }}
+              />
+            
+              <button
+                className="snb-btn"
+                onClick={handleSaveNotes}
+                disabled={savingNotes}
+                style={{
+                  marginTop: "8px"
+                }}
+              >
+                {savingNotes ? "Guardando..." : "Guardar descripción"}
+              </button>
             </div>
           </div>
 

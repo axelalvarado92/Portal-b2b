@@ -58,11 +58,114 @@ export async function generateOrderPDF(order) {
 
   doc.setFontSize(10);
   doc.setTextColor(0);
-  doc.text(order.customer_name || order.customer_email || "-", 14, startY + 6);
-  doc.text(`Email: ${order.customer_email || "-"}`, 14, startY + 12);
+  
+  doc.text(
+    `Cliente: ${order.customer_name || "-"}`,
+    14,
+    startY + 6
+  );
+  
+  doc.text(
+    `Razón social: ${order.business_name || order.company_name || "-"}`,
+    14,
+    startY + 12
+  );
+  
+  if (order.cuit) {
+    doc.text(
+      `CUIT: ${order.cuit}`,
+      14,
+      startY + 18
+    );
+  }
+  
+  let customerExtraY = startY + 24;
+  
+  if (order.delivery_method) {
+    doc.text(
+      `Tipo de transporte: ${order.delivery_method}`,
+      14,
+      customerExtraY
+    );
+    customerExtraY += 6;
+  }
+  
+  if (order.carrier_name) {
+    doc.text(
+      `Transporte: ${order.carrier_name}`,
+      14,
+      customerExtraY
+    );
+    customerExtraY += 6;
+  }
+  
+  if (order.carrier_phone) {
+    doc.text(
+      `Tel. transporte: ${order.carrier_phone}`,
+      14,
+      customerExtraY
+    );
+    customerExtraY += 6;
+  }
+  
+  const deliveryAddress =
+    order.delivery_address ||
+    order.direccion_entrega ||
+    "";
+  
+  if (deliveryAddress) {
+    const deliveryLines = doc.splitTextToSize(
+      `Dirección de entrega: ${deliveryAddress}`,
+      80
+    );
+  
+    doc.text(
+      deliveryLines,
+      14,
+      customerExtraY
+    );
+  
+    customerExtraY += deliveryLines.length * 5;
+  }
 
+  const transportAddress = order.direccion_transporte || "";
+
+  if (transportAddress) {
+    const transportLines = doc.splitTextToSize(
+      `Dirección del transporte: ${transportAddress}`,
+      80
+    );
+  
+    doc.text(
+      transportLines,
+      14,
+      customerExtraY
+    );
+  
+    customerExtraY += transportLines.length * 5;
+  }
+
+  const locationParts = [
+    order.ciudad,
+    order.provincia,
+  ].filter(Boolean);
+  
+  if (locationParts.length > 0) {
+    doc.text(
+      `Ubicación: ${locationParts.join(", ")}`,
+      14,
+      customerExtraY
+    );
+  
+    customerExtraY += 6;
+  }
+  
   doc.setFontSize(10);
-  doc.text(order.company_name || "-", 110, startY + 6);
+  doc.text(
+    `Empresa: ${order.company_name || "-"}`,
+    110,
+    startY + 6
+  );
   console.log("items del pedido:", order.items);
 
   // ── TABLA DE PRODUCTOS ──
@@ -76,8 +179,13 @@ export async function generateOrderPDF(order) {
     `$${Number(item.subtotal || 0).toFixed(2)}`,
   ]);
 
+  const tableStartY = Math.max(
+    startY + 20,
+    customerExtraY + 8
+  );
+  
   autoTable(doc, {
-    startY: startY + 20,
+    startY: tableStartY,
     head: [tableColumns],
     body: tableRows,
     theme: "striped",
@@ -103,25 +211,57 @@ export async function generateOrderPDF(order) {
   doc.setTextColor(107, 20, 38);
   doc.text(`TOTAL: $${Number(order.total_amount || 0).toFixed(2)}`, 14, finalY);
 
-  // ── OBSERVACIONES DEL CLIENTE ──
+  // ── NOTAS DEL PEDIDO ──
+  
+  let notesY = finalY + 10;
+  
   if (order.customer_notes) {
+  
     doc.setFontSize(10);
     doc.setTextColor(80);
-    doc.text("Observaciones:", 14, finalY + 10);
+    doc.text("Observaciones del cliente:", 14, notesY);
+  
     doc.setFontSize(9);
-    
-    // Si el texto es largo, lo partimos en líneas que quepan en la página
-    const splitNotes = doc.splitTextToSize(order.customer_notes, 180);
-    doc.text(splitNotes, 14, finalY + 16);
+  
+    const customerNotes = doc.splitTextToSize(
+      order.customer_notes,
+      180
+    );
+  
+    doc.text(customerNotes, 14, notesY + 6);
+  
+    notesY += 12 + (customerNotes.length * 5);
+  }
+  
+  if (order.notes) {
+  
+    doc.setFontSize(10);
+    doc.setTextColor(107, 20, 38);
+    doc.text("Descripción para el fabricante:", 14, notesY);
+  
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+  
+    const manufacturerNotes = doc.splitTextToSize(
+      order.notes,
+      180
+    );
+  
+    doc.text(manufacturerNotes, 14, notesY + 6);
+  
+    notesY += 12 + (manufacturerNotes.length * 5);
   }
 
   // ── PIE DE PÁGINA ──
   // Calculamos Y dinámico para no pisar las observaciones
   let footerY = 280;
-  if (order.customer_notes) {
-    const lines = doc.splitTextToSize(order.customer_notes, 180).length;
-    footerY = finalY + 20 + (lines * 5); // 5 puntos por línea aprox
-    if (footerY < 280) footerY = 280; // mínimo para no quedar muy arriba
+
+  if (order.customer_notes || order.notes) {
+    footerY = notesY + 8;
+  
+    if (footerY < 280) {
+      footerY = 280;
+    }
   }
   
   doc.setFontSize(8);

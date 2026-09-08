@@ -8,6 +8,7 @@ import uuid
 import math
 import secrets
 import string
+import datetime
 
 from shared.db import get_connection
 from shared.auth_utils import require_admin
@@ -102,6 +103,11 @@ def create_user(body):
     
     cuit = body.get("cuit")
     condicion_fiscal = body.get("condicion_fiscal")
+
+    delivery_method = body.get("delivery_method")
+    carrier_name = body.get("carrier_name")
+    carrier_phone = body.get("carrier_phone")
+    delivery_address = body.get("delivery_address")
     
     direccion = body.get("direccion")
     direccion_entrega = body.get("direccion_entrega")
@@ -162,20 +168,21 @@ def create_user(body):
         cur.execute("""
             INSERT INTO users (
                 id, email, full_name, phone, business_name, cuit,
-                condicion_fiscal, direccion, direccion_entrega,
-                direccion_transporte, ciudad, provincia,
+                condicion_fiscal,
+                delivery_method, carrier_name, carrier_phone, delivery_address,
+                direccion, direccion_entrega, direccion_transporte,
+                ciudad, provincia,
                 telefono_oficina, telefono_adicional, mail_adicional,
                 role, is_active, cognito_sub
             )
             VALUES (
                 %s,%s,%s,%s,
                 %s,%s,%s,
+                %s,%s,%s,%s,
                 %s,%s,%s,
                 %s,%s,
-                %s,%s,
-                %s,
-                %s,%s,
-                %s
+                %s,%s,%s,
+                %s,%s,%s
             )
             ON CONFLICT (id) DO UPDATE
             SET
@@ -185,6 +192,10 @@ def create_user(body):
                 business_name = EXCLUDED.business_name,
                 cuit = EXCLUDED.cuit,
                 condicion_fiscal = EXCLUDED.condicion_fiscal,
+                delivery_method = EXCLUDED.delivery_method,
+                carrier_name = EXCLUDED.carrier_name,
+                carrier_phone = EXCLUDED.carrier_phone,
+                delivery_address = EXCLUDED.delivery_address,
                 direccion = EXCLUDED.direccion,
                 direccion_entrega = EXCLUDED.direccion_entrega,
                 direccion_transporte = EXCLUDED.direccion_transporte,
@@ -198,11 +209,25 @@ def create_user(body):
         """, [
             cognito_sub, email, full_name, phone,
             business_name, cuit, condicion_fiscal,
-            direccion, direccion_entrega, direccion_transporte,
-            ciudad, provincia,
-            telefono_oficina, telefono_adicional,
+        
+            delivery_method,
+            carrier_name,
+            carrier_phone,
+            delivery_address,
+        
+            direccion,
+            direccion_entrega,
+            direccion_transporte,
+        
+            ciudad,
+            provincia,
+        
+            telefono_oficina,
+            telefono_adicional,
             mail_adicional,
-            role, True,
+        
+            role,
+            True,
             cognito_sub
         ])
 
@@ -1282,6 +1307,14 @@ def get_order_admin(order_id):
                 o.id,
                 u.full_name,
                 u.email,
+                u.business_name,
+                u.cuit,
+                u.delivery_method,
+                u.carrier_name,
+                u.carrier_phone,
+                u.delivery_address,
+                u.direccion_entrega,
+                u.direccion_transporte,
                 c.name,
                 o.status,
                 o.total_amount,
@@ -1289,10 +1322,8 @@ def get_order_admin(order_id):
                 o.customer_notes,
                 o.created_at
             FROM orders o
-            INNER JOIN users u
-                ON o.user_id = u.id
-            INNER JOIN companies c
-                ON o.company_id = c.id
+            INNER JOIN users u ON o.user_id = u.id
+            INNER JOIN companies c ON o.company_id = c.id
             WHERE o.id = %s
         """, [order_id])
 
@@ -1349,14 +1380,28 @@ def get_order_admin(order_id):
 
         return success({
             "id": str(order[0]),
-            "customer_name": order[1],
-            "customer_email": order[2],
-            "company_name": order[3],
-            "status": order[4],
-            "total_amount": float(order[5]),
-            "notes": order[6],
-            "customer_notes": order[7],
-            "created_at": str(order[8]),
+        
+            "customer_name": str(order[1]) if order[1] else "",
+            "customer_email": str(order[2]) if order[2] else "",
+        
+            "business_name": str(order[3]) if order[3] else "",
+            "cuit": str(order[4]) if order[4] else "",
+        
+            "delivery_method": str(order[5]) if order[5] else "",
+            "carrier_name": str(order[6]) if order[6] else "",
+            "carrier_phone": str(order[7]) if order[7] else "",
+        
+            "delivery_address": str(order[8]) if order[8] else "",
+            "direccion_entrega": str(order[9]) if order[9] else "",
+            "direccion_transporte": str(order[10]) if order[10] else "",
+        
+            "company_name": order[11],
+            "status": order[12],
+            "total_amount": float(order[13]),
+            "notes": order[14],
+            "customer_notes": order[15],
+            "created_at": str(order[16]),
+        
             "items": items
         })
     
@@ -1370,16 +1415,33 @@ def get_order_admin(order_id):
         cur.close()
         conn.close()
 
-def update_order_status(order_id, status):
+def update_order_status(order_id, status=None, notes=None):
     conn = get_connection()
     cur = conn.cursor()
 
     try:
-        cur.execute("""
+
+        fields = []
+        values = []
+
+        if status is not None:
+            fields.append("status = %s")
+            values.append(status)
+
+        if notes is not None:
+            fields.append("notes = %s")
+            values.append(notes)
+
+        if not fields:
+            return bad_request("No hay datos para actualizar")
+
+        values.append(order_id)
+
+        cur.execute(f"""
             UPDATE orders
-            SET status = %s
+            SET {", ".join(fields)}
             WHERE id = %s::uuid
-        """, [status, order_id])
+        """, values)
 
         conn.commit()
 
@@ -1387,18 +1449,16 @@ def update_order_status(order_id, status):
             return not_found("Pedido no encontrado")
 
         return success({
-            "message": "Estado del pedido actualizado correctamente",
-            "status": status
+            "message": "Pedido actualizado correctamente"
         })
 
-    except Exception as e:
-        print("ERROR EN UPDATE ORDER STATUS:", str(e))
+    except Exception:
         conn.rollback()
+        print(traceback.format_exc())
         return server_error()
 
     finally:
         cur.close()
-        conn.close()
 
 
 def send_order_pdf(user, order_id):
@@ -2123,7 +2183,11 @@ def handler(event, context):
                 return get_order_admin(resource_id)
 
             if method == "PATCH" and resource_id:
-                return update_order_status(resource_id, body.get("status"))
+                return update_order_status(
+                    resource_id,
+                    body.get("status"),
+                    body.get("notes")
+                )
 
             if method == "POST" and resource_id and path.endswith("/send-pdf"):
                 return send_order_pdf(user, resource_id)

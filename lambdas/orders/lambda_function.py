@@ -248,10 +248,29 @@ def get_order(user, order_id):
                 o.total_amount,
                 o.status,
                 o.notes,
-                o.created_at
+                o.customer_notes,
+                o.created_at,
+            
+                u.full_name,
+                u.email,
+                u.business_name,
+                u.cuit,
+                u.delivery_method,
+                u.carrier_name,
+                u.carrier_phone,
+                u.delivery_address,
+                u.direccion_entrega,
+                u.direccion_transporte
+            
             FROM orders o
-            INNER JOIN companies c ON o.company_id = c.id
-            WHERE o.id      = %s
+            
+            INNER JOIN companies c
+                ON o.company_id = c.id
+            
+            INNER JOIN users u
+                ON o.user_id = u.id
+            
+            WHERE o.id = %s
               AND o.user_id = %s
         """, [order_id, user["id"]])
 
@@ -296,16 +315,28 @@ def get_order(user, order_id):
         ]
 
         return success({
-            "id":           str(row[0]),
-            "company_id":   str(row[1]),
-            "company_name": row[2],
-            "total_amount": float(row[3]),
-            "status":       row[4],
-            "notes":        row[5],
-            "created_at":   str(row[6]),
-            "items":        items
+            "id":                 str(row[0]),
+            "company_id":         str(row[1]),
+            "company_name":       row[2],
+            "total_amount":       float(row[3]),
+            "status":             row[4],
+            "notes":              row[5],
+            "customer_notes":     row[6],
+            "created_at":         str(row[7]),
+        
+            "customer_name":      row[8],
+            "customer_email":     row[9],
+            "business_name":      row[10],
+            "cuit":               row[11],
+            "delivery_method":    row[12],
+            "carrier_name":       row[13],
+            "carrier_phone":      row[14],
+            "delivery_address":   row[15],
+            "direccion_entrega":  row[16],
+            "direccion_transporte": row[17],
+        
+            "items":              items
         })
-
     except Exception:
 
         conn.rollback()

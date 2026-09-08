@@ -138,17 +138,25 @@ def list_products(user, params):
             count_query += " AND p.category_id = %s"
             count_args.append(category_id)
 
-        # Búsqueda por nombre o código (opcional)
+        # Búsqueda por nombre, código o SKU (opcional)
         if search:
 
             query += """
                 AND (
                     p.name ILIKE %s
                     OR p.code ILIKE %s
+                    OR EXISTS (
+                        SELECT 1
+                        FROM product_variants pv
+                        WHERE pv.product_id = p.id
+                          AND pv.is_active = true
+                          AND pv.sku ILIKE %s
+                    )
                 )
             """
         
             args.extend([
+                f"%{search}%",
                 f"%{search}%",
                 f"%{search}%"
             ])
@@ -157,10 +165,18 @@ def list_products(user, params):
                 AND (
                     p.name ILIKE %s
                     OR p.code ILIKE %s
+                    OR EXISTS (
+                        SELECT 1
+                        FROM product_variants pv
+                        WHERE pv.product_id = p.id
+                          AND pv.is_active = true
+                          AND pv.sku ILIKE %s
+                    )
                 )
             """
-        
+            
             count_args.extend([
+                f"%{search}%",
                 f"%{search}%",
                 f"%{search}%"
             ])

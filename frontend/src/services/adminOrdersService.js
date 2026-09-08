@@ -20,3 +20,8 @@ export async function sendOrderPDFByEmail(orderId) {
   const response = await api.post(`/admin/orders/${orderId}/send-pdf`);
   return response.data;
 }
+
+export async function updateAdminOrder(orderId, data) {
+  const response = await api.patch(`/admin/orders/${orderId}`, data);
+  return response.data;
+}
