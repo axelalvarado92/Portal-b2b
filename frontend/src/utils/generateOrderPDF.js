@@ -4,6 +4,24 @@ import autoTable from "jspdf-autotable";
 // URL del logo de SNB (pública en S3)
 const SNB_LOGO_URL = "/logo-share.png";
 
+function formatVariantAttributes(variantSelection) {
+  if (!variantSelection || typeof variantSelection !== "object") {
+    return "";
+  }
+
+  return Object.entries(variantSelection)
+    .filter(([key, value]) => {
+      return (
+        key !== "variant_id" &&
+        value !== null &&
+        value !== undefined &&
+        value !== ""
+      );
+    })
+    .map(([_, value]) => String(value))
+    .join(" · ");
+}
+
 export async function generateOrderPDF(order) {
   const doc = new jsPDF();
 
@@ -169,15 +187,31 @@ export async function generateOrderPDF(order) {
   console.log("items del pedido:", order.items);
 
   // ── TABLA DE PRODUCTOS ──
-  const tableColumns = ["Producto", "Código", "SKU", "Cant.", "P. Unit.", "Subtotal"];
-  const tableRows = (order.items || []).map((item) => [
-    item.product_name || "",
-    item.product_code || "-",
-    item.variant_sku || "-",
-    item.quantity?.toString() || "0",
-    `$${Number(item.unit_price || 0).toFixed(2)}`,
-    `$${Number(item.subtotal || 0).toFixed(2)}`,
-  ]);
+  const tableColumns = [
+    "Producto",
+    "Código",
+    "SKU",
+    "Cant.",
+    "P. Unit.",
+    "Subtotal"
+  ];
+  
+  const tableRows = (order.items || []).map((item) => {
+    const variantText = formatVariantAttributes(item.variant_selection);
+  
+    const productCell = variantText
+      ? `${item.product_name || ""}\n${variantText}`
+      : item.product_name || "";
+  
+    return [
+      productCell,
+      item.product_code || "-",
+      item.variant_sku || "-",
+      item.quantity?.toString() || "0",
+      `$${Number(item.unit_price || 0).toFixed(2)}`,
+      `$${Number(item.subtotal || 0).toFixed(2)}`,
+    ];
+  });
 
   const tableStartY = Math.max(
     startY + 20,
@@ -189,19 +223,36 @@ export async function generateOrderPDF(order) {
     head: [tableColumns],
     body: tableRows,
     theme: "striped",
+  
     headStyles: {
       fillColor: [107, 20, 38],
       textColor: 255,
       fontStyle: "bold",
     },
-    styles: { fontSize: 9, cellPadding: 3 },
+  
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      valign: "middle",
+    },
+  
     columnStyles: {
-      0: { cellWidth: 60 },   // Producto
-      1: { cellWidth: 25 },   // Código
-      2: { cellWidth: 25 },   // SKU
+      0: { cellWidth: 60 },              // Producto + variante
+      1: { cellWidth: 25 },              // Código
+      2: { cellWidth: 25 },              // SKU
       3: { cellWidth: 15, halign: "center" }, // Cant.
       4: { cellWidth: 25, halign: "right" },  // P. Unit.
       5: { cellWidth: 25, halign: "right" },  // Subtotal
+    },
+  
+    didParseCell: (data) => {
+      if (data.section === "body" && data.column.index === 0) {
+        const lines = String(data.cell.raw || "").split("\n");
+  
+        if (lines.length > 1) {
+          data.cell.text = lines;
+        }
+      }
     },
   });
 

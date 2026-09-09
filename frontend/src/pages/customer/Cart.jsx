@@ -60,7 +60,6 @@ export default function Cart() {
   const [toast, setToast] = useState("");
   const [confirmingId, setConfirmingId] = useState(null);
   const [customerNotes, setCustomerNotes] = useState({});
-  const [activeNoteCartId, setActiveNoteCartId] = useState(null);
 
   function showToast(msg) {
     setToast(msg);
@@ -258,6 +257,33 @@ export default function Cart() {
                 </tbody>
               </table>
 
+              <div className="customer-note-box">
+                <label className="customer-note-label">
+                  📝 Observaciones del pedido
+                </label>
+              
+                <textarea
+                  className="customer-note-textarea"
+                  placeholder="Escribí cualquier detalle, aclaración o indicación para este pedido..."
+                  value={customerNotes[cart.cart_id] || ""}
+                  onChange={(e) =>
+                    setCustomerNotes(prev => ({
+                      ...prev,
+                      [cart.cart_id]: e.target.value
+                    }))
+                  }
+                />
+              
+                <div className="customer-note-actions">
+                  <button
+                    className="snb-btn-secondary"
+                    onClick={() => showToast("✓ Observación guardada")}
+                  >
+                    Guardar observación
+                  </button>
+                </div>
+              </div>
+
               <div className="cart-footer">
                 <button className="cart-clear-btn" onClick={() => handleClear(cart.company_id)}>
                   Vaciar carrito
@@ -266,13 +292,6 @@ export default function Cart() {
                 <div className="cart-total">
                   Total: <strong>${cart.total.toFixed(2)}</strong>
                 </div>
-                
-                <button
-                  className="snb-btn-secondary note-btn"
-                  onClick={() => setActiveNoteCartId(cart.cart_id)}
-                >
-                  {customerNotes[cart.cart_id] ? "📝 Ver nota" : "📝 Agregar nota"}
-                </button>
                 
                 <button
                   className="snb-btn"
@@ -286,31 +305,6 @@ export default function Cart() {
           ))}
           
         </>
-      )}
-
-     {/* MODAL DE NOTAS - fuera de todo, al nivel de la página */}
-      {activeNoteCartId && (
-        <div className="note-modal-overlay" onClick={() => setActiveNoteCartId(null)}>
-          <div className="note-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Nota para {carts.find(c => c.cart_id === activeNoteCartId)?.company_name}</h3>
-            <textarea
-              placeholder="Ej: Describe algún detalles del pedido..."
-              value={customerNotes[activeNoteCartId] || ""}
-              onChange={(e) => setCustomerNotes(prev => ({
-                ...prev,
-                [activeNoteCartId]: e.target.value
-              }))}
-            />
-            <div className="note-modal-actions">
-              <button className="snb-btn-secondary" onClick={() => setActiveNoteCartId(null)}>
-                Cerrar
-              </button>
-              <button className="snb-btn" onClick={() => setActiveNoteCartId(null)}>
-                Guardar nota
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {toast && <div className="toast">{toast}</div>}

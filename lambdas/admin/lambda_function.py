@@ -1741,6 +1741,7 @@ def approve_account_request(request_id, body):
                 ciudad, provincia,
                 telefono_oficina, telefono_adicional,
                 mail_adicional,
+                delivery_method, carrier_name, carrier_phone, delivery_address,
                 role, is_active,
                 cognito_sub
             )
@@ -1751,6 +1752,7 @@ def approve_account_request(request_id, body):
                 %s,%s,
                 %s,%s,
                 %s,
+                %s,%s,%s,%s,
                 %s,%s,
                 %s
             )
@@ -1776,6 +1778,11 @@ def approve_account_request(request_id, body):
 
             mail_adicional,
 
+            delivery_method,
+            carrier_name,
+            carrier_phone,
+            delivery_address,
+            
             role,
             True,
             cognito_sub

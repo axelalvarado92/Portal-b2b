@@ -1,5 +1,10 @@
 .admin-companies-page {
+  width: 100%;
+  max-width: 100%;
   padding: 40px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .companies-header {
@@ -150,8 +155,8 @@
 
 .companies-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
 }
 
 .company-card {
@@ -203,4 +208,127 @@
   margin: 0;
   font-size: 12px;
   color: #888;
+}
+
+@media (max-width: 768px) {
+  .companies-header {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+  }
+
+  .companies-header h1 {
+    font-size: 26px;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .companies-header button,
+  .companies-header .snb-btn,
+  .companies-header .snb-btn-secondary {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .companies-summary-card {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+
+  .companies-summary-card span {
+    font-size: 24px;
+  }
+
+  .companies-search {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .companies-table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    -webkit-overflow-scrolling: touch;
+
+    white-space: nowrap;
+  }
+
+  .companies-table th,
+  .companies-table td {
+    padding: 12px 14px;
+  }
+
+  .companies-table th {
+    white-space: nowrap;
+  }
+
+  .companies-table td {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .companies-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .company-card {
+    min-width: 0;
+  }
+
+  .company-logo-wrapper {
+    padding: 10px;
+  }
+
+  .company-body {
+    padding: 9px 10px 12px;
+  }
+
+  .company-name {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .company-description {
+    font-size: 11px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 380px) {
+  .companies-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .companies-header {
+    gap: 10px;
+  }
+
+  .companies-header button,
+  .companies-header .snb-btn,
+  .companies-header .snb-btn-secondary {
+    padding: 11px 14px;
+    font-size: 14px;
+  }
 }

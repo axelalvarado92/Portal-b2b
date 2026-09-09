@@ -83,51 +83,26 @@ export default function Companies() {
   return (
     <div className="admin-companies-page" style={{ padding: "20px" }}>
       {/* 🛠️ HEADER OPTIMIZADO Y ALINEADO */}
-      <div className="companies-header" style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        marginBottom: "25px",
-        flexWrap: "wrap",
-        gap: "15px"
-      }}>
-        
-        <h1 style={{ margin: 0 }}>Proveedores</h1>
+      <div className="companies-header">
+
+        <h1>Proveedores</h1>
       
-        {/* Contenedor alineado para el Buscador y el Botón */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div className="companies-header-actions">
+      
           <input
             className="companies-search"
             placeholder="Buscar empresa por nombre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ 
-              padding: "10px 15px", 
-              width: "280px", 
-              height: "42px", 
-              borderRadius: "8px", 
-              border: "1px solid #ccc",
-              boxSizing: "border-box",
-              fontSize: "14px",
-              margin: 0
-            }}
           />
       
           <button
-              className="snb-btn"
-              onClick={() => navigate("/admin/companies/new")}
-              style={{ 
-                height: "42px", 
-                padding: "0 20px",
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                whiteSpace: "nowrap",
-                margin: 0
-              }}
+            className="snb-btn"
+            onClick={() => navigate("/admin/companies/new")}
           >
-              + Nueva Empresa
+            + Nueva Empresa
           </button>
+      
         </div>
       
       </div>

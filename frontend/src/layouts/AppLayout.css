@@ -5,35 +5,44 @@
 
 .app-header {
   background: white;
-  height: 72px;
+  min-height: 72px;
+  width: 100%;
+  box-sizing: border-box;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
 
-  padding: 0 36px;
+  padding: 0 24px;
 
   border-bottom: 1px solid #e7e7e7;
 
   position: sticky;
   top: 0;
   z-index: 1000;
+
+  gap: 20px;
 }
 
-.app-logo{
-    height:54px;
+.app-logo {
+  height: 54px;
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
 }
 
-.app-nav{
+.app-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    display:flex;
-    align-items:center;
+  gap: 28px;
 
-    gap:34px;
+  margin-left: auto;
+  margin-right: 10px;
 
-    margin-left:auto;
-    margin-right:40px;
-
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .app-nav a {
@@ -116,10 +125,11 @@
   gap: 16px;
 }
 
-.app-brand{
-    display:flex;
-    align-items:center;
-    gap:18px;
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
 }
 
 .app-subtitle{
@@ -148,68 +158,62 @@
 
 }
 
-.app-user-section{
+.app-user-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    display:flex;
+  flex-shrink: 0;
 
-    align-items:center;
-
-    gap:20px;
-
+  min-width: 42px;
 }
 
 .cart-button {
-
   position: relative;
 
+  width: 42px;
+  height: 42px;
+
   display: flex;
-
   align-items: center;
-
   justify-content: center;
 
   color: #444;
-
   text-decoration: none;
 
+  flex-shrink: 0;
+
   transition: .2s;
-
 }
 
-.cart-button:hover{
-
-    color:#6e1423;
-
+.cart-button:hover {
+  color: #6e1423;
 }
 
-.cart-badge{
+.cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -5px;
 
-    position:absolute;
+  background: #d92525;
+  color: white;
 
-    top:-8px;
+  min-width: 22px;
+  height: 22px;
 
-    right:-10px;
+  padding: 0 4px;
+  box-sizing: border-box;
 
-    background:#d92525;
+  border-radius: 50%;
 
-    color:white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    width:22px;
+  font-size: 12px;
+  font-weight: bold;
 
-    height:22px;
-
-    border-radius:50%;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    font-size:12px;
-
-    font-weight:bold;
-
+  z-index: 2;
 }
 
 .dropdown-container {
@@ -268,4 +272,86 @@
 .dropdown-item:hover {
   background-color: #f9f9f9;
   color: #6e1423;
+}
+
+@media (max-width: 768px) {
+
+  .app-header {
+    min-height: auto;
+    padding: 10px 14px;
+    gap: 10px;
+
+    flex-wrap: wrap;
+  }
+
+  .app-brand {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .app-logo {
+    height: 42px;
+    max-width: 150px;
+  }
+
+  .app-user-section {
+    flex-shrink: 0;
+  }
+
+  .cart-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .app-nav {
+    order: 3;
+
+    width: 100%;
+    margin: 0;
+
+    justify-content: flex-start;
+
+    gap: 8px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    padding: 4px 0 6px;
+
+    -webkit-overflow-scrolling: touch;
+
+    scrollbar-width: none;
+  }
+
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-nav-link {
+    flex-shrink: 0;
+    white-space: nowrap;
+
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+
+  .dropdown-container {
+    flex-shrink: 0;
+  }
+
+  .dropdown-toggle {
+    white-space: nowrap;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+
+  .dropdown-menu {
+    position: fixed;
+    top: 105px;
+    right: 14px;
+
+    min-width: 170px;
+
+    max-width: calc(100vw - 28px);
+  }
 }

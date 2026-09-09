@@ -1,7 +1,9 @@
-.product-detail{
-    max-width:1100px;
-    margin:auto;
-    padding:40px;
+.product-detail {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px;
+    box-sizing: border-box;
 }
 
 .back-button{
@@ -55,4 +57,248 @@
     padding:14px 28px;
     font-size:16px;
     cursor:pointer;
+}
+
+@media (max-width: 768px) {
+    .product-detail {
+        padding: 16px;
+    }
+
+    .detail-card {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding: 18px;
+        border-radius: 12px;
+    }
+}
+
+.detail-image {
+    width: 100%;
+    max-width: 100%;
+}
+
+.detail-image img {
+    width: 100%;
+    max-width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    padding: 12px;
+}
+
+.detail-info {
+    width: 100%;
+    min-width: 0;
+}
+
+.detail-info h1 {
+    font-size: 24px;
+    line-height: 1.2;
+    margin-top: 0;
+}
+
+.detail-code {
+    margin-bottom: 14px;
+}
+
+.detail-price {
+    font-size: 27px;
+    margin-bottom: 22px;
+}
+
+.detail-description {
+    margin-top: 16px;
+    margin-bottom: 24px;
+}
+
+.add-cart-btn {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 20px;
+}
+
+@media (max-width: 768px) {
+    .detail-info input,
+    .detail-info select,
+    .detail-info textarea {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .detail-info button {
+        max-width: 100%;
+    }
+
+    .detail-info > * {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .product-detail {
+        width: 100%;
+        max-width: 100%;
+        padding: 16px;
+    }
+
+    .back-button {
+        margin-bottom: 16px;
+    }
+
+    .detail-card {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding: 18px;
+        border-radius: 12px;
+    }
+
+    .detail-image {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .detail-image img {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        max-height: 320px;
+        object-fit: contain;
+        padding: 12px;
+    }
+
+    .detail-info {
+        width: 100%;
+        min-width: 0;
+    }
+
+}
+
+@media (max-width: 768px) {
+
+    .variant-container {
+        width: 100%;
+        min-width: 0;
+        margin-top: 10px;
+    }
+
+    .variant-label {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .variant-pills {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .variant-pill {
+        width: 100%;
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        text-align: left;
+        padding: 12px 14px;
+        gap: 7px;
+        box-sizing: border-box;
+    }
+
+    .pill-name {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .pill-sku {
+        margin-left: auto !important;
+        flex-shrink: 1;
+        overflow-wrap: anywhere;
+    }
+
+    .pill-price {
+        margin-left: auto;
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
+}
+
+@media (max-width: 768px) {
+
+    .detail-info h1 {
+        font-size: 25px;
+        line-height: 1.2;
+        margin-top: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .detail-code {
+        font-size: 14px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+        margin-bottom: 16px;
+    }
+
+    .detail-code span {
+        margin-left: 4px !important;
+    }
+
+    .detail-price {
+        font-size: 28px;
+        margin-bottom: 22px;
+    }
+
+    .detail-description {
+        margin-top: 20px;
+        margin-bottom: 24px;
+    }
+
+    .detail-description p {
+        overflow-wrap: anywhere;
+    }
+
+}
+
+@media (max-width: 768px) {
+
+    .quantity-selector {
+        margin-top: 20px;
+    }
+
+    .quantity-selector label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .quantity-controls {
+        display: flex;
+        align-items: center;
+        width: fit-content;
+    }
+
+    .quantity-controls button {
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+        cursor: pointer;
+    }
+
+    .quantity-controls input {
+        width: 55px !important;
+        height: 44px;
+        font-size: 16px !important;
+    }
+
+    .add-cart-btn {
+        width: 100%;
+        min-height: 50px;
+        margin-top: 20px;
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+
 }
