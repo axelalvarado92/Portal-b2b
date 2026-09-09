@@ -68,11 +68,12 @@ export default function OrdersAdmin() {
     try {
       setIsClosing(true);
       console.log("DEBUG: Cerrando orden", orderToClose);
-      const response = await updateAdminOrderStatus(orderToClose, "COMPLETED");
-      console.log("DEBUG: Respuesta del backend:", response);
+      const response = await updateAdminOrderStatus(
+        orderToClose,
+        "COMPLETED"
+      );
       
-      // 1. Enviamos el término exacto en inglés y mayúsculas que PostgreSQL acepta
-      await updateAdminOrderStatus(orderToClose, "COMPLETED");
+      console.log("DEBUG: Respuesta del backend:", response);
       
       // 2. Actualizamos el estado local en memoria con el mismo término
       setOrders(prevOrders => 
@@ -189,9 +190,13 @@ export default function OrdersAdmin() {
       matchesTab = !isCompleted;       // En cualquier otra pestaña van los activos (PENDING, etc.)
     }
 
-    const matchesSearch = 
-      order.company_name?.toLowerCase().includes(search.toLowerCase()) ||
-      order.customer_email?.toLowerCase().includes(search.toLowerCase());
+    const searchTerm = search.toLowerCase();
+
+    const matchesSearch =
+      order.order_number?.toLowerCase().includes(searchTerm) ||
+      order.id?.toLowerCase().includes(searchTerm) ||
+      order.company_name?.toLowerCase().includes(searchTerm) ||
+      order.customer_email?.toLowerCase().includes(searchTerm);
 
     return matchesTab && matchesSearch;
   });
@@ -262,7 +267,7 @@ export default function OrdersAdmin() {
       <table className="orders-table">
         <thead>
           <tr>
-            <th>ID</th>
+            <th>N° Pedido</th>
             <th>Empresa</th>
             <th>Cliente</th>
             <th>Estado</th>
@@ -274,7 +279,9 @@ export default function OrdersAdmin() {
         <tbody>
           {filteredOrders.map(order => (
             <tr key={order.id}>
-              <td>{order.id.slice(0, 8)}</td>
+              <td>
+                {order.order_number || `#${order.id.slice(0, 8).toUpperCase()}`}
+              </td>
               <td>{order.company_name}</td>
               <td>{order.customer_email}</td>
               <td>
@@ -319,7 +326,9 @@ export default function OrdersAdmin() {
       {selectedOrder && (
          <div ref={detailRef} className="order-detail-card" style={{ marginTop: "30px", borderTop: "4px solid #6b1426" }}>
           <div className="order-detail-header">
-            <div className="order-number">Pedido #{selectedOrder.id.slice(0,8)}</div>
+            <div className="order-number">
+              Pedido {selectedOrder.order_number || `#${selectedOrder.id.slice(0, 8).toUpperCase()}`}
+            </div>
             <div className="order-status">
               {selectedOrder.status?.toUpperCase() === "COMPLETED" ? "COMPLETED" : selectedOrder.status}
             </div>

@@ -63,7 +63,11 @@ export async function generateOrderPDF(order) {
 
   doc.setFontSize(9);
   doc.setTextColor(80);
-  doc.text(`N° Pedido: #${order.id?.slice(0, 8).toUpperCase()}`, 14, 57);
+  doc.text(
+    `N° Pedido: ${order.order_number || `#${order.id?.slice(0, 8).toUpperCase()}`}`,
+    14,
+    57
+  );
   doc.text(`Fecha: ${new Date(order.created_at).toLocaleDateString("es-AR")}`, 14, 62);
 
   // ── DATOS CLIENTE / EMPRESA ──

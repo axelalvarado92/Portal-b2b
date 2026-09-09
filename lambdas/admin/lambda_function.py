@@ -1265,6 +1265,7 @@ def list_orders():
     cur.execute("""
         SELECT
             o.id,
+            o.order_number,
             c.name,
             u.email,
             o.total_amount,
@@ -1286,11 +1287,12 @@ def list_orders():
     return success([
         {
             "id": str(r[0]),
-            "company_name": r[1],
-            "customer_email": r[2],
-            "total_amount": float(r[3]),
-            "status": r[4],
-            "created_at": str(r[5])
+            "order_number": r[1],
+            "company_name": r[2],
+            "customer_email": r[3],
+            "total_amount": float(r[4]),
+            "status": r[5],
+            "created_at": str(r[6])
         }
         for r in rows
     ])
@@ -1305,6 +1307,7 @@ def get_order_admin(order_id):
         cur.execute("""
             SELECT
                 o.id,
+                o.order_number,
                 u.full_name,
                 u.email,
                 u.business_name,
@@ -1380,27 +1383,27 @@ def get_order_admin(order_id):
 
         return success({
             "id": str(order[0]),
+            "order_number": order[1],
         
-            "customer_name": str(order[1]) if order[1] else "",
-            "customer_email": str(order[2]) if order[2] else "",
+            "customer_name": str(order[2]) if order[2] else "",
+            "customer_email": str(order[3]) if order[3] else "",
         
-            "business_name": str(order[3]) if order[3] else "",
-            "cuit": str(order[4]) if order[4] else "",
+            "business_name": str(order[4]) if order[4] else "",
+            "cuit": str(order[5]) if order[5] else "",
         
-            "delivery_method": str(order[5]) if order[5] else "",
-            "carrier_name": str(order[6]) if order[6] else "",
-            "carrier_phone": str(order[7]) if order[7] else "",
+            "delivery_method": str(order[6]) if order[6] else "",
+            "carrier_name": str(order[7]) if order[7] else "",
+            "carrier_phone": str(order[8]) if order[8] else "",
         
-            "delivery_address": str(order[8]) if order[8] else "",
-            "direccion_entrega": str(order[9]) if order[9] else "",
-            "direccion_transporte": str(order[10]) if order[10] else "",
-        
-            "company_name": order[11],
-            "status": order[12],
-            "total_amount": float(order[13]),
-            "notes": order[14],
-            "customer_notes": order[15],
-            "created_at": str(order[16]),
+            "delivery_address": str(order[9]) if order[9] else "",
+            "direccion_entrega": str(order[10]) if order[10] else "",
+            "direccion_transporte": str(order[11]) if order[11] else "",
+            "company_name": order[12],
+            "status": order[13],
+            "total_amount": float(order[14]),
+            "notes": order[15],
+            "customer_notes": order[16],
+            "created_at": str(order[17]),
         
             "items": items
         })

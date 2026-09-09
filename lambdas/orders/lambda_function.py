@@ -34,9 +34,47 @@ def create_order(user, body):
     notes      = body.get("notes", "")
 
     conn = get_connection()
-    cur  = conn.cursor()
+    cur = conn.cursor()
 
     try:
+
+        # Obtenemos el prefijo de la compañía
+        cur.execute("""
+            SELECT order_prefix
+            FROM companies
+            WHERE id = %s
+        """, [company_id])
+
+        company_row = cur.fetchone()
+
+        if not company_row:
+            return not_found("Compañía no encontrada")
+
+        order_prefix = company_row[0]
+
+        if not order_prefix:
+            return bad_request(
+                "La compañía no tiene configurado un prefijo para pedidos"
+            )
+
+        # Obtenemos/incrementamos el contador de forma atómica
+        cur.execute("""
+            INSERT INTO company_order_counters (
+                company_id,
+                last_number
+            )
+            VALUES (%s, 1)
+            ON CONFLICT (company_id)
+            DO UPDATE SET
+                last_number = company_order_counters.last_number + 1
+            RETURNING last_number
+        """, [company_id])
+
+        order_number_row = cur.fetchone()
+
+        order_sequence = order_number_row[0]
+
+        order_number = f"{order_prefix}-{order_sequence:04d}"
 
         # Verificamos que el carrito exista, sea del usuario y esté abierto
         cur.execute("""
@@ -79,6 +117,7 @@ def create_order(user, body):
         cur.execute("""
             INSERT INTO orders (
                 id,
+                order_number,
                 user_id,
                 company_id,
                 cart_id,
@@ -87,9 +126,10 @@ def create_order(user, body):
                 notes,
                 customer_notes
             )
-            VALUES (%s, %s, %s, %s, %s, 'PENDING', %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', %s, %s)
         """, [
             order_id,
+            order_number,
             user["id"],
             company_id,
             cart_id,
@@ -99,12 +139,12 @@ def create_order(user, body):
         ])
 
         # Creamos los items del pedido
-        # Guardamos nombre y precio al momento del pedido
         for row in items:
+
             product_id, product_name, product_code, unit_price, quantity, observations, variant_selection = row
-        
+
             subtotal = float(unit_price) * float(quantity)
-        
+
             cur.execute("""
                 INSERT INTO order_items
                 (
@@ -120,16 +160,16 @@ def create_order(user, body):
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, [
-                    order_id,
-                    product_id,
-                    product_name,
-                    product_code,
-                    unit_price,
-                    quantity,
-                    subtotal,
-                    observations,
-                    json.dumps(variant_selection)
-                ])
+                order_id,
+                product_id,
+                product_name,
+                product_code,
+                unit_price,
+                quantity,
+                subtotal,
+                observations,
+                json.dumps(variant_selection)
+            ])
 
         # Cerramos el carrito
         cur.execute("""
@@ -144,17 +184,18 @@ def create_order(user, body):
         sqs.send_message(
             QueueUrl=QUEUE_URL,
             MessageBody=json.dumps({
-                "event":      "ORDER_CREATED",
-                "order_id":   order_id,
+                "event": "ORDER_CREATED",
+                "order_id": order_id,
                 "company_id": company_id,
-                "user_id":    user["id"]
+                "user_id": user["id"]
             })
         )
 
         return created({
             "order_id": order_id,
-            "total":    round(total, 2),
-            "status":   "PENDING"
+            "order_number": order_number,
+            "total": round(total, 2),
+            "status": "PENDING"
         })
 
     except Exception:
@@ -168,6 +209,7 @@ def create_order(user, body):
     finally:
 
         cur.close()
+        conn.close()
 
 
 def list_orders(user, params):
@@ -182,11 +224,13 @@ def list_orders(user, params):
         query = """
             SELECT 
                 o.id,
+                o.order_number,
                 o.company_id,
                 c.name AS company_name,
                 o.total_amount,
                 o.status,
                 o.notes,
+                o.customer_notes,
                 o.created_at
             FROM orders o
             INNER JOIN companies c ON o.company_id = c.id
@@ -208,12 +252,14 @@ def list_orders(user, params):
         orders = [
             {
                 "id":           str(row[0]),
-                "company_id":   str(row[1]),
-                "company_name": row[2],
-                "total_amount": float(row[3]),
-                "status":       row[4],
-                "notes":        row[5],
-                "created_at":   str(row[6])
+                "order_number":   row[1],
+                "company_id":   str(row[2]),
+                "company_name": row[3],
+                "total_amount": float(row[4]),
+                "status":       row[5],
+                "notes":        row[6],
+                "customer_notes": row[7],
+                "created_at":   str(row[8])
             }
             for row in rows
         ]
@@ -243,6 +289,7 @@ def get_order(user, order_id):
         cur.execute("""
             SELECT 
                 o.id,
+                o.order_number,
                 o.company_id,
                 c.name AS company_name,
                 o.total_amount,
@@ -316,24 +363,25 @@ def get_order(user, order_id):
 
         return success({
             "id":                 str(row[0]),
-            "company_id":         str(row[1]),
-            "company_name":       row[2],
-            "total_amount":       float(row[3]),
-            "status":             row[4],
-            "notes":              row[5],
-            "customer_notes":     row[6],
-            "created_at":         str(row[7]),
+            "order_number":       row[1],
+            "company_id":         str(row[2]),
+            "company_name":       row[3],
+            "total_amount":       float(row[4]),
+            "status":             row[5],
+            "notes":              row[6],
+            "customer_notes":     row[7],
+            "created_at":         str(row[8]),
         
-            "customer_name":      row[8],
-            "customer_email":     row[9],
-            "business_name":      row[10],
-            "cuit":               row[11],
-            "delivery_method":    row[12],
-            "carrier_name":       row[13],
-            "carrier_phone":      row[14],
-            "delivery_address":   row[15],
-            "direccion_entrega":  row[16],
-            "direccion_transporte": row[17],
+            "customer_name":      row[9],
+            "customer_email":     row[10],
+            "business_name":      row[11],
+            "cuit":               row[12],
+            "delivery_method":    row[13],
+            "carrier_name":       row[14],
+            "carrier_phone":      row[15],
+            "delivery_address":   row[16],
+            "direccion_entrega":  row[17],
+            "direccion_transporte": row[18],
         
             "items":              items
         })
