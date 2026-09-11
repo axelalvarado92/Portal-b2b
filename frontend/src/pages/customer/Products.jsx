@@ -18,6 +18,7 @@ export default function Products() {
   const [toast, setToast] = useState("");
   const [searching, setSearching] = useState(false);
   const isFirstLoad = useRef(true);
+  const [quantities, setQuantities] = useState({});
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -74,10 +75,12 @@ export default function Products() {
 
   async function handleAddToCart(product) {
     try {
+      const quantity = quantities[product.id] || 1;
+  
       await addToCart({
         productId: product.id,
         companyId,
-        quantity: 1,
+        quantity,
         selectedOptions: {}
       });
   
@@ -94,6 +97,15 @@ export default function Products() {
   
       setTimeout(() => setToast(""), 2500);
     }
+  }
+
+  function handleQuantityChange(productId, value) {
+    const quantity = Math.max(1, Number(value) || 1);
+  
+    setQuantities((prev) => ({
+      ...prev,
+      [productId]: quantity,
+    }));
   }
 
   let processedProducts = [...products];
@@ -197,15 +209,52 @@ export default function Products() {
                     Elegir opciones
                   </button>
                 ) : (
-                  <button
-                    className="add-cart-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddToCart(product);
-                    }}
+                  <div
+                    className="product-cart-controls"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Agregar al carrito
-                  </button>
+                    <div className="quantity-control">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleQuantityChange(
+                            product.id,
+                            (quantities[product.id] || 1) - 1
+                          )
+                        }
+                      >
+                        −
+                      </button>
+                
+                      <input
+                        type="number"
+                        min="1"
+                        value={quantities[product.id] || 1}
+                        onChange={(e) =>
+                          handleQuantityChange(product.id, e.target.value)
+                        }
+                      />
+                
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleQuantityChange(
+                            product.id,
+                            (quantities[product.id] || 1) + 1
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                
+                    <button
+                      className="add-cart-btn"
+                      onClick={() => handleAddToCart(product)}
+                    >
+                      Agregar al carrito
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
