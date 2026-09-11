@@ -23,6 +23,12 @@ from shared.schemas import (
 
 cognito = boto3.client("cognito-idp")
 USER_POOL_ID = os.environ["USER_POOL_ID"]
+SES_SENDER_EMAIL = os.environ["SES_SENDER_EMAIL"]
+BUSINESS_NAME = os.environ["BUSINESS_NAME"]
+EMAIL_FROM = os.environ["EMAIL_FROM"]
+LOGIN_URL = os.environ["LOGIN_URL"]
+LOGO_URL = os.environ["LOGO_URL"]
+FORGOT_PASSWORD_URL = os.environ["FORGOT_PASSWORD_URL"]
 ses = boto3.client("ses", region_name="sa-east-1")
 
 #############################################################
@@ -129,10 +135,7 @@ def create_user(body):
     # ─────────────────────────────
     # 1. Crear usuario en Cognito
     # ─────────────────────────────
-    temp_password = ''.join(
-        secrets.choice(string.ascii_letters + string.digits + "!@#$%^&*") 
-        for _ in range(12)
-    )
+    temp_password = generate_temporary_password()
 
     try:
         response = cognito.admin_create_user(
@@ -245,8 +248,8 @@ def create_user(body):
         # 3. Enviar email profesional vía SES
         # ─────────────────────────────
         try:
-            login_url = "https://snbrepresentaciones.com.ar/login"
-            
+            login_url = LOGIN_URL
+
             ses.send_email(
                 Source="noreply@snbrepresentaciones.com.ar",
                 Destination={"ToAddresses": [email]},
@@ -1539,7 +1542,7 @@ def send_order_pdf(user, order_id):
         html_body = f"""
         <html>
         <body style="font-family:Arial,sans-serif;color:#333;">
-            <h2 style="color:#6b1426;">SNB Representaciones - Nuevo Pedido</h2>
+            <h2 style="color:#6b1426;">{BUSINESS_NAME} - Nuevo Pedido</h2>
             <p><strong>Pedido N°:</strong> #{order[0][:8].upper()}</p>
             <p><strong>Cliente:</strong> {order[1]}</p>
             <p><strong>Email cliente:</strong> {order[2]}</p>
@@ -1561,17 +1564,17 @@ def send_order_pdf(user, order_id):
                 </tbody>
             </table>
             <hr>
-            <p style="font-size:12px;color:#666;">Este es un pedido del sistema B2B de SNB Representaciones.</p>
+            <p style="font-size:12px;color:#666;">Este es un pedido del sistema B2B de {BUSINESS_NAME}.</p>
         </body>
         </html>
         """
 
         # 4. Enviar por SES
         ses.send_email(
-            Source="no-reply@snbb2b.com",  # ← CAMBIÁ por tu var.ses_sender_email
+            Source={SES_SENDER_EMAIL},
             Destination={"ToAddresses": [contact_email]},
             Message={
-                "Subject": {"Data": f"Nuevo pedido #{order[0][:8]} - SNB B2B"},
+                "Subject": {"Data": f"Nuevo pedido #{order[0][:8]} - {BUSINESS_NAME}"},
                 "Body": {"Html": {"Data": html_body}}
             }
         )
@@ -1589,6 +1592,25 @@ def send_order_pdf(user, order_id):
 # ACCOUNTS REQUESTS
 # =========================================================
 
+def generate_temporary_password():
+    password = [
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.digits),
+        secrets.choice("!@#$%^&*")
+    ]
+
+    password += [
+        secrets.choice(
+            string.ascii_letters + string.digits + "!@#$%^&*"
+        )
+        for _ in range(8)
+    ]
+
+    secrets.SystemRandom().shuffle(password)
+
+    return ''.join(password)
+    
 def list_account_requests():
 
     conn = get_connection()
@@ -1619,6 +1641,7 @@ def list_account_requests():
                 provincia,
                 direccion_transporte
             FROM account_requests
+            WHERE status IN ('pending', 'approved')
             ORDER BY created_at DESC
         """)
 
@@ -1655,6 +1678,87 @@ def list_account_requests():
     finally:
         cur.close()
         conn.close()
+
+def send_account_access_email(email, full_name, temp_password):
+
+    try:
+        response = ses.send_email(
+            Source=EMAIL_FROM,
+            Destination={"ToAddresses": [email]},
+            Message={
+                "Subject": {
+                    "Data": f"Bienvenido a {BUSINESS_NAME} - Tu cuenta está lista"
+                },
+                "Body": {
+                    "Html": {
+                        "Data": f"""<html>
+<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
+
+    <div style="text-align:center;padding:20px 0;">
+        <img src="{LOGO_URL}"
+             alt="{BUSINESS_NAME}"
+             style="max-width:200px;">
+    </div>
+
+    <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
+
+    <p>
+        Tu solicitud fue aprobada. Tu cuenta en el portal B2B de
+        <strong>{BUSINESS_NAME}</strong> está lista.
+    </p>
+
+    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
+
+        <p style="margin:5px 0;">
+            <strong>Email:</strong> {email}
+        </p>
+
+        <p style="margin:5px 0;">
+            <strong>Contraseña temporal:</strong>
+            <code style="background:#fff;padding:4px 8px;border-radius:4px;font-size:16px;">
+                {temp_password}
+            </code>
+        </p>
+
+    </div>
+
+    <p>
+        Al iniciar sesión por primera vez, deberás cambiar esta contraseña
+        por una propia.
+    </p>
+
+    <div style="text-align:center;margin:30px 0;">
+        <a href="{LOGIN_URL}"
+           style="background:#6b1426;color:#fff;padding:12px 30px;
+                  text-decoration:none;border-radius:6px;display:inline-block;">
+            Iniciar sesión
+        </a>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
+
+    <p style="font-size:12px;color:#666;text-align:center;">
+        {BUSINESS_NAME} - Sistema B2B<br>
+        Este es un email automático, no respondas a esta dirección.
+    </p>
+
+</body>
+</html>"""
+                    }
+                }
+            }
+        )
+
+        message_id = response.get("MessageId")
+
+        print(f"SES email enviado a {email}")
+        print(f"SES MessageId: {message_id}")
+
+        return True, message_id
+
+    except Exception as e:
+        print(f"Error enviando email de acceso a {email}: {e}")
+        return False, None
 
 def approve_account_request(request_id, body):
 
@@ -1815,51 +1919,15 @@ def approve_account_request(request_id, body):
         # ─────────────────────────────
         # 5. Enviar email profesional vía SES
         # ─────────────────────────────
-        try:
-            login_url = "https://snbrepresentaciones.com.ar/login"
-            
-            ses.send_email(
-                Source="noreply@snbrepresentaciones.com.ar",
-                Destination={"ToAddresses": [email]},
-                Message={
-                    "Subject": {
-                        "Data": "Bienvenido a SNB Representaciones - Tu cuenta está lista"
-                    },
-                    "Body": {
-                        "Html": {
-                            "Data": f"""<html>
-<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
-    <div style="text-align:center;padding:20px 0;">
-        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
-    </div>
-    <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
-    <p>Tu solicitud fue aprobada. Tu cuenta en el portal B2B de <strong>SNB Representaciones</strong> está lista.</p>
-    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
-        <p style="margin:5px 0;"><strong>Email:</strong> {email}</p>
-        <p style="margin:5px 0;"><strong>Contraseña temporal:</strong> 
-            <code style="background:#fff;padding:4px 8px;border-radius:4px;font-size:16px;">{temp_password}</code>
-        </p>
-    </div>
-    <p>Al iniciar sesión por primera vez, deberás cambiar esta contraseña por una propia.</p>
-    <div style="text-align:center;margin:30px 0;">
-        <a href="{login_url}" style="background:#6b1426;color:#fff;padding:12px 30px;text-decoration:none;border-radius:6px;display:inline-block;">
-            Iniciar sesión
-        </a>
-    </div>
-    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
-    <p style="font-size:12px;color:#666;text-align:center;">
-        SNB Representaciones - Sistema B2B<br>
-        Este es un email automático, no respondas a esta dirección.
-    </p>
-</body>
-</html>"""
-                        }
-                    }
-                }
-            )
-        except Exception as e:
-            print(f"Error enviando email de bienvenida: {e}")
-            # No fallamos la aprobación si el email falla
+
+        email_sent, message_id = send_account_access_email(
+            email,
+            full_name,
+            temp_password
+        )
+        
+        if not email_sent:
+            print(f"No se pudo enviar el email de acceso a {email}")
 
     except Exception as e:
         conn.rollback()
@@ -1889,8 +1957,71 @@ def approve_account_request(request_id, body):
         "id": cognito_sub,
         "email": email,
         "full_name": full_name,
-        "message": "Usuario creado y solicitud aprobada"
+        "message": "Usuario creado y solicitud aprobada. Email de acceso enviado."
     })
+
+def resend_account_access(request_id):
+
+    conn = None
+    cur = None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                u.email,
+                u.full_name,
+                u.cognito_sub
+            FROM account_requests ar
+            JOIN users u ON u.email = ar.email
+            WHERE ar.id = %s
+              AND ar.status = 'approved'
+        """, [request_id])
+
+        row = cur.fetchone()
+
+        if not row:
+            return not_found("Solicitud aprobada o usuario no encontrado")
+
+        email, full_name, cognito_sub = row
+
+        temp_password = generate_temporary_password()
+
+        cognito.admin_set_user_password(
+            UserPoolId=USER_POOL_ID,
+            Username=cognito_sub,
+            Password=temp_password,
+            Permanent=False
+        )
+
+        email_sent, message_id = send_account_access_email(
+            email,
+            full_name,
+            temp_password
+        )
+
+        if not email_sent:
+            return server_error("No se pudo enviar el email de acceso")
+
+        return success({
+            "message": "Email de acceso reenviado correctamente",
+            "email": email,
+            "message_id": message_id
+        })
+
+    except Exception as e:
+        print("RESEND ACCOUNT ACCESS ERROR")
+        print(str(e))
+        return server_error()
+
+    finally:
+        if cur:
+            cur.close()
+
+        if conn:
+            conn.close()
 
 def reject_account_request(request_id):
     conn = get_connection()
@@ -1965,19 +2096,19 @@ def forgot_password(body):
 
     # 4. Enviar email con el código vía SES
     try:
-        login_url = "https://snbrepresentaciones.com.ar/reset-password"
+        login_url = FORGOT_PASSWORD_URL
         
         ses.send_email(
-            Source="noreply@snbrepresentaciones.com.ar",
+            Source=EMAIL_FROM,
             Destination={"ToAddresses": [email]},
             Message={
-                "Subject": {"Data": "Recuperación de contraseña - SNB Representaciones"},
+                "Subject": {"Data": f"Recuperación de contraseña - {BUSINESS_NAME}"},
                 "Body": {
                     "Html": {
                         "Data": f"""<html>
 <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
     <div style="text-align:center;padding:20px 0;">
-        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
+        <img src={LOGO_URL} alt="SNB" style="max-width:200px;">
     </div>
     <h2 style="color:#6b1426;">Recuperación de contraseña</h2>
     <p>Recibimos una solicitud para restablecer tu contraseña.</p>
@@ -1989,7 +2120,7 @@ def forgot_password(body):
     <p style="text-align:center;">Si no solicitaste este cambio, ignorá este email.</p>
     <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
     <p style="font-size:12px;color:#666;text-align:center;">
-        SNB Representaciones - Sistema B2B<br>
+        {BUSINESS_NAME} - Sistema B2B<br>
         Este es un email automático, no respondas a esta dirección.
     </p>
 </body>
@@ -2139,6 +2270,10 @@ def handler(event, context):
             if method == "POST" and path.endswith("/accept"):
                 req_id = resource_id or path.split("/")[-2]
                 return approve_account_request(req_id, body)
+
+            if method == "POST" and path.endswith("/resend-access"):
+                req_id = resource_id or path.split("/")[-2]
+                return resend_account_access(req_id)
     
 
         # ==========================

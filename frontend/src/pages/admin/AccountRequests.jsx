@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { 
   getAccountRequests, 
   acceptAccountRequest, 
-  rejectAccountRequest 
+  rejectAccountRequest,
+  resendAccountAccess
 } from "../../services/accountRequestsService";
 import { getCompanies } from "../../services/adminCompanyService";
 
@@ -54,9 +55,12 @@ export function AccountRequests() {
       const data = await getAccountRequests();
       const list = Array.isArray(data) ? data : (data?.data || []);
       
-      // Solo mostramos las pendientes
-      const pending = list.filter(r => r.status === "pending");
-      setRequests(pending);
+      // Mostramos las solicitudes que todavía forman parte del proceso de alta
+      const activeRequests = list.filter(
+        r => r.status === "pending" || r.status === "approved"
+      );
+      
+      setRequests(activeRequests);
       
     } catch (err) {
       console.error("❌ Error al cargar solicitudes:", err);
@@ -87,6 +91,28 @@ export function AccountRequests() {
       loadRequests();
     } catch (err) {
       alert("Error al rechazar la solicitud");
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResendEmail = async (id) => {
+    try {
+      setActionLoading(true);
+  
+      await resendAccountAccess(id);
+  
+      alert("Email de acceso reenviado correctamente");
+  
+      await loadRequests();
+  
+    } catch (err) {
+      console.error("RESEND ERROR:", err);
+      console.error("RESEND ERROR RESPONSE:", err.response);
+      console.error("RESEND ERROR DATA:", err.response?.data);
+      console.error("RESEND ERROR STATUS:", err.response?.status);
+      alert("Error al reenviar el email de acceso");
       console.error(err);
     } finally {
       setActionLoading(false);
@@ -193,24 +219,45 @@ export function AccountRequests() {
                   <tr key={req.id || index}>
                     <td style={{ fontWeight: "600" }}>{req.email}</td>
                     <td>
-                      <span className="status-pending">Pendiente</span>
+                      {req.status === "pending" ? (
+                        <span className="status-pending">
+                          Pendiente de aprobación
+                        </span>
+                      ) : (
+                        <span className="status-pending">
+                          Email pendiente
+                        </span>
+                      )}
                     </td>
                     <td className="actions-cell">
-                      <button 
-                        onClick={() => initiateAccept(req)}
+                      {req.status === "pending" ? (
+                      <>
+                        <button 
+                          onClick={() => initiateAccept(req)}
+                          disabled={actionLoading}
+                          className="btn-burgundy-primary"
+                          style={{ marginRight: "10px" }}
+                        >
+                          Aceptar...
+                        </button>
+                    
+                        <button 
+                          onClick={() => openRejectModal(req.id || req._id)}
+                          disabled={actionLoading}
+                          className="btn-burgundy-secondary"
+                        >
+                          Rechazar
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleResendEmail(req.id || req._id)}
                         disabled={actionLoading}
                         className="btn-burgundy-primary"
-                        style={{ marginRight: "10px" }}
                       >
-                        Aceptar...
+                        Reenviar email
                       </button>
-                      <button 
-                        onClick={() => openRejectModal(req.id || req._id)}
-                        disabled={actionLoading}
-                        className="btn-burgundy-secondary"
-                      >
-                        Rechazar
-                      </button>
+                    )}
                     </td>
                   </tr>
                 ))

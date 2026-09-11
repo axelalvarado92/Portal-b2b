@@ -17,11 +17,46 @@ cognito = boto3.client(
     region_name=os.environ["AWS_REGION"]
 )
 ses = boto3.client("ses", region_name=os.environ.get("AWS_REGION", "sa-east-1"))
-ADMIN_EMAIL = "noreply@snbrepresentaciones.com.ar"
-
+EMAIL_FROM = os.environ.get("EMAIL_FROM")
 CLIENT_ID = os.environ["COGNITO_CLIENT_ID"]
-
 USER_POOL_ID = os.environ.get("USER_POOL_ID")
+LOGO_URL = os.environ.get("LOGO_URL")
+LOGIN_URL = os.environ.get("LOGIN_URL")
+BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
+
+def mark_account_request_completed(email):
+
+    conn = None
+    cur = None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE account_requests
+            SET status = 'completed'
+            WHERE email = %s
+              AND status = 'approved'
+        """, [email])
+
+        conn.commit()
+
+        print(f"Solicitud de cuenta completada para {email}")
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        print("ERROR MARCANDO SOLICITUD COMO COMPLETADA")
+        print(str(e))
+
+    finally:
+        if cur:
+            cur.close()
+
+        if conn:
+            conn.close()
 
 
 def login(body):
@@ -115,6 +150,9 @@ def complete_new_password(body):
         )
 
         print("CHALLENGE EXITOSO")
+
+        # El usuario completó correctamente su primer acceso
+        mark_account_request_completed(email)
         
         auth = response["AuthenticationResult"]
 
@@ -215,19 +253,19 @@ def forgot_password(body):
 
     # 4. Enviar email vía SES
     try:
-        login_url = "https://snbrepresentaciones.com.ar/login"
+        login_url = LOGIN_URL
 
         ses.send_email(
-            Source=ADMIN_EMAIL,
+            Source=EMAIL_FROM,
             Destination={"ToAddresses": [email]},
             Message={
-                "Subject": {"Data": "Recuperación de contraseña - SNB Representaciones"},
+                "Subject": {"Data": f"Recuperación de contraseña - {BUSINESS_NAME}"},
                 "Body": {
                     "Html": {
                         "Data": f"""<html>
 <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
     <div style="text-align:center;padding:20px 0;">
-        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
+        <img src={LOGO_URL} alt={BUSINESS_NAME} style="max-width:200px;">
     </div>
     <h2 style="color:#6b1426;">Recuperación de contraseña</h2>
     <p>Recibimos una solicitud para restablecer tu contraseña.</p>
@@ -239,7 +277,7 @@ def forgot_password(body):
     <p style="text-align:center;">Si no solicitaste este cambio, ignorá este email.</p>
     <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
     <p style="font-size:12px;color:#666;text-align:center;">
-        SNB Representaciones - Sistema B2B<br>
+        {BUSINESS_NAME} - Sistema B2B<br>
         Este es un email automático, no respondas a esta dirección.
     </p>
 </body>

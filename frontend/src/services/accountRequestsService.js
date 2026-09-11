@@ -18,3 +18,12 @@ export async function rejectAccountRequest(requestId) {
   const response = await api.post(`/admin/account-requests/${requestId}/reject`);
   return response.data;
 }
+
+// Reenviar email de acceso
+export async function resendAccountAccess(requestId) {
+  const response = await api.post(
+    `/admin/account-requests/${requestId}/resend-access`
+  );
+
+  return response.data;
+}

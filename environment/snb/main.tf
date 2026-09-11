@@ -236,6 +236,12 @@ module "lambda_admin" {
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
     USER_POOL_ID = module.cognito.user_pool_id
+    BUSINESS_NAME = var.business_name
+    EMAIL_FROM = var.email_from
+    LOGIN_URL = var.login_url
+    LOGO_URL = var.logo_url
+    FORGOT_PASSWORD_URL = var.forgot_password_url
+    SES_SENDER_EMAIL = var.ses_sender_email
   }
 }
 
@@ -611,6 +617,7 @@ module "apigateway" {
         { method = "POST", path = "/admin/orders/{id}/send-pdf", protected = true },
         { method = "GET", path = "/admin/account-requests", protected = true },
         { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true },
+        { method = "POST", path = "/admin/account-requests/{id}/resend-access", protected = true },
         { method = "POST", path = "/admin/forgot-password", protected = true },
         { method = "POST", path = "/admin/confirm-forgot-password", protected = true },
       ]

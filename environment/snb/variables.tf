@@ -87,3 +87,28 @@ variable "certificate_arn" {
   type        = string
   
 }
+variable "business_name" {
+  description = "Nombre de la empresa"
+  type        = string
+}
+
+variable "login_url" {
+  description = "URL de login"
+  type        = string
+}
+
+variable "logo_url" {
+  description = "URL del logo"
+  type        = string
+}
+
+variable "email_from" {
+  description = "Email from"
+  type        = string
+  
+}
+
+variable "forgot_password_url" {
+  description = "URL de recuperación de contraseña"
+  type        = string
+}
