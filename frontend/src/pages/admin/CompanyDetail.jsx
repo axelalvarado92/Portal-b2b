@@ -267,6 +267,67 @@ export default function CompanyDetail() {
         <Field label="Provincia" name="provincia" value={form.provincia} onChange={editing ? handleChange : undefined} />
       </div>
 
+      <div className="detail-card">
+        <h2>Promoción para clientes</h2>
+      
+        {editing ? (
+          <>
+            <div className="detail-row">
+              <span>Descripción</span>
+            
+              <textarea
+                name="promotion_description"
+                value={form.promotion_description || ""}
+                onChange={handleChange}
+                rows={4}
+              />
+            
+              <small>
+                Podés ingresar texto de promoción o una URL de catálogo externo.
+              </small>
+            </div>
+      
+            <Field
+              label="Título"
+              name="promotion_title"
+              value={form.promotion_title}
+              onChange={handleChange}
+            />
+      
+            <div className="detail-row">
+              <span>Descripción</span>
+              <textarea
+                name="promotion_description"
+                value={form.promotion_description || ""}
+                onChange={handleChange}
+                rows={4}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <Field
+              label="Estado"
+              value={form.promotion_enabled ? "Activa" : "Inactiva"}
+            />
+      
+            {form.promotion_enabled && (
+              <>
+                <Field
+                  label="Título"
+                  value={form.promotion_title}
+                />
+      
+                <div className="detail-row">
+                  <span>Descripción</span>
+                  <strong>{form.promotion_description || "-"}</strong>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
       {toast && <div className="toast">{toast}</div>}
     </div>
   );

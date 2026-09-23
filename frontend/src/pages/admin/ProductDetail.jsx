@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { uploadLogo } from "../../services/uploadService";
 import { updateProduct, getProduct, createProduct } from "../../services/adminProductService";
 import { getCompanies } from "../../services/adminCompanyService";
@@ -10,6 +10,7 @@ export default function AdminProductDetail() {
   const isCreate = id === "new";
   const isEdit = id && id !== "new";
   const navigate = useNavigate();
+  const location = useLocation();
   const [companies, setCompanies] = useState([]);
   
   const [loading, setLoading] = useState(true);
@@ -206,12 +207,12 @@ export default function AdminProductDetail() {
       } else {
         await createProduct(payload);
       }
-
+      
       setToast(isEdit ? "✓ Producto actualizado" : "✓ Producto creado");
       setImageFile(null);
       
       if (isEdit) {
-        await loadProduct();
+        navigate(-1);
       } else {
         navigate("/admin/products");
       }

@@ -23,6 +23,7 @@ USER_POOL_ID = os.environ.get("USER_POOL_ID")
 LOGO_URL = os.environ.get("LOGO_URL")
 LOGIN_URL = os.environ.get("LOGIN_URL")
 BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
+LOGO_INITIALS = os.environ.get("LOGO_INITIALS")
 
 def mark_account_request_completed(email):
 
@@ -265,7 +266,7 @@ def forgot_password(body):
                         "Data": f"""<html>
 <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
     <div style="text-align:center;padding:20px 0;">
-        <img src={LOGO_URL} alt={BUSINESS_NAME} style="max-width:200px;">
+        <img src={LOGO_URL} alt={LOGO_INITIALS} style="max-width:200px;">
     </div>
     <h2 style="color:#6b1426;">Recuperación de contraseña</h2>
     <p>Recibimos una solicitud para restablecer tu contraseña.</p>

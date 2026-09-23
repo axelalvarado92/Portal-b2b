@@ -360,7 +360,7 @@ export default function OrdersAdmin() {
                     notes: e.target.value
                   }))
                 }
-                placeholder="Ej.: Facturar solamente el 50% del pedido y enviar el resto sin factura..."
+                placeholder="Agrega una descripción o instrucciones para el fabricante..."
                 rows={4}
                 style={{
                   width: "100%",

@@ -112,3 +112,13 @@ variable "forgot_password_url" {
   description = "URL de recuperación de contraseña"
   type        = string
 }
+
+variable "admin_panel_url" {
+  description = "URL del panel de administración"
+  type        = string
+}
+
+variable "logo_initials" {
+  description = "Iniciales del logo"
+  type        = string
+}

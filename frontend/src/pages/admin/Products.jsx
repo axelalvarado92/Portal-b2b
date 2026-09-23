@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getProducts,
   importProductsExcel,
@@ -11,6 +11,7 @@ import "./Products.css";
 
 export default function AdminProducts() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
@@ -22,9 +23,12 @@ export default function AdminProducts() {
 
   
   // Paginación y filtros
-  const [page, setPage] = useState(1);
+  const initialPage = Number(searchParams.get("page")) || 1;
+  const initialCompany = searchParams.get("company") || "";
+  
+  const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
-  const [filterCompany, setFilterCompany] = useState("");
+  const [filterCompany, setFilterCompany] = useState(initialCompany);
   const [sortBy, setSortBy] = useState("default");
 
   // Estados de formularios
@@ -89,6 +93,10 @@ export default function AdminProducts() {
   useEffect(() => { loadCompanies(); }, []); // Solo una vez al montar
 
   useEffect(() => {
+    if (isFirstLoad.current) {
+      return;
+    }
+  
     const timeout = setTimeout(() => {
       setSearch(searchInput);
       setPage(1);
@@ -96,6 +104,18 @@ export default function AdminProducts() {
   
     return () => clearTimeout(timeout);
   }, [searchInput]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+  
+    params.set("page", page);
+  
+    if (filterCompany) {
+      params.set("company", filterCompany);
+    }
+  
+    setSearchParams(params, { replace: true });
+  }, [page, filterCompany]);
 
   function handleExcelSelected(e) {
     const file = e.target.files?.[0];
@@ -219,8 +239,11 @@ export default function AdminProducts() {
         <div className="toolbar-filters">
           <select
               value={filterCompany}
-              onChange={(e)=>setFilterCompany(e.target.value)}
-          >
+              onChange={(e) => {
+                setFilterCompany(e.target.value);
+                setPage(1);
+              }}
+            >
               <option value="">Todas las empresas</option>
           
               {companies.map(c=>(

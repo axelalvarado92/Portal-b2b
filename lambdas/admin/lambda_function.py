@@ -23,12 +23,12 @@ from shared.schemas import (
 
 cognito = boto3.client("cognito-idp")
 USER_POOL_ID = os.environ["USER_POOL_ID"]
-SES_SENDER_EMAIL = os.environ["SES_SENDER_EMAIL"]
 BUSINESS_NAME = os.environ["BUSINESS_NAME"]
 EMAIL_FROM = os.environ["EMAIL_FROM"]
 LOGIN_URL = os.environ["LOGIN_URL"]
 LOGO_URL = os.environ["LOGO_URL"]
 FORGOT_PASSWORD_URL = os.environ["FORGOT_PASSWORD_URL"]
+LOGO_INITIALS = os.environ["LOGO_INITIALS"]
 ses = boto3.client("ses", region_name="sa-east-1")
 
 #############################################################
@@ -251,21 +251,21 @@ def create_user(body):
             login_url = LOGIN_URL
 
             ses.send_email(
-                Source="noreply@snbrepresentaciones.com.ar",
+                Source={EMAIL_FROM},
                 Destination={"ToAddresses": [email]},
                 Message={
                     "Subject": {
-                        "Data": "Bienvenido a SNB Representaciones - Tu cuenta está lista"
+                        "Data": f"Bienvenido a {BUSINESS_NAME} - Tu cuenta está lista"
                     },
                     "Body": {
                         "Html": {
                             "Data": f"""<html>
 <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
     <div style="text-align:center;padding:20px 0;">
-        <img src="https://snbrepresentaciones.com.ar/logo-share.png" alt="SNB" style="max-width:200px;">
+        <img src={LOGO_URL} alt={LOGO_INITIALS} style="max-width:200px;">
     </div>
     <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
-    <p>Tu cuenta en el portal B2B de <strong>SNB Representaciones</strong> ha sido creada exitosamente.</p>
+    <p>Tu cuenta en el portal B2B de <strong>{BUSINESS_NAME}</strong> ha sido creada exitosamente.</p>
     <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
         <p style="margin:5px 0;"><strong>Email:</strong> {email}</p>
         <p style="margin:5px 0;"><strong>Contraseña temporal:</strong> 
@@ -280,7 +280,7 @@ def create_user(body):
     </div>
     <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
     <p style="font-size:12px;color:#666;text-align:center;">
-        SNB Representaciones - Sistema B2B<br>
+        {BUSINESS_NAME} - Sistema B2B<br>
         Este es un email automático, no respondas a esta dirección.
     </p>
 </body>
@@ -600,7 +600,9 @@ def update_company(company_id, body):
         "name", "business_name", "tax_id", "logo_url", "description", 
         "contact_email", "is_active", "notification_emails", "whatsapp_phone",
         "nombre_fantasia", "cuit", "condicion_fiscal", "direccion", 
-        "ciudad", "provincia", "telefono_oficina", "telefono_adicional", "mail_adicional"
+        "ciudad", "provincia", "telefono_oficina", "telefono_adicional", 
+        "mail_adicional",
+        "promotion_enabled", "promotion_title", "promotion_description"
     ]
 
     updates = []
@@ -663,7 +665,11 @@ def get_company(company_id):
 
             notification_emails,
 
-            is_active
+            is_active,
+
+            promotion_enabled,
+            promotion_title,
+            promotion_description
 
         FROM companies
 
@@ -715,9 +721,13 @@ def get_company(company_id):
 
         "notification_emails": row[16],
 
-        "is_active": row[17]
-
-    })
+        "is_active": row[17],
+        
+        "promotion_enabled": row[18],
+        "promotion_title": row[19],
+        "promotion_description": row[20]
+        
+        })
 
 def delete_company(company_id):
     conn = get_connection()
@@ -1571,7 +1581,7 @@ def send_order_pdf(user, order_id):
 
         # 4. Enviar por SES
         ses.send_email(
-            Source={SES_SENDER_EMAIL},
+            Source={EMAIL_FROM},
             Destination={"ToAddresses": [contact_email]},
             Message={
                 "Subject": {"Data": f"Nuevo pedido #{order[0][:8]} - {BUSINESS_NAME}"},
@@ -1696,7 +1706,7 @@ def send_account_access_email(email, full_name, temp_password):
 
     <div style="text-align:center;padding:20px 0;">
         <img src="{LOGO_URL}"
-             alt="{BUSINESS_NAME}"
+             alt="{LOGO_INITIALS}"
              style="max-width:200px;">
     </div>
 
@@ -1760,35 +1770,26 @@ def send_account_access_email(email, full_name, temp_password):
         print(f"Error enviando email de acceso a {email}: {e}")
         return False, None
 
-def approve_account_request(request_id, body):
 
+def approve_account_request(request_id, body):
     companies = body.get("companies", [])
     role = body.get("role", "customer")
 
-    conn = None
-    cur = None
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-    except Exception:
-        return server_error("Error de conexión a base de datos")
+    conn = get_connection()
+    cur = conn.cursor()
 
     cur.execute("""
-        SELECT
-            full_name, email, phone, business_name,
-            delivery_method, carrier_name, carrier_phone, delivery_address,
-            mail_adicional, telefono_oficina, telefono_adicional,
-            cuit, condicion_fiscal, direccion, ciudad, provincia,
-            direccion_transporte, status
+        SELECT full_name, email, phone, business_name,
+               delivery_method, carrier_name, carrier_phone, delivery_address,
+               mail_adicional, telefono_oficina, telefono_adicional,
+               cuit, condicion_fiscal, direccion, ciudad, provincia,
+               direccion_transporte, status
         FROM account_requests
         WHERE id = %s
     """, [request_id])
 
     row = cur.fetchone()
-
     if not row:
-        cur.close()
-        conn.close()
         return not_found("Solicitud no encontrada")
 
     (
@@ -1800,9 +1801,25 @@ def approve_account_request(request_id, body):
     ) = row
 
     if status == "approved":
-        cur.close()
-        conn.close()
         return bad_request("Esta solicitud ya fue aprobada")
+
+    # Usamos los datos del body (editados por el admin) con fallback a los de la DB
+    full_name           = body.get("full_name", full_name)
+    phone               = body.get("phone", phone)
+    business_name       = body.get("business_name", business_name)
+    cuit                = body.get("cuit", cuit)
+    condicion_fiscal    = body.get("condicion_fiscal", condicion_fiscal)
+    direccion           = body.get("direccion", direccion)
+    ciudad              = body.get("ciudad", ciudad)
+    provincia           = body.get("provincia", provincia)
+    delivery_method     = body.get("delivery_method", delivery_method)
+    delivery_address    = body.get("delivery_address", delivery_address)
+    carrier_name        = body.get("carrier_name", carrier_name)
+    carrier_phone       = body.get("carrier_phone", carrier_phone)
+    direccion_transporte = body.get("direccion_transporte", direccion_transporte)
+    mail_adicional      = body.get("mail_adicional", mail_adicional)
+    telefono_oficina    = body.get("telefono_oficina", telefono_oficina)
+    telefono_adicional  = body.get("telefono_adicional", telefono_adicional)
 
     # ─────────────────────────────
     # Generar contraseña temporal
@@ -2108,7 +2125,7 @@ def forgot_password(body):
                         "Data": f"""<html>
 <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
     <div style="text-align:center;padding:20px 0;">
-        <img src={LOGO_URL} alt="SNB" style="max-width:200px;">
+        <img src={LOGO_URL} alt={LOGO_INITIALS} style="max-width:200px;">
     </div>
     <h2 style="color:#6b1426;">Recuperación de contraseña</h2>
     <p>Recibimos una solicitud para restablecer tu contraseña.</p>

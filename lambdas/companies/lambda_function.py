@@ -122,7 +122,11 @@ def get_company(user, company_id):
             c.provincia,
             c.telefono_oficina,
             c.telefono_adicional,
-            c.mail_adicional
+            c.mail_adicional,
+
+            c.promotion_enabled,
+            c.promotion_title,
+            c.promotion_description
     
         FROM companies c
     
@@ -159,6 +163,9 @@ def get_company(user, company_id):
         "provincia": row[11],
         "telefono_oficina": row[12],
         "telefono_adicional": row[13],
-        "mail_adicional": row[14]
-    
+        "mail_adicional": row[14],
+        "promotion_enabled": row[15],
+        "promotion_title": row[16],
+        "promotion_description": row[17]
+
     })

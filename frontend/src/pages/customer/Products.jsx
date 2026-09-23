@@ -1,9 +1,9 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { getProducts } from "../../services/productService";
+import { getCompany } from "../../services/companyService";
 import { addToCart } from "../../services/cartService";
 import { useCart } from "../../context/CartContext";
-import { useCompany } from "../../context/CompanyContext";
 import "./Products.css";
 
 export default function Products() {
@@ -12,6 +12,7 @@ export default function Products() {
   const { refreshCart } = useCart();
 
   const [products, setProducts] = useState([]);
+  const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,13 +38,48 @@ export default function Products() {
     return () => clearTimeout(timeout);
   }, [search]);
 
+  function isExternalCatalog(company) {
+    return (
+      company?.promotion_enabled &&
+      /^https?:\/\//i.test(
+        (company?.promotion_description || "").trim()
+      )
+    );
+  }
+
   useEffect(() => {
     if (!companyId) {
-      setLoading(false);
-      setProducts([]);
+      setCompany(null);
       return;
     }
 
+    async function loadCompany() {
+      try {
+        const response = await getCompany(companyId);
+        setCompany(response.data);
+      } catch (err) {
+        console.error("Error cargando empresa:", err);
+        setCompany(null);
+      }
+    }
+
+    loadCompany();
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId || !company) {
+      return;
+    }
+  
+    if (isExternalCatalog(company)) {
+      setProducts([]);
+      setTotalPages(1);
+      setLoading(false);
+      setSearching(false);
+      isFirstLoad.current = false;
+      return;
+    }
+  
     async function loadProducts() {
       try {
         if (isFirstLoad.current) {
@@ -51,15 +87,16 @@ export default function Products() {
         } else {
           setSearching(true);
         }
-
+  
         const response = await getProducts(companyId, page, 20, searchQuery);
-
+  
         const payload = response.data;
+  
         console.log("DEBUG getProducts response:", response.data);
-
+  
         setProducts(payload.items || []);
         setTotalPages(payload.total_pages || 1);
-
+  
       } catch (err) {
         console.error(err);
       } finally {
@@ -68,10 +105,10 @@ export default function Products() {
         isFirstLoad.current = false;
       }
     }
-
+  
     loadProducts();
-
-  }, [companyId, page, searchQuery]);
+  
+  }, [companyId, company, page, searchQuery]);
 
   async function handleAddToCart(product) {
     try {
@@ -132,10 +169,31 @@ export default function Products() {
   }
 
   return (
+    
     <div className="catalog-wrapper">
       <div className="catalog-header">
         <h1>Catálogo de Productos</h1>
       </div>
+
+      {company?.promotion_enabled && (
+        <div className="company-promotion">
+          <h2>{company.promotion_title}</h2>
+      
+          {company.promotion_description && (
+            isExternalCatalog(company) ? (
+              <a
+                href={company.promotion_description.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Ir al link de la empresa
+              </a>
+            ) : (
+              <p>{company.promotion_description}</p>
+            )
+          )}
+        </div>
+      )}
 
       <div className="catalog-toolbar">
         <div className="toolbar-search">

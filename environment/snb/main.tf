@@ -101,6 +101,11 @@ module "lambda_auth" {
     DATABASE_URL = module.postgresql.database_url
     USER_POOL_ID = module.cognito.user_pool_id
     COGNITO_CLIENT_ID = var.cognito_client_id
+    LOGO_INITIALS = var.logo_initials
+    EMAIL_FROM = var.email_from
+    LOGO_URL = var.logo_url
+    BUSINESS_NAME = var.business_name
+    LOGIN_URL = var.login_url
   }
 }
 
@@ -125,6 +130,14 @@ module "lambda_account_requests" {
 
   environment_variables = {
     DATABASE_URL = module.postgresql.database_url
+    EMAIL_FROM = var.email_from
+    LOGIN_URL = var.login_url
+    LOGO_URL = var.logo_url
+    ADMIN_PANEL_URL = var.admin_panel_url
+    REGION = var.region
+    BUSINESS_NAME = var.business_name
+    LOGO_INITIALS = var.logo_initials
+
   }
 }
 
@@ -241,7 +254,7 @@ module "lambda_admin" {
     LOGIN_URL = var.login_url
     LOGO_URL = var.logo_url
     FORGOT_PASSWORD_URL = var.forgot_password_url
-    SES_SENDER_EMAIL = var.ses_sender_email
+    LOGO_INITIALS = var.logo_initials
   }
 }
 

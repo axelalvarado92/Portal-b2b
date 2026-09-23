@@ -1,6 +1,7 @@
 import json
 import uuid
 import boto3
+import os
 from botocore.exceptions import ClientError
 
 from shared.db import get_connection
@@ -11,25 +12,25 @@ from shared.utils import (
 )
 
 # 💡 CONFIGURACIÓN
-ADMIN_EMAIL = "noreply@snbrepresentaciones.com.ar"
-AWS_REGION = "sa-east-1"
+AWS_REGION = os.environ["REGION"]
+ADMIN_PANEL_URL = os.environ["ADMIN_PANEL_URL"]
+EMAIL_FROM = os.environ["EMAIL_FROM"]
+LOGIN_URL = os.environ["LOGIN_URL"]
+LOGO_URL = os.environ["LOGO_URL"]
+BUSINESS_NAME = os.environ["BUSINESS_NAME"]
+LOGO_INITIALS = os.environ["LOGO_INITIALS"]
 
 ses_client = boto3.client('ses', region_name=AWS_REGION)
-
-# URLs del portal (ajustá si cambian)
-ADMIN_PANEL_URL = "https://snbrepresentaciones.com.ar/admin"
-LOGIN_URL = "https://snbrepresentaciones.com.ar/login"
-LOGO_URL = "https://snbrepresentaciones.com.ar/logo-share.png"
 
 
 def send_admin_notification(full_name, business_name, email, phone):
     """Envía un email HTML profesional al administrador."""
-    subject = "Nueva solicitud de cuenta B2B - SNB Representaciones"
+    subject = f"Nueva solicitud de cuenta B2B - {BUSINESS_NAME}"
     
     body_html = f"""<html>
 <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
     <div style="text-align:center;padding:20px 0;">
-        <img src="{LOGO_URL}" alt="SNB" style="max-width:200px;">
+        <img src="{LOGO_URL}" alt="{LOGO_INITIALS}" style="max-width:200px;">
     </div>
     <h2 style="color:#6b1426;">Nueva solicitud de cuenta B2B</h2>
     <p>Has recibido una nueva solicitud de registro en el portal.</p>
@@ -61,7 +62,7 @@ def send_admin_notification(full_name, business_name, email, phone):
     
     <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
     <p style="font-size:12px;color:#666;text-align:center;">
-        SNB Representaciones - Sistema B2B<br>
+        {BUSINESS_NAME} - Sistema B2B<br>
         Este es un email automático, no respondas a esta dirección.
     </p>
 </body>
@@ -69,8 +70,8 @@ def send_admin_notification(full_name, business_name, email, phone):
 
     try:
         ses_client.send_email(
-            Source=ADMIN_EMAIL,
-            Destination={'ToAddresses': [ADMIN_EMAIL]},
+            Source=EMAIL_FROM,
+            Destination={'ToAddresses': [EMAIL_FROM]},
             Message={
                 'Subject': {'Data': subject},
                 'Body': {'Html': {'Data': body_html}}
@@ -83,16 +84,16 @@ def send_admin_notification(full_name, business_name, email, phone):
 
 def send_user_confirmation(full_name, email):
     """Envía email de confirmación al usuario que solicitó la cuenta."""
-    subject = "Solicitud recibida - SNB Representaciones"
-    
+    subject = f"Solicitud recibida - {BUSINESS_NAME}"
+
     body_html = f"""<html>
 <body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
     <div style="text-align:center;padding:20px 0;">
-        <img src="{LOGO_URL}" alt="SNB" style="max-width:200px;">
+        <img src="{LOGO_URL}" alt="{LOGO_INITIALS}" style="max-width:200px;">
     </div>
     <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
-    <p>Hemos recibido tu solicitud para crear una cuenta en el <strong>portal B2B de SNB Representaciones</strong>.</p>
-    
+    <p>Hemos recibido tu solicitud para crear una cuenta en el <strong>portal B2B de {BUSINESS_NAME}</strong>.</p>
+
     <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
         <p style="margin:5px 0;">Tu solicitud está siendo revisada por nuestro equipo.</p>
         <p style="margin:5px 0;">Te enviaremos un email cuando tu cuenta esté aprobada y lista para usar.</p>
@@ -108,7 +109,7 @@ def send_user_confirmation(full_name, email):
     
     <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
     <p style="font-size:12px;color:#666;text-align:center;">
-        SNB Representaciones - Sistema B2B<br>
+        {BUSINESS_NAME} - Sistema B2B<br>
         Este es un email automático, no respondas a esta dirección.
     </p>
 </body>
@@ -116,7 +117,7 @@ def send_user_confirmation(full_name, email):
 
     try:
         ses_client.send_email(
-            Source=ADMIN_EMAIL,
+            Source=EMAIL_FROM,
             Destination={'ToAddresses': [email]},
             Message={
                 'Subject': {'Data': subject},

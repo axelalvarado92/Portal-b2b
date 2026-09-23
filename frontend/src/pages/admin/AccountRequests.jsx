@@ -158,20 +158,36 @@ export function AccountRequests() {
 
   const handleConfirmAccept = async (e) => {
     e.preventDefault();
-
+  
     if (userData.companies.length === 0) {
       alert("Seleccioná al menos una empresa para vincular al cliente");
       return;
     }
-
+  
     try {
       setActionLoading(true);
-
+  
       const finalPayload = {
         role: userData.userType,
-        companies: userData.companies
+        companies: userData.companies,
+        full_name: userData.fullName,
+        phone: userData.phone,
+        mail_adicional: userData.mailAdicional,
+        telefono_oficina: userData.telefonoOficina,
+        telefono_adicional: userData.telefonoAdicional,
+        business_name: userData.businessName,
+        cuit: userData.cuit,
+        condicion_fiscal: userData.condicionFiscal,
+        direccion: userData.direccion,
+        ciudad: userData.ciudad,
+        provincia: userData.provincia,
+        delivery_method: userData.deliveryMethod,
+        delivery_address: userData.deliveryAddress,
+        carrier_name: userData.transport,
+        carrier_phone: userData.transportPhone,
+        direccion_transporte: userData.direccionTransporte,
       };
-
+  
       await acceptAccountRequest(selectedRequest.id || selectedRequest._id, finalPayload);
       setSelectedRequest(null);
       loadRequests();
