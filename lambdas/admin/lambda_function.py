@@ -730,6 +730,7 @@ def get_company(company_id):
         })
 
 def delete_company(company_id):
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -2311,6 +2312,9 @@ def handler(event, context):
         
             if method == "PATCH" and resource_id:
                 return update_company(resource_id, body)
+
+            if method == "DELETE" and resource_id:
+                return delete_company(resource_id)
 
         # ==========================
         # PRODUCTS

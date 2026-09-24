@@ -109,20 +109,52 @@ export default function CompanyDetail() {
   }
 
   async function handleDelete() {
-    const confirmed = window.confirm(`¿Seguro que querés desactivar "${form.name}"? Esta acción se puede revertir más adelante.`);
+    const isActive = form.is_active !== false;
+    const action = isActive ? "desactivar" : "activar";
+  
+    console.log(`DEBUG: handleDelete fue ejecutado - acción: ${action}`);
+  
+    const confirmed = window.confirm(
+      isActive
+        ? `¿Seguro que querés desactivar "${form.name}"? Esta acción se puede revertir más adelante.`
+        : `¿Querés activar nuevamente "${form.name}"?`
+    );
+  
     if (!confirmed) return;
   
     try {
       setSaving(true);
-      await deleteCompany(id);
-      setToast("✓ Empresa desactivada");
-      setTimeout(() => navigate("/admin/companies"), 1200);
+  
+      const updatedForm = {
+        ...form,
+        is_active: !isActive
+      };
+  
+      const response = await updateCompany(id, updatedForm);
+  
+      console.log("DEBUG updateCompany response:", response);
+  
+      setCompany(updatedForm);
+      setForm(updatedForm);
+  
+      setToast(
+        isActive
+          ? "✓ Empresa desactivada"
+          : "✓ Empresa activada"
+      );
+  
     } catch (err) {
-      console.error("Error al desactivar:", err);
-      setToast("✗ No se pudo desactivar la empresa");
-      setTimeout(() => setToast(""), 2500);
+      console.error(`Error al ${action}:`, err);
+  
+      setToast(
+        isActive
+          ? "✗ No se pudo desactivar la empresa"
+          : "✗ No se pudo activar la empresa"
+      );
+  
     } finally {
       setSaving(false);
+      setTimeout(() => setToast(""), 2500);
     }
   }
 
@@ -183,7 +215,7 @@ export default function CompanyDetail() {
               </button>
               {isEdit && (
                 <button className="delete-btn" onClick={handleDelete} disabled={saving}>
-                    🗑 Desactivar
+                    {form.is_active !== false ? "🗑 Desactivar" : "✓ Activar"}
                 </button>
               )}
             </>
