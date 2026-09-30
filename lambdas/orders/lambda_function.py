@@ -302,6 +302,7 @@ def get_order(user, order_id):
                 u.email,
                 u.business_name,
                 u.cuit,
+                u.condicion_fiscal,
                 u.delivery_method,
                 u.carrier_name,
                 u.carrier_phone,
@@ -376,12 +377,13 @@ def get_order(user, order_id):
             "customer_email":     row[10],
             "business_name":      row[11],
             "cuit":               row[12],
-            "delivery_method":    row[13],
-            "carrier_name":       row[14],
-            "carrier_phone":      row[15],
-            "delivery_address":   row[16],
-            "direccion_entrega":  row[17],
-            "direccion_transporte": row[18],
+            "condicion_fiscal":   row[13],
+            "delivery_method":    row[14],
+            "carrier_name":       row[15],
+            "carrier_phone":      row[16],
+            "delivery_address":   row[17],
+            "direccion_entrega":  row[18],
+            "direccion_transporte": row[19],
         
             "items":              items
         })

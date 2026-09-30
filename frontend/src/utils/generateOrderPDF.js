@@ -72,20 +72,14 @@ export async function generateOrderPDF(order) {
 
   // ── DATOS CLIENTE / EMPRESA ──
   const startY = 72;
-
+  
   doc.setFontSize(11);
   doc.setTextColor(107, 20, 38);
   doc.text("CLIENTE", 14, startY);
   doc.text("EMPRESA PROVEEDORA", 110, startY);
-
+  
   doc.setFontSize(10);
   doc.setTextColor(0);
-  
-  doc.text(
-    `Cliente: ${order.customer_name || "-"}`,
-    14,
-    startY + 6
-  );
   
   doc.text(
     `Razón social: ${order.business_name || order.company_name || "-"}`,
@@ -101,7 +95,15 @@ export async function generateOrderPDF(order) {
     );
   }
   
-  let customerExtraY = startY + 24;
+  if (order.condicion_fiscal) {
+    doc.text(
+      `Condición fiscal: ${order.condicion_fiscal}`,
+      14,
+      startY + 24
+    );
+  }
+  
+  let customerExtraY = startY + 30;
   
   if (order.delivery_method) {
     doc.text(
@@ -149,9 +151,9 @@ export async function generateOrderPDF(order) {
   
     customerExtraY += deliveryLines.length * 5;
   }
-
+  
   const transportAddress = order.direccion_transporte || "";
-
+  
   if (transportAddress) {
     const transportLines = doc.splitTextToSize(
       `Dirección del transporte: ${transportAddress}`,
@@ -166,7 +168,7 @@ export async function generateOrderPDF(order) {
   
     customerExtraY += transportLines.length * 5;
   }
-
+  
   const locationParts = [
     order.ciudad,
     order.provincia,
@@ -182,12 +184,21 @@ export async function generateOrderPDF(order) {
     customerExtraY += 6;
   }
   
+  // CLIENTE AL FINAL
+  doc.text(
+    `Cliente: ${order.customer_name || "-"}`,
+    14,
+    customerExtraY
+  );
+  
+  // Empresa proveedora
   doc.setFontSize(10);
   doc.text(
     `Empresa: ${order.company_name || "-"}`,
     110,
     startY + 6
   );
+  
   console.log("items del pedido:", order.items);
 
   // ── TABLA DE PRODUCTOS ──

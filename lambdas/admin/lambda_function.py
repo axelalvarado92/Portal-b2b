@@ -1326,6 +1326,7 @@ def get_order_admin(order_id):
                 u.email,
                 u.business_name,
                 u.cuit,
+                u.condicion_fiscal,
                 u.delivery_method,
                 u.carrier_name,
                 u.carrier_phone,
@@ -1404,20 +1405,20 @@ def get_order_admin(order_id):
         
             "business_name": str(order[4]) if order[4] else "",
             "cuit": str(order[5]) if order[5] else "",
+            "condicion_fiscal": str(order[6]) if order[6] else "",
+            "delivery_method": str(order[7]) if order[7] else "",
+            "carrier_name": str(order[8]) if order[8] else "",
+            "carrier_phone": str(order[9]) if order[9] else "",
         
-            "delivery_method": str(order[6]) if order[6] else "",
-            "carrier_name": str(order[7]) if order[7] else "",
-            "carrier_phone": str(order[8]) if order[8] else "",
-        
-            "delivery_address": str(order[9]) if order[9] else "",
-            "direccion_entrega": str(order[10]) if order[10] else "",
-            "direccion_transporte": str(order[11]) if order[11] else "",
-            "company_name": order[12],
-            "status": order[13],
-            "total_amount": float(order[14]),
-            "notes": order[15],
-            "customer_notes": order[16],
-            "created_at": str(order[17]),
+            "delivery_address": str(order[10]) if order[10] else "",
+            "direccion_entrega": str(order[11]) if order[11] else "",
+            "direccion_transporte": str(order[12]) if order[12] else "",
+            "company_name": order[13],
+            "status": order[14],
+            "total_amount": float(order[15]),
+            "notes": order[16],
+            "customer_notes": order[17],
+            "created_at": str(order[18]),
         
             "items": items
         })
