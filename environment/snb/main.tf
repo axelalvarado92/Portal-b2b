@@ -32,28 +32,28 @@ resource "aws_lambda_layer_version" "psycopg2_layer" {
   filename            = "${path.module}/../../build/psycopg2_layer.zip"
   layer_name          = "psycopg2-layer"
   compatible_runtimes = ["python3.12"]
-  source_code_hash = filebase64sha256("${path.module}/../../build/psycopg2_layer.zip")
+  source_code_hash    = filebase64sha256("${path.module}/../../build/psycopg2_layer.zip")
 }
 
 resource "aws_lambda_layer_version" "reportlab_layer" {
   filename            = "${path.module}/../../build/reportlab_layer.zip"
   layer_name          = "reportlab-layer"
   compatible_runtimes = ["python3.12"]
-  source_code_hash = filebase64sha256("${path.module}/../../build/reportlab_layer.zip")
+  source_code_hash    = filebase64sha256("${path.module}/../../build/reportlab_layer.zip")
 }
 
 resource "aws_lambda_layer_version" "openpyxl_layer" {
   filename            = "${path.module}/../../build/openpyxl_layer.zip"
   layer_name          = "openpyxl-layer"
   compatible_runtimes = ["python3.12"]
-  source_code_hash = filebase64sha256("${path.module}/../../build/openpyxl_layer.zip")
+  source_code_hash    = filebase64sha256("${path.module}/../../build/openpyxl_layer.zip")
 }
 
 resource "aws_lambda_layer_version" "xlrd_layer" {
   filename            = "${path.module}/../../build/xlrd_layer.zip"
   layer_name          = "xlrd-layer"
   compatible_runtimes = ["python3.12"]
-  source_code_hash = filebase64sha256("${path.module}/../../build/xlrd_layer.zip")
+  source_code_hash    = filebase64sha256("${path.module}/../../build/xlrd_layer.zip")
 }
 
 resource "aws_lambda_layer_version" "pandas_layer" {
@@ -92,34 +92,34 @@ module "lambda_auth" {
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers              = local.common_layers
 
-  enable_cognito_admin = true
+  enable_cognito_admin  = true
   cognito_user_pool_arn = module.cognito.user_pool_arn
 
   ses_enabled = true
 
   environment_variables = {
-    DATABASE_URL = module.postgresql.database_url
-    USER_POOL_ID = module.cognito.user_pool_id
+    DATABASE_URL      = module.postgresql.database_url
+    USER_POOL_ID      = module.cognito.user_pool_id
     COGNITO_CLIENT_ID = var.cognito_client_id
-    LOGO_INITIALS = var.logo_initials
-    EMAIL_FROM = var.email_from
-    LOGO_URL = var.logo_url
-    BUSINESS_NAME = var.business_name
-    LOGIN_URL = var.login_url
+    LOGO_INITIALS     = var.logo_initials
+    EMAIL_FROM        = var.email_from
+    LOGO_URL          = var.logo_url
+    BUSINESS_NAME     = var.business_name
+    LOGIN_URL         = var.login_url
   }
 }
 
 module "lambda_account_requests" {
   source = "../../modules/lambda"
 
-  function_name       = "lambda-account-requests"
+  function_name = "lambda-account-requests"
 
   filename         = data.archive_file.lambda_zips["account_requests"].output_path
   source_code_hash = data.archive_file.lambda_zips["account_requests"].output_base64sha256
 
-  handler             = local.lambda_defaults.handler
-  memory_size         = local.lambda_defaults.memory_size
-  timeout             = local.lambda_defaults.timeout
+  handler     = local.lambda_defaults.handler
+  memory_size = local.lambda_defaults.memory_size
+  timeout     = local.lambda_defaults.timeout
 
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers              = local.common_layers
@@ -129,14 +129,14 @@ module "lambda_account_requests" {
   cognito_user_pool_arn = module.cognito.user_pool_arn
 
   environment_variables = {
-    DATABASE_URL = module.postgresql.database_url
-    EMAIL_FROM = var.email_from
-    LOGIN_URL = var.login_url
-    LOGO_URL = var.logo_url
+    DATABASE_URL    = module.postgresql.database_url
+    EMAIL_FROM      = var.email_from
+    LOGIN_URL       = var.login_url
+    LOGO_URL        = var.logo_url
     ADMIN_PANEL_URL = var.admin_panel_url
-    REGION = var.region
-    BUSINESS_NAME = var.business_name
-    LOGO_INITIALS = var.logo_initials
+    REGION          = var.region
+    BUSINESS_NAME   = var.business_name
+    LOGO_INITIALS   = var.logo_initials
 
   }
 }
@@ -247,14 +247,14 @@ module "lambda_admin" {
   ses_enabled = true
 
   environment_variables = {
-    DATABASE_URL = module.postgresql.database_url
-    USER_POOL_ID = module.cognito.user_pool_id
-    BUSINESS_NAME = var.business_name
-    EMAIL_FROM = var.email_from
-    LOGIN_URL = var.login_url
-    LOGO_URL = var.logo_url
+    DATABASE_URL        = module.postgresql.database_url
+    USER_POOL_ID        = module.cognito.user_pool_id
+    BUSINESS_NAME       = var.business_name
+    EMAIL_FROM          = var.email_from
+    LOGIN_URL           = var.login_url
+    LOGO_URL            = var.logo_url
     FORGOT_PASSWORD_URL = var.forgot_password_url
-    LOGO_INITIALS = var.logo_initials
+    LOGO_INITIALS       = var.logo_initials
   }
 }
 
@@ -408,15 +408,15 @@ module "lambda_admin_import_products" {
   timeout             = 300
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers = concat(
-  local.common_layers,
-  [
-    aws_lambda_layer_version.pandas_layer.arn,
-    aws_lambda_layer_version.openpyxl_layer.arn,
-    aws_lambda_layer_version.xlrd_layer.arn
-  ]
-)
+    local.common_layers,
+    [
+      aws_lambda_layer_version.pandas_layer.arn,
+      aws_lambda_layer_version.openpyxl_layer.arn,
+      aws_lambda_layer_version.xlrd_layer.arn
+    ]
+  )
 
-s3_bucket_arns = [
+  s3_bucket_arns = [
     module.imports_bucket.bucket_arn
   ]
 
@@ -434,31 +434,31 @@ s3_bucket_arns = [
 module "lambda_import_products_start" {
   source = "../../modules/lambda"
 
-  function_name       = "lambda-import-products-start"
-  filename            = data.archive_file.lambda_zips["import_products_start"].output_path
-  source_code_hash    = data.archive_file.lambda_zips["import_products_start"].output_base64sha256
+  function_name    = "lambda-import-products-start"
+  filename         = data.archive_file.lambda_zips["import_products_start"].output_path
+  source_code_hash = data.archive_file.lambda_zips["import_products_start"].output_base64sha256
 
-  handler             = local.lambda_defaults.handler
+  handler = local.lambda_defaults.handler
 
-  memory_size         = 128
-  timeout             = 10
+  memory_size = 128
+  timeout     = 10
 
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
 
   s3_bucket_arns = [
-  module.imports_bucket.bucket_arn
-]
+    module.imports_bucket.bucket_arn
+  ]
 
   layers = local.common_layers
-  
+
   lambda_invoke_arns = [
-  module.lambda_admin_import_products.lambda_arn
-]
+    module.lambda_admin_import_products.lambda_arn
+  ]
 
   environment_variables = {
     WORKER_FUNCTION_NAME = module.lambda_admin_import_products.lambda_function_name
-    DATABASE_URL          = module.postgresql.database_url
-    IMPORTS_BUCKET         = module.imports_bucket.bucket_name
+    DATABASE_URL         = module.postgresql.database_url
+    IMPORTS_BUCKET       = module.imports_bucket.bucket_name
 
   }
 }
@@ -475,7 +475,7 @@ module "lambda_uploads" {
   managed_policy_arns = local.lambda_defaults.managed_policy_arns
   layers              = local.common_layers
 
-   s3_bucket_arns = [
+  s3_bucket_arns = [
     module.uploads_bucket.bucket_arn
   ]
 
@@ -483,8 +483,8 @@ module "lambda_uploads" {
   environment_variables = {
     ASSETS_BUCKET = module.uploads_bucket.bucket_name
     ASSETS_URL    = "https://${module.uploads_bucket.bucket_name}.s3.amazonaws.com"
-}
-  
+  }
+
 }
 
 
@@ -530,13 +530,13 @@ resource "aws_lambda_event_source_mapping" "notifications_trigger" {
 module "apigateway" {
   source = "../../modules/apigateway"
 
-  project_name  = var.project_name
-  environment   = var.environment
-  region        = var.region
-  user_pool     = module.cognito.user_pool_id
-  app_client    = module.cognito.user_pool_client_id
+  project_name = var.project_name
+  environment  = var.environment
+  region       = var.region
+  user_pool    = module.cognito.user_pool_id
+  app_client   = module.cognito.user_pool_client_id
 
-  allow_origins = ["http://localhost:5173","https://d1pijo2eponbrv.cloudfront.net", "https://snbrepresentaciones.com.ar", "https://d3j844km3iuqvv.cloudfront.net"]
+  allow_origins = ["http://localhost:5173", "https://d1pijo2eponbrv.cloudfront.net", "https://snbrepresentaciones.com.ar", "https://d3j844km3iuqvv.cloudfront.net"]
 
   lambda_integrations = {
     auth = {
@@ -551,7 +551,7 @@ module "apigateway" {
         { method = "POST", path = "/auth/confirm-forgot-password", protected = false }
       ]
     }
-    
+
     account_requests = {
       invoke_arn    = module.lambda_account_requests.lambda_invoke_arn
       function_name = module.lambda_account_requests.lambda_function_name
@@ -628,6 +628,8 @@ module "apigateway" {
         { method = "GET", path = "/admin/orders/{id}", protected = true },
         { method = "PATCH", path = "/admin/orders/{id}", protected = true },
         { method = "POST", path = "/admin/orders/{id}/send-pdf", protected = true },
+        { method = "POST", path = "/admin/orders", protected = true },
+        { method = "PATCH", path = "/admin/orders/{id}/edit", protected = true },
         { method = "GET", path = "/admin/account-requests", protected = true },
         { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true },
         { method = "POST", path = "/admin/account-requests/{id}/resend-access", protected = true },
@@ -755,15 +757,15 @@ module "postgresql" {
 
 module "imports_bucket" {
   source = "../../modules/s3"
-  
+
   bucket_name = "${var.project_name}-${var.environment}-imports-47148"
 
-  environment  = var.environment
+  environment   = var.environment
   force_destroy = var.s3_force_destroy
 
-  block_public_acls = true
-  block_public_policy = true
-  ignore_public_acls = true
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
   restrict_public_buckets = true
 
   bucket_purpose = "imports"
@@ -773,14 +775,14 @@ module "imports_bucket" {
 module "uploads_bucket" {
   source = "../../modules/s3"
 
-  bucket_name   = "${var.project_name}-${var.environment}-uploads-47148"
-  
-  force_destroy = var.s3_force_destroy
-  environment  = var.environment
+  bucket_name = "${var.project_name}-${var.environment}-uploads-47148"
 
-  block_public_acls = false
-  block_public_policy = false
-  ignore_public_acls = false
+  force_destroy = var.s3_force_destroy
+  environment   = var.environment
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
   restrict_public_buckets = false
 
   bucket_purpose = "uploads"
@@ -795,9 +797,9 @@ module "uploads_bucket" {
 module "frontend" {
   source = "../../modules/frontend"
 
-  project_name = var.project_name
-  environment = var.environment
-  force_destroy = var.s3_frontend_destroy
+  project_name    = var.project_name
+  environment     = var.environment
+  force_destroy   = var.s3_frontend_destroy
   domain_name     = "snbrepresentaciones.com.ar"
   certificate_arn = var.certificate_arn
 }

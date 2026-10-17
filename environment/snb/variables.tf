@@ -79,13 +79,13 @@ variable "cognito_client_id" {
 variable "s3_frontend_destroy" {
   description = "bucket frontend destroy"
   type        = bool
-  
+
 }
 
 variable "certificate_arn" {
   description = "certificado ssl arn"
   type        = string
-  
+
 }
 variable "business_name" {
   description = "Nombre de la empresa"
@@ -105,7 +105,7 @@ variable "logo_url" {
 variable "email_from" {
   description = "Email from"
   type        = string
-  
+
 }
 
 variable "forgot_password_url" {

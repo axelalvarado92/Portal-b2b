@@ -1311,6 +1311,308 @@ def list_orders():
         for r in rows
     ])
 
+def create_order_admin(admin, body):
+    user_id = body.get("user_id")
+    company_id = body.get("company_id")
+    items = body.get("items")
+
+    if not user_id or not company_id:
+        return bad_request("user_id y company_id son requeridos")
+
+    if not isinstance(items, list) or not items:
+        return bad_request("El pedido debe contener al menos un producto")
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # 1. Validar cliente activo.
+        cur.execute("""
+            SELECT id
+            FROM users
+            WHERE id = %s
+              AND role = 'customer'
+              AND is_active = true
+            FOR UPDATE
+        """, [user_id])
+
+        if not cur.fetchone():
+            conn.rollback()
+            return bad_request("El cliente no existe o no está activo")
+
+        # 2. Validar empresa activa y vinculada al cliente.
+        cur.execute("""
+            SELECT c.id, c.order_prefix
+            FROM companies c
+            INNER JOIN user_companies uc
+                ON uc.company_id = c.id
+            WHERE c.id = %s
+              AND uc.user_id = %s
+              AND c.is_active = true
+            FOR UPDATE OF c
+        """, [company_id, user_id])
+
+        company = cur.fetchone()
+
+        if not company:
+            conn.rollback()
+            return bad_request(
+                "La empresa no está activa o no está vinculada al cliente"
+            )
+
+        order_prefix = company[1]
+
+        # 3. Crear un carrito interno para este pedido.
+        cur.execute("""
+            INSERT INTO carts (user_id, company_id, status)
+            VALUES (%s, %s, 'OPEN')
+            RETURNING id
+        """, [user_id, company_id])
+
+        cart_id = cur.fetchone()[0]
+
+        prepared_items = []
+        total_amount = 0
+
+        # 4. Validar productos y resolver precios desde la base.
+        for item in items:
+            product_id = item.get("product_id")
+            quantity = item.get("quantity")
+            observations = item.get("observations", "")
+            variant_selection = item.get("variant_selection") or {}
+
+            if not product_id:
+                conn.rollback()
+                return bad_request("Cada artículo requiere product_id")
+
+            if (
+                isinstance(quantity, bool)
+                or not isinstance(quantity, (int, float))
+                or quantity <= 0
+            ):
+                conn.rollback()
+                return bad_request(
+                    "La cantidad debe ser un número mayor a cero"
+                )
+
+            if not isinstance(variant_selection, dict):
+                conn.rollback()
+                return bad_request("variant_selection debe ser un objeto")
+
+            cur.execute("""
+                SELECT id, name, code, has_variants
+                FROM products
+                WHERE id = %s
+                  AND company_id = %s
+                  AND is_active = true
+            """, [product_id, company_id])
+
+            product = cur.fetchone()
+
+            if not product:
+                conn.rollback()
+                return bad_request(
+                    "Uno de los productos no existe, está inactivo "
+                    "o no pertenece a la empresa seleccionada"
+                )
+
+            _, product_name, product_code, has_variants = product
+            variant_id = variant_selection.get("variant_id")
+
+            if has_variants and not variant_id:
+                conn.rollback()
+                return bad_request(
+                    f"Debe seleccionar una variante para {product_name}"
+                )
+
+            if variant_id:
+                cur.execute("""
+                    SELECT id, price, sku, attributes
+                    FROM product_variants
+                    WHERE id = %s
+                      AND product_id = %s
+                      AND is_active = true
+                """, [variant_id, product_id])
+            else:
+                cur.execute("""
+                    SELECT id, price, sku, attributes
+                    FROM product_variants
+                    WHERE product_id = %s
+                      AND is_active = true
+                    ORDER BY created_at ASC
+                    LIMIT 1
+                """, [product_id])
+
+            variant = cur.fetchone()
+
+            if not variant:
+                conn.rollback()
+                return bad_request(
+                    f"El producto {product_name} no tiene una variante activa válida"
+                )
+
+            variant_id, unit_price, variant_sku, variant_attributes = variant
+
+            if unit_price is None or unit_price < 0:
+                conn.rollback()
+                return bad_request(
+                    f"El precio de {product_name} no es válido"
+                )
+
+            # Normalizamos el formato para mantener compatibilidad
+            # con cart_items y order_items.
+            variant_selection = {
+                **variant_selection,
+                "variant_id": str(variant_id)
+            }
+
+            subtotal = unit_price * quantity
+            total_amount += subtotal
+
+            prepared_items.append({
+                "product_id": product_id,
+                "product_name": product_name,
+                "product_code": product_code,
+                "unit_price": unit_price,
+                "quantity": quantity,
+                "subtotal": subtotal,
+                "observations": observations,
+                "variant_selection": variant_selection
+            })
+
+        # 5. Insertar los artículos en el carrito interno.
+        for item in prepared_items:
+            cur.execute("""
+                INSERT INTO cart_items (
+                    cart_id,
+                    product_id,
+                    quantity,
+                    observations,
+                    variant_selection,
+                    unit_price
+                )
+                VALUES (%s, %s, %s, %s, %s::jsonb, %s)
+            """, [
+                cart_id,
+                item["product_id"],
+                item["quantity"],
+                item["observations"],
+                json.dumps(item["variant_selection"]),
+                item["unit_price"]
+            ])
+
+        # 6. Generar el número de pedido usando el contador existente.
+        cur.execute("""
+            UPDATE company_order_counters
+            SET last_number = last_number + 1
+            WHERE company_id = %s
+            RETURNING last_number
+        """, [company_id])
+
+        counter = cur.fetchone()
+
+        if not counter:
+            raise ValueError(
+                "No existe un contador de pedidos para esta empresa"
+            )
+
+        order_number = f"{order_prefix}-{counter[0]:04d}"
+
+        order_id = str(uuid.uuid4())
+
+        # 7. Crear el pedido.
+        cur.execute("""
+            INSERT INTO orders (
+                id,
+                order_number,
+                user_id,
+                company_id,
+                cart_id,
+                total_amount,
+                status,
+                notes,
+                customer_notes
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', %s, %s)
+        """, [
+            order_id,
+            order_number,
+            user_id,
+            company_id,
+            cart_id,
+            total_amount,
+            body.get("notes"),
+            body.get("customer_notes")
+        ])
+
+        # 8. Copiar los artículos al pedido.
+        for item in prepared_items:
+            cur.execute("""
+                INSERT INTO order_items (
+                    order_id,
+                    product_id,
+                    product_name,
+                    product_code,
+                    unit_price,
+                    quantity,
+                    subtotal,
+                    observations,
+                    variant_selection,
+                    is_billable
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, true
+                )
+            """, [
+                order_id,
+                item["product_id"],
+                item["product_name"],
+                item["product_code"],
+                item["unit_price"],
+                item["quantity"],
+                item["subtotal"],
+                item["observations"],
+                json.dumps(item["variant_selection"])
+            ])
+
+        # 9. Cerrar el carrito y registrar la acción administrativa.
+        cur.execute("""
+            UPDATE carts
+            SET status = 'CLOSED',
+                updated_at = now()
+            WHERE id = %s
+        """, [cart_id])
+
+        cur.execute("""
+            INSERT INTO order_admin_history (
+                order_id,
+                admin_user_id,
+                action
+            )
+            VALUES (%s, %s, 'CREATED')
+        """, [order_id, admin["id"]])
+
+        conn.commit()
+
+        return created({
+            "id": order_id,
+            "order_number": order_number,
+            "user_id": str(user_id),
+            "company_id": str(company_id),
+            "total_amount": float(total_amount),
+            "status": "PENDING",
+            "created_by_admin": True
+        })
+
+    except Exception as e:
+        conn.rollback()
+        print("ERROR create_order_admin:", str(e))
+        return server_error()
+
+    finally:
+        cur.close()
+        conn.close()
+
 def get_order_admin(order_id):
 
     conn = get_connection()
@@ -2343,11 +2645,17 @@ def handler(event, context):
 
         if path.startswith("/admin/orders"):
 
+            if method == "POST" and not resource_id and path.rstrip("/") == "/admin/orders":
+                return create_order_admin(user, body)
+
             if method == "GET" and not resource_id:
                 return list_orders()
 
             if method == "GET" and resource_id:
                 return get_order_admin(resource_id)
+
+            if method == "PATCH" and resource_id and path.endswith("/edit"):
+                return edit_order_admin(user, resource_id, body)
 
             if method == "PATCH" and resource_id:
                 return update_order_status(
