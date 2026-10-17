@@ -9,6 +9,8 @@ import math
 import secrets
 import string
 import datetime
+import traceback
+from decimal import Decimal, InvalidOperation
 
 from shared.db import get_connection
 from shared.auth_utils import require_admin
@@ -1613,6 +1615,341 @@ def create_order_admin(admin, body):
         cur.close()
         conn.close()
 
+
+def edit_order_admin(admin, order_id, body):
+    items = body.get("items")
+
+    if not isinstance(items, list) or not items:
+        return bad_request(
+            "El pedido debe contener al menos un producto"
+        )
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # 1. Bloquear el pedido para evitar ediciones simultáneas.
+        cur.execute("""
+            SELECT id, company_id, status
+            FROM orders
+            WHERE id = %s
+            FOR UPDATE
+        """, [order_id])
+
+        order = cur.fetchone()
+
+        if not order:
+            conn.rollback()
+            return not_found("Pedido no encontrado")
+
+        company_id = order[1]
+        status = order[2]
+
+        if status == "CANCELLED":
+            conn.rollback()
+            return bad_request(
+                "No se puede editar un pedido cancelado"
+            )
+
+        # 2. Obtener las líneas actuales.
+        cur.execute("""
+            SELECT
+                id,
+                product_id,
+                product_name,
+                product_code,
+                quantity,
+                unit_price,
+                variant_selection
+            FROM order_items
+            WHERE order_id = %s
+            FOR UPDATE
+        """, [order_id])
+
+        existing_rows = cur.fetchall()
+
+        existing_items = {
+            str(row[0]): row
+            for row in existing_rows
+        }
+
+        prepared_items = []
+        retained_ids = set()
+        total_amount = Decimal("0")
+
+        # 3. Validar y preparar cada línea recibida.
+        for item in items:
+            if not isinstance(item, dict):
+                conn.rollback()
+                return bad_request(
+                    "Cada artículo debe ser un objeto válido"
+                )
+
+            product_id = item.get("product_id")
+            item_id = item.get("id")
+
+            try:
+                quantity = Decimal(str(item.get("quantity")))
+
+                if (
+                    not quantity.is_finite()
+                    or quantity <= 0
+                ):
+                    raise InvalidOperation()
+
+            except (InvalidOperation, ValueError, TypeError):
+                conn.rollback()
+                return bad_request(
+                    "Cada artículo debe tener una cantidad válida mayor que cero"
+                )
+
+            if not product_id:
+                conn.rollback()
+                return bad_request(
+                    "Cada artículo debe incluir product_id"
+                )
+
+            original = None
+
+            if item_id is not None:
+                item_id = str(item_id)
+
+                if item_id not in existing_items:
+                    conn.rollback()
+                    return bad_request(
+                        "Un artículo no pertenece a este pedido"
+                    )
+
+                if item_id in retained_ids:
+                    conn.rollback()
+                    return bad_request(
+                        "No se puede enviar dos veces el mismo artículo"
+                    )
+
+                original = existing_items[item_id]
+
+                # Un artículo existente no puede convertirse
+                # en otro producto conservando su precio histórico.
+                if str(original[1]) != str(product_id):
+                    conn.rollback()
+                    return bad_request(
+                        "Para cambiar de producto, elimine la línea "
+                        "anterior y agregue una nueva"
+                    )
+
+                retained_ids.add(item_id)
+
+            # 4. Validar que el producto pertenezca a la empresa.
+            cur.execute("""
+                SELECT id, name, code, has_variants
+                FROM products
+                WHERE id = %s
+                  AND company_id = %s
+                  AND is_active = true
+            """, [product_id, company_id])
+
+            product = cur.fetchone()
+
+            if not product:
+                conn.rollback()
+                return bad_request(
+                    "El producto no existe, está inactivo "
+                    "o no pertenece a la empresa del pedido"
+                )
+
+            _, product_name, product_code, has_variants = product
+
+            # Si no se envía una selección para una línea existente,
+            # conservar la variante que ya tenía.
+            if "variant_selection" in item:
+                variant_selection = item["variant_selection"] or {}
+            elif original:
+                variant_selection = original[6] or {}
+            else:
+                variant_selection = {}
+
+            if isinstance(variant_selection, str):
+                try:
+                    variant_selection = json.loads(variant_selection)
+                except json.JSONDecodeError:
+                    conn.rollback()
+                    return bad_request(
+                        "La selección de variante no es válida"
+                    )
+
+            if not isinstance(variant_selection, dict):
+                conn.rollback()
+                return bad_request(
+                    "variant_selection debe ser un objeto"
+                )
+
+            variant_id = variant_selection.get("variant_id")
+
+            # 5. Resolver y validar la variante.
+            if has_variants and not variant_id:
+                conn.rollback()
+                return bad_request(
+                    f"Debe seleccionar una variante para {product_name}"
+                )
+
+            if variant_id:
+                cur.execute("""
+                    SELECT id, price
+                    FROM product_variants
+                    WHERE id = %s
+                      AND product_id = %s
+                      AND is_active = true
+                """, [variant_id, product_id])
+            else:
+                cur.execute("""
+                    SELECT id, price
+                    FROM product_variants
+                    WHERE product_id = %s
+                      AND is_active = true
+                    ORDER BY created_at ASC
+                    LIMIT 1
+                """, [product_id])
+
+            variant = cur.fetchone()
+
+            if not variant:
+                conn.rollback()
+                return bad_request(
+                    f"No existe una variante activa válida para {product_name}"
+                )
+
+            variant_id, current_price = variant
+
+            variant_selection = {
+                **variant_selection,
+                "variant_id": str(variant_id)
+            }
+
+            # 6. Precio histórico para líneas existentes.
+            # Precio actual para líneas nuevas.
+            if original:
+                unit_price = Decimal(str(original[5]))
+            else:
+                if current_price is None:
+                    conn.rollback()
+                    return bad_request(
+                        f"La variante de {product_name} no tiene precio"
+                    )
+
+                unit_price = Decimal(str(current_price))
+
+                if not unit_price.is_finite() or unit_price < 0:
+                    conn.rollback()
+                    return bad_request(
+                        f"El precio de {product_name} no es válido"
+                    )
+
+            subtotal = unit_price * quantity
+            total_amount += subtotal
+
+            prepared_items.append({
+                "id": item_id,
+                "product_id": product_id,
+                "product_name": product_name,
+                "product_code": product_code,
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "subtotal": subtotal,
+                "variant_selection": variant_selection,
+            })
+
+        # 7. Eliminar las líneas omitidas de la solicitud.
+        for existing_id in existing_items:
+            if existing_id not in retained_ids:
+                cur.execute("""
+                    DELETE FROM order_items
+                    WHERE id = %s
+                      AND order_id = %s
+                """, [existing_id, order_id])
+
+        # 8. Actualizar líneas existentes e insertar las nuevas.
+        for item in prepared_items:
+            if item["id"]:
+                cur.execute("""
+                    UPDATE order_items
+                    SET
+                        quantity = %s,
+                        subtotal = %s,
+                        variant_selection = %s
+                    WHERE id = %s
+                      AND order_id = %s
+                """, [
+                    item["quantity"],
+                    item["subtotal"],
+                    json.dumps(item["variant_selection"]),
+                    item["id"],
+                    order_id,
+                ])
+            else:
+                cur.execute("""
+                    INSERT INTO order_items (
+                        order_id,
+                        product_id,
+                        product_name,
+                        product_code,
+                        unit_price,
+                        quantity,
+                        subtotal,
+                        variant_selection,
+                        is_billable
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, true
+                    )
+                """, [
+                    order_id,
+                    item["product_id"],
+                    item["product_name"],
+                    item["product_code"],
+                    item["unit_price"],
+                    item["quantity"],
+                    item["subtotal"],
+                    json.dumps(item["variant_selection"]),
+                ])
+
+        # 9. Actualizar el total del pedido.
+        cur.execute("""
+            UPDATE orders
+            SET total_amount = %s
+            WHERE id = %s
+        """, [total_amount, order_id])
+
+        # 10. Registrar la modificación administrativa.
+        cur.execute("""
+            INSERT INTO order_admin_history (
+                order_id,
+                admin_user_id,
+                action
+            )
+            VALUES (%s, %s, 'UPDATED')
+        """, [order_id, admin["id"]])
+
+        conn.commit()
+
+        return success({
+            "message": "Pedido actualizado correctamente",
+            "id": str(order_id),
+            "total_amount": float(total_amount),
+            "items_count": len(prepared_items),
+        })
+
+    except Exception:
+        conn.rollback()
+        print("ERROR edit_order_admin:")
+        print(traceback.format_exc())
+        return server_error()
+
+    finally:
+        cur.close()
+        conn.close()
+
+
 def get_order_admin(order_id):
 
     conn = get_connection()
@@ -1624,6 +1961,7 @@ def get_order_admin(order_id):
             SELECT
                 o.id,
                 o.order_number,
+                o.company_id,
                 u.full_name,
                 u.email,
                 u.business_name,
@@ -1654,8 +1992,11 @@ def get_order_admin(order_id):
                 "Pedido no encontrado"
             )
 
+        
         cur.execute("""
             SELECT
+                oi.id,
+                oi.product_id,
                 oi.product_name,
                 oi.product_code,
                 oi.quantity,
@@ -1668,62 +2009,69 @@ def get_order_admin(order_id):
             LEFT JOIN product_variants pv
                 ON pv.id = (oi.variant_selection->>'variant_id')::uuid
             WHERE oi.order_id = %s
+            ORDER BY oi.id
         """, [order_id])
+
 
         rows = cur.fetchall()
 
+        
         items = []
 
         for row in rows:
-        
-            variant_selection = row[6]
-        
+            variant_selection = row[7]
+
             if isinstance(variant_selection, str):
                 try:
                     variant_selection = json.loads(variant_selection)
                 except json.JSONDecodeError:
                     variant_selection = {}
-        
+
             if variant_selection is None:
                 variant_selection = {}
-        
+
             items.append({
-                "product_name": row[0],
-                "product_code": row[1],
-                "quantity": float(row[2]),
-                "unit_price": float(row[3]),
-                "subtotal": float(row[4]),
-                "observations": row[5],
+                "id": str(row[0]),
+                "product_id": str(row[1]) if row[1] else None,
+                "product_name": row[2],
+                "product_code": row[3],
+                "quantity": float(row[4]),
+                "unit_price": float(row[5]),
+                "subtotal": float(row[6]),
+                "observations": row[7],
                 "variant_selection": variant_selection,
-                "variant_sku": row[7]  
+                "variant_sku": row[9]
             })
 
+
+        
         return success({
             "id": str(order[0]),
             "order_number": order[1],
-        
-            "customer_name": str(order[2]) if order[2] else "",
-            "customer_email": str(order[3]) if order[3] else "",
-        
-            "business_name": str(order[4]) if order[4] else "",
-            "cuit": str(order[5]) if order[5] else "",
-            "condicion_fiscal": str(order[6]) if order[6] else "",
-            "delivery_method": str(order[7]) if order[7] else "",
-            "carrier_name": str(order[8]) if order[8] else "",
-            "carrier_phone": str(order[9]) if order[9] else "",
-        
-            "delivery_address": str(order[10]) if order[10] else "",
-            "direccion_entrega": str(order[11]) if order[11] else "",
-            "direccion_transporte": str(order[12]) if order[12] else "",
-            "company_name": order[13],
-            "status": order[14],
-            "total_amount": float(order[15]),
-            "notes": order[16],
-            "customer_notes": order[17],
-            "created_at": str(order[18]),
-        
+            "company_id": str(order[2]) if order[2] else None,
+
+            "customer_name": str(order[3]) if order[3] else "",
+            "customer_email": str(order[4]) if order[4] else "",
+            "business_name": str(order[5]) if order[5] else "",
+            "cuit": str(order[6]) if order[6] else "",
+            "condicion_fiscal": str(order[7]) if order[7] else "",
+            "delivery_method": str(order[8]) if order[8] else "",
+            "carrier_name": str(order[9]) if order[9] else "",
+            "carrier_phone": str(order[10]) if order[10] else "",
+
+            "delivery_address": str(order[11]) if order[11] else "",
+            "direccion_entrega": str(order[12]) if order[12] else "",
+            "direccion_transporte": str(order[13]) if order[13] else "",
+            "company_name": order[14],
+            "status": order[15],
+            "total_amount": float(order[16]),
+            "notes": order[17],
+            "customer_notes": order[18],
+            "created_at": str(order[19]),
+
             "items": items
         })
+
     
     except Exception as e:
 
@@ -1735,16 +2083,26 @@ def get_order_admin(order_id):
         cur.close()
         conn.close()
 
+
 def update_order_status(order_id, status=None, notes=None):
     conn = get_connection()
     cur = conn.cursor()
 
-    try:
+    allowed_statuses = {
+        "PENDING",
+        "CONFIRMED",
+        "CLOSED",
+        "CANCELLED",
+    }
 
+    try:
         fields = []
         values = []
 
         if status is not None:
+            if status not in allowed_statuses:
+                return bad_request("Estado de pedido no válido")
+
             fields.append("status = %s")
             values.append(status)
 
@@ -1757,19 +2115,29 @@ def update_order_status(order_id, status=None, notes=None):
 
         values.append(order_id)
 
-        cur.execute(f"""
-            UPDATE orders
-            SET {", ".join(fields)}
-            WHERE id = %s::uuid
-        """, values)
+        cur.execute(
+            f"""
+                UPDATE orders
+                SET {", ".join(fields)}
+                WHERE id = %s::uuid
+                RETURNING id, order_number, status
+            """,
+            values,
+        )
+
+        order = cur.fetchone()
+
+        if not order:
+            conn.rollback()
+            return not_found("Pedido no encontrado")
 
         conn.commit()
 
-        if cur.rowcount == 0:
-            return not_found("Pedido no encontrado")
-
         return success({
-            "message": "Pedido actualizado correctamente"
+            "message": "Pedido actualizado correctamente",
+            "id": str(order[0]),
+            "order_number": order[1],
+            "status": order[2],
         })
 
     except Exception:
@@ -1779,6 +2147,8 @@ def update_order_status(order_id, status=None, notes=None):
 
     finally:
         cur.close()
+        conn.close()
+
 
 
 def send_order_pdf(user, order_id):

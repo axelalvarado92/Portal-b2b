@@ -6,8 +6,12 @@ import {
   updateAdminOrderStatus,
   updateAdminOrder,
   sendOrderPDFByEmail,
+  editAdminOrder
 } from "../../services/adminOrdersService";
 import "./Orders.css";
+
+import { getProducts, getProduct } from "../../services/adminProductService";
+
 
 export default function OrdersAdmin() {
   const [orders, setOrders] = useState([]);
@@ -17,6 +21,23 @@ export default function OrdersAdmin() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailToast, setEmailToast] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [editableItems, setEditableItems] = useState([]);
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedVariantId, setSelectedVariantId] = useState("");
+  const [newItemQuantity, setNewItemQuantity] = useState(1);
+
+  const [productPage, setProductPage] = useState(1);
+  const [productTotalPages, setProductTotalPages] = useState(1);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  
   
   // Estados de control para la interfaz optimizada
   const [activeTab, setActiveTab] = useState("actives"); // "actives" o "closed"
@@ -158,6 +179,190 @@ export default function OrdersAdmin() {
       setTimeout(() => setEmailToast(""), 3000);
     }
   }
+
+  
+  
+  function handleStartEditOrder() {
+    if (
+      !selectedOrder ||
+      selectedOrder.status?.toUpperCase() === "CANCELLED"
+    ) {
+      return;
+    }
+  
+    setEditableItems(
+      (selectedOrder.items || []).map((item) => ({
+        ...item,
+        quantity: Number(item.quantity),
+        variant_selection:
+          typeof item.variant_selection === "string"
+            ? JSON.parse(item.variant_selection || "{}")
+            : item.variant_selection || {},
+      }))
+    );
+  
+    setSelectedProductId("");
+    setSelectedProduct(null);
+    setSelectedVariantId("");
+    setNewItemQuantity(1);
+    setAvailableProducts([]);
+    setProductSearch("");
+    setProductPage(1);
+    setProductTotalPages(1);
+    setShowProductModal(false);
+    setIsEditingOrder(true);
+  }
+
+
+  async function loadAvailableProducts(
+    page = 1,
+    search = productSearch
+  ) {
+    if (!selectedOrder?.company_id) {
+      setEmailToast("El pedido no tiene una empresa asociada.");
+      return;
+    }
+  
+    try {
+      setLoadingProducts(true);
+  
+      const response = await getProducts(
+        selectedOrder.company_id,
+        page,
+        20,
+        search.trim()
+      );
+  
+      const result = response?.data;
+  
+      setAvailableProducts(
+        (result?.products || []).filter(
+          (product) => product.is_active
+        )
+      );
+  
+      setProductPage(result?.page || page);
+      setProductTotalPages(result?.total_pages || 1);
+    } catch (error) {
+      console.error("Error al cargar productos:", error);
+      setEmailToast("No se pudo cargar el catálogo de productos.");
+    } finally {
+      setLoadingProducts(false);
+    }
+  }
+
+  
+  async function handleOpenProductModal() {
+    setSelectedProductId("");
+    setSelectedProduct(null);
+    setSelectedVariantId("");
+    setNewItemQuantity(1);
+    setProductSearch("");
+    setProductPage(1);
+    setShowProductModal(true);
+  
+    await loadAvailableProducts(1, "");
+  }
+  
+  function handleCloseProductModal() {
+    setShowProductModal(false);
+    setSelectedProductId("");
+    setSelectedProduct(null);
+    setSelectedVariantId("");
+    setNewItemQuantity(1);
+  }
+  
+  async function handleSearchProducts() {
+    await loadAvailableProducts(1, productSearch);
+  }
+  
+  async function handleChangeProductPage(nextPage) {
+    if (nextPage < 1 || nextPage > productTotalPages) {
+      return;
+    }
+  
+    await loadAvailableProducts(nextPage, productSearch);
+  }
+
+  
+  function handleCancelEditOrder() {
+    setEditableItems([]);
+    setIsEditingOrder(false);
+  }
+  
+  function handleChangeItemQuantity(itemId, quantity) {
+    setEditableItems((items) =>
+      items.map((item) =>
+        item.id === itemId
+          ? { ...item, quantity }
+          : item
+      )
+    );
+  }
+  
+  function handleRemoveOrderItem(itemId) {
+    setEditableItems((items) =>
+      items.filter((item) => item.id !== itemId)
+    );
+  }
+  
+  async function handleSaveOrderItems() {
+    if (!selectedOrder || savingOrder) return;
+  
+    if (editableItems.length === 0) {
+      setEmailToast("El pedido debe tener al menos un producto.");
+      return;
+    }
+  
+    const hasInvalidQuantity = editableItems.some(
+      (item) =>
+        !Number.isFinite(Number(item.quantity)) ||
+        Number(item.quantity) <= 0
+    );
+  
+    if (hasInvalidQuantity) {
+      setEmailToast("Todas las cantidades deben ser mayores que cero.");
+      return;
+    }
+  
+    const items = editableItems.map((item) => ({
+      ...(item.id ? { id: item.id } : {}),
+      product_id: item.product_id,
+      quantity: Number(item.quantity),
+      variant_selection: item.variant_selection || {},
+    }));
+  
+    try {
+      setSavingOrder(true);
+  
+      await editAdminOrder(selectedOrder.id, { items });
+  
+      const [orderResponse] = await Promise.all([
+        getAdminOrder(selectedOrder.id),
+        loadOrders(),
+      ]);
+
+      console.log("Pedido recibido:", orderResponse.data);
+      console.log("Company ID:", orderResponse.data?.company_id);
+  
+      setSelectedOrder(orderResponse.data);
+      setIsEditingOrder(false);
+      setEditableItems([]);
+      setEmailToast("✓ Pedido actualizado");
+    } catch (err) {
+      console.error("Error al editar el pedido:", err);
+  
+      setEmailToast(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "No se pudo actualizar el pedido."
+      );
+    } finally {
+      setSavingOrder(false);
+      setTimeout(() => setEmailToast(""), 4000);
+    }
+  }
+
 
   async function handleSendEmail() {
     if (!selectedOrder) return;
@@ -403,39 +608,195 @@ export default function OrdersAdmin() {
             </div>
           )}
         
+          
           <h3>Productos</h3>
-          <table className="products-table">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Precio</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedOrder.items.map((item, index) => (
-                <tr key={item.id || `${item.product_name}-${index}`}>
-                  <td>
-                    <div>{item.product_name}</div>
-                    {item.variant_sku && (
-                      <div style={{ fontSize: "13px", color: "#2563eb", fontWeight: "600", marginTop: "4px" }}>
-                        SKU: {item.variant_sku}
-                      </div>
-                    )}
-                    {formatVariants(item.variant_selection) && (
-                      <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        {formatVariants(item.variant_selection)}
-                      </div>
-                    )}
-                  </td>
-                  <td>{item.quantity}</td>
-                  <td>${item.unit_price}</td>
-                  <td>${item.subtotal}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          
+          {!isEditingOrder ? (
+            <>
+              <table className="products-table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+          
+                <tbody>
+                  {(selectedOrder.items || []).map((item, index) => (
+                    <tr key={item.id || `${item.product_name}-${index}`}>
+                      <td>
+                        <div>{item.product_name}</div>
+          
+                        {item.variant_sku && (
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              color: "#2563eb",
+                              fontWeight: 600,
+                              marginTop: "4px",
+                            }}
+                          >
+                            SKU: {item.variant_sku}
+                          </div>
+                        )}
+          
+                        {formatVariants(item.variant_selection) && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#666",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {formatVariants(item.variant_selection)}
+                          </div>
+                        )}
+                      </td>
+          
+                      <td>{item.quantity}</td>
+                      <td>${Number(item.unit_price).toFixed(2)}</td>
+                      <td>${Number(item.subtotal).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          
+              {selectedOrder.status?.toUpperCase() !== "CANCELLED" && (
+                <button
+                  type="button"
+                  className="snb-btn"
+                  onClick={handleStartEditOrder}
+                  style={{ marginTop: "12px" }}
+                >
+                  Editar productos
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <table className="products-table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Precio unitario</th>
+                    <th>Cantidad</th>
+                    <th>Subtotal estimado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+          
+                <tbody>
+                  {editableItems.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <div>{item.product_name}</div>
+          
+                        {item.variant_sku && (
+                          <div style={{ fontSize: "12px", color: "#2563eb" }}>
+                            SKU: {item.variant_sku}
+                          </div>
+                        )}
+          
+                        {formatVariants(item.variant_selection) && (
+                          <div style={{ fontSize: "12px", color: "#666" }}>
+                            {formatVariants(item.variant_selection)}
+                          </div>
+                        )}
+                      </td>
+          
+                      <td>${Number(item.unit_price).toFixed(2)}</td>
+          
+                      <td>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          value={item.quantity}
+                          onChange={(event) =>
+                            handleChangeItemQuantity(item.id, event.target.value)
+                          }
+                          style={{ width: "90px", padding: "6px" }}
+                        />
+                      </td>
+          
+                      <td>
+                        $
+                        {(
+                          Number(item.unit_price || 0) *
+                          Number(item.quantity || 0)
+                        ).toFixed(2)}
+                      </td>
+          
+                      <td>
+                        <button
+                          type="button"
+                          className="snb-btn-secondary"
+                          onClick={() => handleRemoveOrderItem(item.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                  marginTop: "16px",
+                }}
+              >
+                <strong>
+                  Total estimado: $
+                  {editableItems
+                    .reduce(
+                      (total, item) =>
+                        total +
+                        Number(item.unit_price || 0) *
+                          Number(item.quantity || 0),
+                      0
+                    )
+                    .toFixed(2)}
+                </strong>
+          
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="snb-btn-secondary"
+                    onClick={handleCancelEditOrder}
+                    disabled={savingOrder}
+                  >
+                    Descartar cambios
+                  </button>
+          
+                  <button
+                    type="button"
+                    className="snb-btn"
+                    onClick={handleSaveOrderItems}
+                    disabled={savingOrder}
+                  >
+                    {savingOrder ? "Guardando..." : "Guardar pedido"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenProductModal}
+                    disabled={savingOrder}
+                  >
+                    + Agregar producto
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
         
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "20px" }}>
             <div className="order-total" style={{ margin: 0 }}>
@@ -546,6 +907,141 @@ export default function OrdersAdmin() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      
+      {showProductModal && (
+        <div
+          className="product-modal-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              handleCloseProductModal();
+            }
+          }}
+        >
+          <section
+            className="product-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-modal-title"
+          >
+            <header className="product-modal-header">
+              <h2 id="product-modal-title">
+                Agregar producto al pedido
+              </h2>
+      
+              <button
+                type="button"
+                onClick={handleCloseProductModal}
+                aria-label="Cerrar ventana"
+              >
+                ×
+              </button>
+            </header>
+      
+            <div className="product-modal-search">
+              <input
+                type="search"
+                value={productSearch}
+                onChange={(event) =>
+                  setProductSearch(event.target.value)
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleSearchProducts();
+                  }
+                }}
+                placeholder="Buscar por nombre o código..."
+              />
+      
+              <button
+                type="button"
+                onClick={handleSearchProducts}
+                disabled={loadingProducts}
+              >
+                Buscar
+              </button>
+            </div>
+      
+            {loadingProducts ? (
+              <p>Cargando productos...</p>
+            ) : availableProducts.length === 0 ? (
+              <p>No se encontraron productos disponibles.</p>
+            ) : (
+              <div className="product-modal-list">
+                {availableProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className={
+                      selectedProductId === product.id
+                        ? "product-modal-item selected"
+                        : "product-modal-item"
+                    }
+                    onClick={() => {
+                      setSelectedProductId(product.id);
+                      setSelectedProduct(product);
+      
+                      const activeVariants = (
+                        product.variants || []
+                      ).filter((variant) => variant.is_active);
+      
+                      setSelectedVariantId(
+                        product.has_variants
+                          ? activeVariants[0]?.id || ""
+                          : ""
+                      );
+                    }}
+                  >
+                    <span>
+                      <strong>{product.name}</strong>
+                      <small>
+                        Código: {product.code || "Sin código"}
+                      </small>
+                    </span>
+      
+                    <span>
+                      {product.has_variants
+                        ? "Con variantes"
+                        : "Producto simple"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+      
+            <footer className="product-modal-footer">
+              <button
+                type="button"
+                onClick={() =>
+                  handleChangeProductPage(productPage - 1)
+                }
+                disabled={
+                  loadingProducts || productPage <= 1
+                }
+              >
+                Anterior
+              </button>
+      
+              <span>
+                Página {productPage} de {productTotalPages}
+              </span>
+      
+              <button
+                type="button"
+                onClick={() =>
+                  handleChangeProductPage(productPage + 1)
+                }
+                disabled={
+                  loadingProducts ||
+                  productPage >= productTotalPages
+                }
+              >
+                Siguiente
+              </button>
+            </footer>
+          </section>
         </div>
       )}
 

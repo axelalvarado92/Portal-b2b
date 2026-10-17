@@ -25,3 +25,13 @@ export async function updateAdminOrder(orderId, data) {
   const response = await api.patch(`/admin/orders/${orderId}`, data);
   return response.data;
 }
+
+export async function editAdminOrder(orderId, data) {
+  const response = await api.patch(
+    `/admin/orders/${orderId}/edit`,
+    data
+  );
+
+  return response.data;
+}
+
