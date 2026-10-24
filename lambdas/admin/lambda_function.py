@@ -1666,12 +1666,48 @@ def edit_order_admin(admin, order_id, body):
             FOR UPDATE
         """, [order_id])
 
+        
         existing_rows = cur.fetchall()
+
+        before_data = {
+            "order_id": str(order_id),
+            "company_id": str(company_id),
+            "status": status,
+            "total_amount": None,
+            "items": [
+                {
+                    "id": str(row[0]),
+                    "product_id": str(row[1]),
+                    "product_name": row[2],
+                    "product_code": row[3],
+                    "quantity": float(row[4]),
+                    "unit_price": float(row[5]),
+                    "subtotal": float(
+                        Decimal(str(row[5])) * Decimal(str(row[4]))
+                    ),
+                    "variant_selection": (
+                        json.loads(row[6])
+                        if isinstance(row[6], str)
+                        else row[6]
+                    ) or {}
+                }
+                for row in existing_rows
+            ]
+        }
+
+        cur.execute("""
+            SELECT total_amount
+            FROM orders
+            WHERE id = %s
+        """, [order_id])
+
+        before_data["total_amount"] = float(cur.fetchone()[0])
 
         existing_items = {
             str(row[0]): row
             for row in existing_rows
         }
+
 
         prepared_items = []
         retained_ids = set()
@@ -1920,15 +1956,74 @@ def edit_order_admin(admin, order_id, body):
             WHERE id = %s
         """, [total_amount, order_id])
 
+        
+        # Capturar el estado posterior a la modificación.
+        cur.execute("""
+            SELECT
+                id,
+                product_id,
+                product_name,
+                product_code,
+                quantity,
+                unit_price,
+                subtotal,
+                variant_selection
+            FROM order_items
+            WHERE order_id = %s
+            ORDER BY id
+        """, [order_id])
+
+        after_rows = cur.fetchall()
+
+        after_data = {
+            "order_id": str(order_id),
+            "company_id": str(company_id),
+            "status": status,
+            "total_amount": float(total_amount),
+            "items": [
+                {
+                    "id": str(row[0]),
+                    "product_id": str(row[1]),
+                    "product_name": row[2],
+                    "product_code": row[3],
+                    "quantity": float(row[4]),
+                    "unit_price": float(row[5]),
+                    "subtotal": float(row[6]),
+                    "variant_selection": (
+                        json.loads(row[7])
+                        if isinstance(row[7], str)
+                        else row[7]
+                    ) or {}
+                }
+                for row in after_rows
+            ]
+        }
+
+
         # 10. Registrar la modificación administrativa.
+        
+        # Registrar la modificación administrativa con su historial.
         cur.execute("""
             INSERT INTO order_admin_history (
+                id,
                 order_id,
                 admin_user_id,
-                action
+                action,
+                created_at,
+                before_data,
+                after_data
             )
-            VALUES (%s, %s, 'UPDATED')
-        """, [order_id, admin["id"]])
+            VALUES (
+                %s, %s, %s, 'UPDATED', NOW(), %s::jsonb, %s::jsonb
+            )
+        """, [
+            str(uuid.uuid4()),
+            order_id,
+            admin["id"],
+            json.dumps(before_data, default=str),
+            json.dumps(after_data, default=str)
+        ])
+
 
         conn.commit()
 
@@ -2019,7 +2114,7 @@ def get_order_admin(order_id):
         items = []
 
         for row in rows:
-            variant_selection = row[7]
+            variant_selection = row[8]
 
             if isinstance(variant_selection, str):
                 try:
