@@ -290,21 +290,109 @@ export default function OrdersAdmin() {
     setIsEditingOrder(false);
   }
   
+  
   function handleChangeItemQuantity(itemId, quantity) {
     setEditableItems((items) =>
-      items.map((item) =>
-        item.id === itemId
+      items.map((item) => {
+        const currentId = item.id || item.tempId;
+  
+        return currentId === itemId
           ? { ...item, quantity }
-          : item
-      )
+          : item;
+      })
     );
   }
   
   function handleRemoveOrderItem(itemId) {
     setEditableItems((items) =>
-      items.filter((item) => item.id !== itemId)
+      items.filter((item) => (item.id || item.tempId) !== itemId)
     );
   }
+
+
+  
+  function handleAddProductToOrder() {
+    if (!selectedProduct) {
+      setEmailToast("Seleccioná un producto.");
+      return;
+    }
+  
+    const quantity = Number(newItemQuantity);
+  
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      setEmailToast("Ingresá una cantidad entera mayor que cero.");
+      return;
+    }
+  
+    const activeVariants = (selectedProduct.variants || []).filter(
+      (variant) => variant.is_active
+    );
+
+    if (activeVariants.length === 0) {
+      setEmailToast("Este producto no tiene variantes activas disponibles.");
+      return;
+    }
+  
+    let selectedVariant = null;
+  
+    if (selectedProduct.has_variants) {
+      selectedVariant = activeVariants.find(
+        (variant) => variant.id === selectedVariantId
+      );
+  
+      if (!selectedVariant) {
+        setEmailToast("Seleccioná una variante disponible.");
+        return;
+      }
+    } else if (activeVariants.length > 0) {
+      selectedVariant = activeVariants[0];
+    }
+  
+    const variantSelection = selectedVariant
+      ? { variant_id: selectedVariant.id }
+      : {};
+  
+    const duplicate = editableItems.some((item) => {
+      if (item.product_id !== selectedProduct.id) {
+        return false;
+      }
+  
+      const existingSelection =
+        typeof item.variant_selection === "string"
+          ? JSON.parse(item.variant_selection || "{}")
+          : item.variant_selection || {};
+  
+      return (
+        (existingSelection.variant_id || null) ===
+        (variantSelection.variant_id || null)
+      );
+    });
+  
+    if (duplicate) {
+      setEmailToast(
+        "Ese producto y variante ya están en el pedido. Editá su cantidad en la lista."
+      );
+      return;
+    }
+  
+    setEditableItems((items) => [
+      ...items,
+      { 
+        tempId: crypto.randomUUID(),
+        product_id: selectedProduct.id,
+        product_name: selectedProduct.name,
+        product_code: selectedProduct.code || "",
+        quantity,
+        unit_price: Number(selectedVariant?.price || 0),
+        subtotal: quantity * Number(selectedVariant?.price || 0),
+        variant_selection: variantSelection,
+        variant_sku: selectedVariant?.sku || null,
+      },
+    ]);
+  
+    handleCloseProductModal();
+  }
+
   
   async function handleSaveOrderItems() {
     if (!selectedOrder || savingOrder) return;
@@ -341,9 +429,6 @@ export default function OrdersAdmin() {
         getAdminOrder(selectedOrder.id),
         loadOrders(),
       ]);
-
-      console.log("Pedido recibido:", orderResponse.data);
-      console.log("Company ID:", orderResponse.data?.company_id);
   
       setSelectedOrder(orderResponse.data);
       setIsEditingOrder(false);
@@ -689,7 +774,7 @@ export default function OrdersAdmin() {
           
                 <tbody>
                   {editableItems.map((item) => (
-                    <tr key={item.id}>
+                    <tr key={item.id || item.tempId}>
                       <td>
                         <div>{item.product_name}</div>
           
@@ -715,7 +800,10 @@ export default function OrdersAdmin() {
                           step="any"
                           value={item.quantity}
                           onChange={(event) =>
-                            handleChangeItemQuantity(item.id, event.target.value)
+                            handleChangeItemQuantity(
+                              item.id || item.tempId,
+                              event.target.value
+                            )
                           }
                           style={{ width: "90px", padding: "6px" }}
                         />
@@ -733,7 +821,7 @@ export default function OrdersAdmin() {
                         <button
                           type="button"
                           className="snb-btn-secondary"
-                          onClick={() => handleRemoveOrderItem(item.id)}
+                          onClick={() => handleRemoveOrderItem(item.id || item.tempId)}
                         >
                           Eliminar
                         </button>
@@ -769,6 +857,14 @@ export default function OrdersAdmin() {
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
                     type="button"
+                    onClick={handleOpenProductModal}
+                    disabled={savingOrder}
+                  >
+                    + Agregar producto
+                  </button>
+                  
+                  <button
+                    type="button"
                     className="snb-btn-secondary"
                     onClick={handleCancelEditOrder}
                     disabled={savingOrder}
@@ -783,14 +879,6 @@ export default function OrdersAdmin() {
                     disabled={savingOrder}
                   >
                     {savingOrder ? "Guardando..." : "Guardar pedido"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleOpenProductModal}
-                    disabled={savingOrder}
-                  >
-                    + Agregar producto
                   </button>
                 </div>
               </div>
@@ -1010,6 +1098,76 @@ export default function OrdersAdmin() {
                 ))}
               </div>
             )}
+
+            
+            {selectedProduct && (
+              <div className="product-modal-selection">
+                <h3>{selectedProduct.name}</h3>
+
+                {selectedProduct.has_variants && (
+                  <div className="product-modal-field">
+                    <label htmlFor="product-variant">
+                      Variante
+                    </label>
+
+                    <select
+                      id="product-variant"
+                      value={selectedVariantId}
+                      onChange={(event) =>
+                        setSelectedVariantId(event.target.value)
+                      }
+                    >
+                      <option value="">
+                        Seleccioná una variante
+                      </option>
+
+                      {(selectedProduct.variants || [])
+                        .filter((variant) => variant.is_active)
+                        .map((variant) => (
+                          <option
+                            key={variant.id}
+                            value={variant.id}
+                          >
+                            {variant.sku || variant.id}
+                            {variant.attributes &&
+                            Object.keys(variant.attributes).length > 0
+                              ? ` — ${Object.entries(variant.attributes)
+                                  .map(([key, value]) => `${key}: ${value}`)
+                                  .join(", ")}`
+                              : ""}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="product-modal-field">
+                  <label htmlFor="product-quantity">
+                    Cantidad
+                  </label>
+
+                  <input
+                    id="product-quantity"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={newItemQuantity}
+                    onChange={(event) =>
+                      setNewItemQuantity(event.target.value)
+                    }
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddProductToOrder}
+                  disabled={loadingProducts}
+                >
+                  Agregar al pedido
+                </button>
+              </div>
+            )}
+
       
             <footer className="product-modal-footer">
               <button

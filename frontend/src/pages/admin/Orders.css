@@ -498,3 +498,39 @@
   border-top: 1px solid #e5e7eb;
   border-bottom: 0;
 }
+
+
+.product-modal-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.product-modal-selection h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.product-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.product-modal-field label {
+  font-weight: 600;
+}
+
+.product-modal-field select,
+.product-modal-field input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+}
+
