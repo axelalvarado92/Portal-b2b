@@ -1,8 +1,98 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, History } from "lucide-react"; // Importamos los íconos
-import { getOrders, getOrder, requestCancelOrder } from "../../services/ordersService";
+import {
+  getOrders,
+  getOrder,
+  getOrderHistory,
+  requestCancelOrder,
+} from "../../services/ordersService";
 import "./Orders.css";
+
+
+function HistorySnapshot({ title, data }) {
+  const items = data?.items ?? [];
+
+  const formatMoney = (value) =>
+    new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 2,
+    }).format(Number(value ?? 0));
+
+  return (
+    <div
+      style={{
+        padding: "12px",
+        border: "1px solid #e5e7eb",
+        borderRadius: "8px",
+        minWidth: 0,
+      }}
+    >
+      <strong>{title}</strong>
+
+      {items.length === 0 ? (
+        <p style={{ fontSize: "13px", color: "#6b7280" }}>
+          Sin productos registrados en esta versión.
+        </p>
+      ) : (
+        <div style={{ display: "grid", gap: "12px", marginTop: "10px" }}>
+          {items.map((item, index) => (
+            <div
+              key={item.id ?? `${item.product_id ?? item.product_code}-${index}`}
+              style={{
+                paddingBottom: "10px",
+                borderBottom: index < items.length - 1
+                  ? "1px solid #e5e7eb"
+                  : "none",
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>
+                {item.product_name || "Producto"}
+              </div>
+
+              {item.product_code && (
+                <div style={{ fontSize: "13px", color: "#6b7280" }}>
+                  Código: {item.product_code}
+                </div>
+              )}
+
+              {item.variant_sku && (
+                <div style={{ fontSize: "13px", color: "#6b7280" }}>
+                  Variante: {item.variant_sku}
+                </div>
+              )}
+
+              <div style={{ fontSize: "14px", marginTop: "4px" }}>
+                Cantidad: {item.quantity}
+              </div>
+
+              <div style={{ fontSize: "14px" }}>
+                Precio unitario: {formatMoney(item.unit_price)}
+              </div>
+
+              <div style={{ fontSize: "14px" }}>
+                Subtotal: {formatMoney(item.subtotal)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div
+        style={{
+          marginTop: "12px",
+          paddingTop: "10px",
+          borderTop: "1px solid #e5e7eb",
+          fontWeight: 700,
+        }}
+      >
+        Total: {formatMoney(data?.total_amount)}
+      </div>
+    </div>
+  );
+}
+
 
 // 💡 Agregamos "COMPLETED" explícitamente para que renderice un badge verde
 const STATUS_LABELS = {
@@ -23,6 +113,9 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [cancelingId, setCancelingId] = useState(null);
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const detailRef = useRef(null);
 
   // 🗂️ Estado para controlar la pestaña activa
@@ -51,17 +144,37 @@ export default function Orders() {
     }
   }, [selectedOrder]);
 
+  
   async function handleViewOrder(orderId) {
     setLoadingDetail(true);
+    setLoadingHistory(true);
+    setOrderHistory([]);
+    setHistoryError("");
+  
     try {
       const response = await getOrder(orderId);
       setSelectedOrder(response.data);
+  
+      try {
+        const historyResponse = await getOrderHistory(orderId);
+  
+        setOrderHistory(
+          historyResponse?.data?.history ??
+          historyResponse?.history ??
+          []
+        );
+      } catch (historyErr) {
+        console.error("Error al cargar el historial:", historyErr);
+        setHistoryError("No se pudo cargar el historial de cambios.");
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Error al cargar el pedido:", err);
     } finally {
       setLoadingDetail(false);
+      setLoadingHistory(false);
     }
   }
+
 
   async function handleRequestCancel(orderId) {
     setCancelingId(orderId);
@@ -247,6 +360,90 @@ export default function Orders() {
           <div className="order-detail-total">
             Total: <strong>${Number(selectedOrder.total_amount).toFixed(2)}</strong>
           </div>
+      
+          <div
+            style={{
+              marginTop: "24px",
+              padding: "18px",
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+              borderRadius: "10px",
+            }}
+          >
+            <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <History size={18} />
+              Historial de cambios
+            </h3>
+          
+            {loadingHistory && <p>Cargando historial...</p>}
+          
+            {!loadingHistory && historyError && (
+              <p style={{ color: "#b91c1c" }}>{historyError}</p>
+            )}
+          
+            {!loadingHistory && !historyError && orderHistory.length === 0 && (
+              <p style={{ color: "#6b7280" }}>
+                No hay cambios registrados para este pedido.
+              </p>
+            )}
+          
+            {!loadingHistory && !historyError && orderHistory.length > 0 && (
+              <div style={{ display: "grid", gap: "12px" }}>
+                {orderHistory.map((event) => (
+                  <div
+                    key={event.id}
+                    style={{
+                      padding: "14px",
+                      background: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <strong>
+                      {event.action === "CREATED"
+                        ? "Pedido creado"
+                        : event.action === "UPDATED"
+                          ? "Pedido modificado por administración"
+                          : "Evento de pedido"}
+                    </strong>
+          
+                    <div style={{ marginTop: "6px", fontSize: "13px", color: "#6b7280" }}>
+                      {event.created_at
+                        ? new Date(event.created_at).toLocaleString("es-AR")
+                        : "Fecha no disponible"}
+                    </div>
+                             
+                    {event.before_data && event.after_data ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+                          gap: "12px",
+                          marginTop: "12px",
+                        }}
+                      >
+                        <HistorySnapshot
+                          title="Antes de la modificación"
+                          data={event.before_data}
+                        />
+                    
+                        <HistorySnapshot
+                          title="Después de la modificación"
+                          data={event.after_data}
+                        />
+                      </div>
+                    ) : (
+                      <p style={{ marginBottom: 0, fontSize: "13px", color: "#6b7280" }}>
+                        No hay una copia anterior y posterior disponible para este evento.
+                      </p>
+                    )}
+
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
 
           {selectedOrder.status?.toUpperCase() === "PENDING" && (
             <div style={{ marginTop: "20px", textAlign: "right" }}>

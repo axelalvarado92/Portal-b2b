@@ -1654,16 +1654,19 @@ def edit_order_admin(admin, order_id, body):
         # 2. Obtener las líneas actuales.
         cur.execute("""
             SELECT
-                id,
-                product_id,
-                product_name,
-                product_code,
-                quantity,
-                unit_price,
-                variant_selection
-            FROM order_items
-            WHERE order_id = %s
-            FOR UPDATE
+                oi.id,
+                oi.product_id,
+                oi.product_name,
+                oi.product_code,
+                oi.quantity,
+                oi.unit_price,
+                oi.variant_selection,
+                pv.sku AS variant_sku
+            FROM order_items oi
+            LEFT JOIN product_variants pv
+                ON pv.id = (oi.variant_selection->>'variant_id')::uuid
+            WHERE oi.order_id = %s
+            FOR UPDATE OF oi
         """, [order_id])
 
         
@@ -1689,7 +1692,8 @@ def edit_order_admin(admin, order_id, body):
                         json.loads(row[6])
                         if isinstance(row[6], str)
                         else row[6]
-                    ) or {}
+                    ) or {},
+                    "variant_sku": row[7]
                 }
                 for row in existing_rows
             ]
@@ -1960,17 +1964,20 @@ def edit_order_admin(admin, order_id, body):
         # Capturar el estado posterior a la modificación.
         cur.execute("""
             SELECT
-                id,
-                product_id,
-                product_name,
-                product_code,
-                quantity,
-                unit_price,
-                subtotal,
-                variant_selection
-            FROM order_items
-            WHERE order_id = %s
-            ORDER BY id
+                oi.id,
+                oi.product_id,
+                oi.product_name,
+                oi.product_code,
+                oi.quantity,
+                oi.unit_price,
+                oi.subtotal,
+                oi.variant_selection,
+                pv.sku AS variant_sku
+            FROM order_items oi
+            LEFT JOIN product_variants pv
+                ON pv.id = (oi.variant_selection->>'variant_id')::uuid
+            WHERE oi.order_id = %s
+            ORDER BY oi.id
         """, [order_id])
 
         after_rows = cur.fetchall()
@@ -1993,7 +2000,8 @@ def edit_order_admin(admin, order_id, body):
                         json.loads(row[7])
                         if isinstance(row[7], str)
                         else row[7]
-                    ) or {}
+                    ) or {},
+                    "variant_sku": row[8]
                 }
                 for row in after_rows
             ]
@@ -2179,15 +2187,79 @@ def get_order_admin(order_id):
         conn.close()
 
 
+
+def get_order_admin_history(order_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                id,
+                admin_user_id,
+                action,
+                created_at,
+                before_data,
+                after_data
+            FROM order_admin_history
+            WHERE order_id = %s
+            ORDER BY created_at ASC, id ASC
+        """, [order_id])
+
+        rows = cur.fetchall()
+
+        history = []
+
+        for row in rows:
+            before_data = row[4]
+            after_data = row[5]
+
+            if isinstance(before_data, str):
+                try:
+                    before_data = json.loads(before_data)
+                except json.JSONDecodeError:
+                    before_data = None
+
+            if isinstance(after_data, str):
+                try:
+                    after_data = json.loads(after_data)
+                except json.JSONDecodeError:
+                    after_data = None
+
+            history.append({
+                "id": str(row[0]),
+                "admin_user_id": str(row[1]) if row[1] else None,
+                "action": row[2],
+                "created_at": str(row[3]) if row[3] else None,
+                "before_data": before_data,
+                "after_data": after_data
+            })
+
+        return success({
+            "order_id": str(order_id),
+            "history": history
+        })
+
+    except Exception:
+        print(traceback.format_exc())
+        return server_error()
+
+    finally:
+        cur.close()
+        conn.close()
+
+
 def update_order_status(order_id, status=None, notes=None):
     conn = get_connection()
     cur = conn.cursor()
 
     allowed_statuses = {
         "PENDING",
-        "CONFIRMED",
-        "CLOSED",
+        "PROCESSING",
+        "COMPLETED",
         "CANCELLED",
+        "CANCEL_REQUESTED",
     }
 
     try:
@@ -3116,6 +3188,9 @@ def handler(event, context):
             if method == "GET" and not resource_id:
                 return list_orders()
 
+            if method == "GET" and resource_id and path.endswith("/history"):
+                return get_order_admin_history(resource_id)
+            
             if method == "GET" and resource_id:
                 return get_order_admin(resource_id)
 

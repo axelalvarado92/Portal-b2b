@@ -44,3 +44,10 @@ export async function requestCancelOrder(orderId) {
   const response = await api.patch(`/orders/${orderId}/request-cancel`);
   return response.data;
 }
+
+
+export async function getOrderHistory(orderId) {
+  const response = await api.get(`/orders/${orderId}/history`);
+  return response.data;
+}
+

@@ -3,6 +3,7 @@ import { ClipboardList, History, CheckCircle2 } from "lucide-react";
 import {
   getAdminOrders,
   getAdminOrder,
+  getAdminOrderHistory,
   updateAdminOrderStatus,
   updateAdminOrder,
   sendOrderPDFByEmail,
@@ -13,9 +14,96 @@ import "./Orders.css";
 import { getProducts, getProduct } from "../../services/adminProductService";
 
 
+function HistorySnapshot({ title, snapshot }) {
+  if (!snapshot) {
+    return (
+      <div>
+        <strong>{title}</strong>
+        <p style={{ color: "#6b7280", fontSize: "13px" }}>
+          No hay una copia de este estado registrada.
+        </p>
+      </div>
+    );
+  }
+
+  const items = Array.isArray(snapshot.items) ? snapshot.items : [];
+
+  return (
+    <div style={{
+      flex: "1 1 280px",
+      minWidth: 0,
+      padding: "14px",
+      background: "#fff",
+      border: "1px solid #e5e7eb",
+      borderRadius: "8px"
+    }}>
+      <strong>{title}</strong>
+
+      <p style={{ margin: "8px 0", fontSize: "13px", color: "#4b5563" }}>
+        Estado: {snapshot.status || "No registrado"}
+      </p>
+
+      {items.length === 0 ? (
+        <p style={{ color: "#6b7280", fontSize: "13px" }}>
+          No hay productos registrados en esta copia.
+        </p>
+      ) : (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {items.map((item, index) => (
+            <div
+              key={item.id || `${item.product_id || item.product_code}-${index}`}
+              style={{
+                paddingBottom: "10px",
+                borderBottom: "1px solid #e5e7eb",
+                fontSize: "13px"
+              }}
+            >
+              <strong>
+                {item.product_name || item.product_code || "Producto"}
+              </strong>
+
+              {item.product_code && (
+                <div>Código: {item.product_code}</div>
+              )}
+
+              <div>Cantidad: {item.quantity ?? "—"}</div>
+
+              <div>
+                Precio unitario: $
+                {Number(item.unit_price || 0).toFixed(2)}
+              </div>
+
+              <div>
+                Subtotal: $
+                {Number(item.subtotal || 0).toFixed(2)}
+              </div>
+
+              {item.variant_sku && (
+                <div>Variante: {item.variant_sku}</div>
+              )}
+
+              {item.observations && (
+                <div>Observaciones: {item.observations}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <strong style={{ display: "block", marginTop: "12px" }}>
+        Total: ${Number(snapshot.total_amount || 0).toFixed(2)}
+      </strong>
+    </div>
+  );
+}
+
+
 export default function OrdersAdmin() {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -43,6 +131,8 @@ export default function OrdersAdmin() {
   const [activeTab, setActiveTab] = useState("actives"); // "actives" o "closed"
   const [orderToClose, setOrderToClose] = useState(null); // Almacena el ID del pedido a cerrar para abrir el modal
   const [isClosing, setIsClosing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const detailRef = useRef(null);
 
   useEffect(() => {
@@ -67,15 +157,42 @@ export default function OrdersAdmin() {
     loadOrders();
   }, []);
 
+  
   async function handleViewOrder(orderId) {
+    setOrderHistory([]);
+    setHistoryError("");
+    setLoadingHistory(true);
+  
     try {
-      const response = await getAdminOrder(orderId);
-      console.log("DEBUG getAdminOrder response:", response.data);
-      setSelectedOrder(response.data);
+      const [orderResponse, historyResponse] = await Promise.all([
+        getAdminOrder(orderId),
+        getAdminOrderHistory(orderId)
+      ]);
+  
+      setSelectedOrder(orderResponse.data);
+  
+      setOrderHistory(
+        historyResponse?.data?.history ??
+        historyResponse?.history ??
+        []
+      );
     } catch (err) {
-      console.error(err);
+      console.error("Error al cargar el pedido o su historial:", err);
+  
+      // Si falla el historial, intentamos mostrar igualmente el pedido.
+      try {
+        const orderResponse = await getAdminOrder(orderId);
+        setSelectedOrder(orderResponse.data);
+      } catch (orderErr) {
+        console.error("Error al cargar el pedido:", orderErr);
+      }
+  
+      setHistoryError("No se pudo cargar el historial de cambios.");
+    } finally {
+      setLoadingHistory(false);
     }
   }
+
 
   // Abre el modal de confirmación personalizado
   const triggerCloseModal = (orderId) => {
@@ -423,14 +540,25 @@ export default function OrdersAdmin() {
     try {
       setSavingOrder(true);
   
-      await editAdminOrder(selectedOrder.id, { items });
-  
-      const [orderResponse] = await Promise.all([
-        getAdminOrder(selectedOrder.id),
+      
+      
+      const orderId = selectedOrder.id;
+      
+      await editAdminOrder(orderId, { items });
+      
+      const [orderResponse, historyResponse] = await Promise.all([
+        getAdminOrder(orderId),
+        getAdminOrderHistory(orderId),
         loadOrders(),
-      ]);
-  
+      ]).then(([order, history]) => [order, history]);
+      
       setSelectedOrder(orderResponse.data);
+      setOrderHistory(
+        historyResponse?.data?.history ??
+        historyResponse?.history ??
+        []
+      );
+      setHistoryError("");
       setIsEditingOrder(false);
       setEditableItems([]);
       setEmailToast("✓ Pedido actualizado");
@@ -469,27 +597,40 @@ export default function OrdersAdmin() {
   }
 
   // Filtrado por pestaña ("Activos" vs "Cerrados") y barra de búsqueda
-  const filteredOrders = orders.filter(order => {
-    const isCompleted = order.status?.toUpperCase() === "COMPLETED";
-    
-    // Evaluamos de forma explícita según la pestaña seleccionada
-    let matchesTab = false;
-    if (activeTab === "closed") {
-      matchesTab = isCompleted;        // En historial solo van los COMPLETED
-    } else {
-      matchesTab = !isCompleted;       // En cualquier otra pestaña van los activos (PENDING, etc.)
-    }
+  
+  // Filtrado por pestaña y búsqueda
+  const filteredOrders = orders
+    .filter(order => {
+      const isCompleted = order.status?.toUpperCase() === "COMPLETED";
 
-    const searchTerm = search.toLowerCase();
+      const matchesTab =
+        activeTab === "closed" ? isCompleted : !isCompleted;
 
-    const matchesSearch =
-      order.order_number?.toLowerCase().includes(searchTerm) ||
-      order.id?.toLowerCase().includes(searchTerm) ||
-      order.company_name?.toLowerCase().includes(searchTerm) ||
-      order.customer_email?.toLowerCase().includes(searchTerm);
+      const searchTerm = search.trim().toLowerCase();
 
-    return matchesTab && matchesSearch;
-  });
+      const matchesSearch =
+        order.order_number?.toLowerCase().includes(searchTerm) ||
+        order.id?.toLowerCase().includes(searchTerm) ||
+        order.company_name?.toLowerCase().includes(searchTerm) ||
+        order.customer_email?.toLowerCase().includes(searchTerm);
+
+      return matchesTab && matchesSearch;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime() || 0;
+      const dateB = new Date(b.created_at).getTime() || 0;
+      return dateB - dateA;
+    });
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+
+  const paginatedOrders = filteredOrders.slice(
+    startIndex,
+    startIndex + pageSize
+  );
+
 
   function formatVariants(variantSelection) {
     if (!variantSelection) return null;
@@ -519,7 +660,9 @@ export default function OrdersAdmin() {
         <div style={{ display: "flex", gap: "10px" }}>
           <button 
             className={activeTab === "actives" ? "snb-btn" : "snb-btn-secondary"}
-            onClick={() => { setActiveTab("actives"); setSelectedOrder(null); }}
+            onClick={() => { setActiveTab("actives"); setSelectedOrder(null);
+              setCurrentPage(1);
+             }}
             style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 15px", height: "42px" }}
           >
             <ClipboardList size={16} />
@@ -550,7 +693,10 @@ export default function OrdersAdmin() {
         className="orders-search"
         placeholder="Buscar por empresa o cliente..."
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setCurrentPage(1);
+        }}
       />
 
       {/* TABLA PRINCIPAL DE CONTROL */}
@@ -567,7 +713,7 @@ export default function OrdersAdmin() {
           </tr>
         </thead>
         <tbody>
-          {filteredOrders.map(order => (
+          {paginatedOrders.map(order => (
             <tr key={order.id}>
               <td>
                 {order.order_number || `#${order.id.slice(0, 8).toUpperCase()}`}
@@ -611,6 +757,67 @@ export default function OrdersAdmin() {
           )}
         </tbody>
       </table>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginTop: "16px",
+          marginBottom: "24px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <label htmlFor="orders-page-size">Pedidos por página:</label>
+          <select
+            id="orders-page-size"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
+    
+        <span style={{ fontSize: "14px", color: "#6b7280" }}>
+          {filteredOrders.length === 0
+            ? "Sin resultados"
+            : `Mostrando ${startIndex + 1}–${Math.min(
+                startIndex + pageSize,
+                filteredOrders.length
+              )} de ${filteredOrders.length} pedidos`}
+        </span>
+    
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            type="button"
+            className="snb-btn-secondary"
+            disabled={safeCurrentPage <= 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          >
+            Anterior
+          </button>
+    
+          <span style={{ fontSize: "14px" }}>
+            Página {safeCurrentPage} de {totalPages}
+          </span>
+    
+          <button
+            type="button"
+            className="snb-btn-secondary"
+            disabled={safeCurrentPage >= totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+
 
       {/* DETALLE COMPLETO DEL PEDIDO SELECCIONADO */}
       {selectedOrder && (
@@ -694,6 +901,105 @@ export default function OrdersAdmin() {
           )}
         
           
+          <div style={{
+            margin: "24px 0",
+            padding: "18px",
+            background: "#f9fafb",
+            border: "1px solid #e5e7eb",
+            borderRadius: "10px"
+          }}>
+            <h3 style={{ marginTop: 0 }}>
+              <History size={18} style={{ verticalAlign: "middle", marginRight: "8px" }} />
+              Historial de cambios
+            </h3>
+          
+            {loadingHistory && (
+              <p>Cargando historial...</p>
+            )}
+          
+            {!loadingHistory && historyError && (
+              <p style={{ color: "#b91c1c" }}>{historyError}</p>
+            )}
+          
+            {!loadingHistory && !historyError && orderHistory.length === 0 && (
+              <p style={{ color: "#6b7280" }}>
+                No hay eventos de historial registrados para este pedido.
+              </p>
+            )}
+          
+            {!loadingHistory && orderHistory.length > 0 && (
+              <div style={{ display: "grid", gap: "16px" }}>
+                {orderHistory.map((event) => (
+                  <div
+                    key={event.id}
+                    style={{
+                      padding: "16px",
+                      background: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "8px"
+                    }}
+                  >
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                      marginBottom: "12px"
+                    }}>
+                      <strong>
+                        {event.action === "CREATED"
+                          ? "Pedido creado"
+                          : event.action === "UPDATED"
+                            ? "Pedido modificado por administración"
+                            : event.action}
+                      </strong>
+          
+                      <span style={{ fontSize: "13px", color: "#6b7280" }}>
+                        {event.created_at
+                          ? new Date(event.created_at).toLocaleString()
+                          : "Fecha no disponible"}
+                      </span>
+                    </div>
+          
+                    {event.admin_user_id && (
+                      <p style={{ fontSize: "12px", color: "#6b7280" }}>
+                        ID del administrador: {event.admin_user_id}
+                      </p>
+                    )}
+          
+                    {event.before_data && event.after_data ? (
+                      <div style={{
+                        display: "flex",
+                        gap: "12px",
+                        flexWrap: "wrap"
+                      }}>
+                        <HistorySnapshot
+                          title="Antes de la modificación"
+                          snapshot={event.before_data}
+                        />
+          
+                        <HistorySnapshot
+                          title="Después de la modificación"
+                          snapshot={event.after_data}
+                        />
+                      </div>
+                    ) : event.after_data ? (
+                      <HistorySnapshot
+                        title="Estado registrado"
+                        snapshot={event.after_data}
+                      />
+                    ) : (
+                      <p style={{ color: "#6b7280", fontSize: "13px" }}>
+                        Este evento no tiene snapshots guardados.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+
           <h3>Productos</h3>
           
           {!isEditingOrder ? (

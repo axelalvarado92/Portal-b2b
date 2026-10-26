@@ -399,6 +399,78 @@ def get_order(user, order_id):
 
         cur.close()
 
+
+def get_order_history(user, order_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # Verificar que el pedido pertenezca al usuario autenticado.
+        cur.execute("""
+            SELECT 1
+            FROM orders
+            WHERE id = %s
+              AND user_id = %s
+        """, [order_id, user["id"]])
+
+        if not cur.fetchone():
+            return not_found("Pedido no encontrado")
+
+        cur.execute("""
+            SELECT
+                id,
+                action,
+                created_at,
+                before_data,
+                after_data
+            FROM order_admin_history
+            WHERE order_id = %s
+            ORDER BY created_at ASC, id ASC
+        """, [order_id])
+
+        rows = cur.fetchall()
+        history = []
+
+        for row in rows:
+            before_data = row[3]
+            after_data = row[4]
+
+            if isinstance(before_data, str):
+                try:
+                    before_data = json.loads(before_data)
+                except json.JSONDecodeError:
+                    before_data = None
+
+            if isinstance(after_data, str):
+                try:
+                    after_data = json.loads(after_data)
+                except json.JSONDecodeError:
+                    after_data = None
+
+            history.append({
+                "id": str(row[0]),
+                "action": row[1],
+                "created_at": str(row[2]) if row[2] else None,
+                "before_data": before_data,
+                "after_data": after_data
+            })
+
+        return success({
+            "order_id": str(order_id),
+            "history": history
+        })
+
+    except Exception:
+        conn.rollback()
+        print(traceback.format_exc())
+        return server_error()
+
+    finally:
+        cur.close()
+        conn.close()
+
+
 def request_cancel_order(user, order_id):
 
     conn = get_connection()
@@ -468,9 +540,14 @@ def handler(event, context):
             return request_cancel_order(user, order_id)
 
 
+        # GET /orders/{id}/history
+        elif method == "GET" and order_id and path.endswith("/history"):
+        
+            return get_order_history(user, order_id)
+        
         # GET /orders/{id}
         elif method == "GET" and order_id:
-
+        
             return get_order(user, order_id)
 
         # GET /orders

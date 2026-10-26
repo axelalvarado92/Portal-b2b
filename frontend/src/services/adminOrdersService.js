@@ -35,3 +35,9 @@ export async function editAdminOrder(orderId, data) {
   return response.data;
 }
 
+
+export async function getAdminOrderHistory(orderId) {
+  const response = await api.get(`/admin/orders/${orderId}/history`);
+  return response.data;
+}
+

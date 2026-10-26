@@ -604,7 +604,8 @@ module "apigateway" {
         { method = "POST", path = "/orders", protected = true },
         { method = "GET", path = "/orders", protected = true },
         { method = "GET", path = "/orders/{id}", protected = true },
-        { method = "PATCH", path = "/orders/{id}/request-cancel", protected = true }
+        { method = "PATCH", path = "/orders/{id}/request-cancel", protected = true },
+        { method = "GET", path = "/orders/{id}/history", protected = true },
       ]
     }
     admin = {
@@ -629,6 +630,7 @@ module "apigateway" {
         { method = "PATCH", path = "/admin/orders/{id}", protected = true },
         { method = "POST", path = "/admin/orders/{id}/send-pdf", protected = true },
         { method = "POST", path = "/admin/orders", protected = true },
+        { method = "GET", path = "/admin/orders/{id}/history", protected = true },
         { method = "PATCH", path = "/admin/orders/{id}/edit", protected = true },
         { method = "GET", path = "/admin/account-requests", protected = true },
         { method = "POST", path = "/admin/account-requests/{id}/accept", protected = true },
