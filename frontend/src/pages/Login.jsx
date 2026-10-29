@@ -202,6 +202,32 @@ export default function Login() {
                 </button>
               </div>
 
+              {confirmNewPassword.length > 0 &&
+                newPassword !== confirmNewPassword && (
+                  <p
+                    style={{
+                      color: "#dc2626",
+                      fontSize: "13px",
+                      marginTop: "6px",
+                    }}
+                  >
+                    ⚠️ Las contraseñas no coinciden.
+                  </p>
+              )}
+
+              {confirmNewPassword.length > 0 &&
+                newPassword === confirmNewPassword && (
+                  <p
+                    style={{
+                      color: "#16a34a",
+                      fontSize: "13px",
+                      marginTop: "6px",
+                    }}
+                  >
+                    ✓ Las contraseñas coinciden.
+                  </p>
+              )}
+
               {error && <p className="login-error">{error}</p>}
 
               <button 

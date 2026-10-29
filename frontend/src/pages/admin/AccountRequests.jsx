@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { 
-  getAccountRequests, 
-  acceptAccountRequest, 
+import {
+  getAccountRequests,
+  acceptAccountRequest,
   rejectAccountRequest,
-  resendAccountAccess
+  regenerateAccountPassword
 } from "../../services/accountRequestsService";
 import { getCompanies } from "../../services/adminCompanyService";
 
@@ -17,6 +17,7 @@ export function AccountRequests() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [requestToReject, setRequestToReject] = useState(null);
+  const [generatedCredentials, setGeneratedCredentials] = useState(null);
 
   const openRejectModal = (id) => {
     setRequestToReject(id);
@@ -97,27 +98,44 @@ export function AccountRequests() {
     }
   };
 
-  const handleResendEmail = async (id) => {
+  
+  const handleRegeneratePassword = async (id) => {
     try {
       setActionLoading(true);
+      setGeneratedCredentials(null);
   
-      await resendAccountAccess(id);
-  
-      alert("Email de acceso reenviado correctamente");
+      const response = await regenerateAccountPassword(id);
+      const result = response?.data ?? response;
+      const credentials = result?.data ?? result;
+      
+      if (!credentials?.temporary_password) {
+        throw new Error(
+          "La cuenta fue procesada, pero el servidor no devolvió la contraseña temporal. Verificá el estado antes de volver a aprobarla."
+        );
+      }
+      
+      setGeneratedCredentials({
+        email: credentials.email,
+        full_name: credentials.full_name,
+        temporary_password: credentials.temporary_password,
+        message: credentials.message
+      });
   
       await loadRequests();
-  
     } catch (err) {
-      console.error("RESEND ERROR:", err);
-      console.error("RESEND ERROR RESPONSE:", err.response);
-      console.error("RESEND ERROR DATA:", err.response?.data);
-      console.error("RESEND ERROR STATUS:", err.response?.status);
-      alert("Error al reenviar el email de acceso");
-      console.error(err);
+      console.error("REGENERATE PASSWORD ERROR:", err);
+      console.error("RESPONSE:", err.response?.data);
+  
+      alert(
+        err.response?.data?.error ||
+        err.message ||
+        "Error al regenerar la contraseña temporal."
+      );
     } finally {
       setActionLoading(false);
     }
   };
+
 
   // Pre-completa el formulario con los datos que el cliente ya cargó al registrarse
   const initiateAccept = (request) => {
@@ -188,9 +206,28 @@ export function AccountRequests() {
         direccion_transporte: userData.direccionTransporte,
       };
   
-      await acceptAccountRequest(selectedRequest.id || selectedRequest._id, finalPayload);
+      const response = await acceptAccountRequest(
+        selectedRequest.id || selectedRequest._id,
+        finalPayload
+      );
+      
+      const result = response?.data || response;
+      
+      if (!result?.temporary_password) {
+        throw new Error(
+          "La cuenta fue procesada, pero el servidor no devolvió la contraseña temporal. Verificá el estado antes de volver a aprobarla."
+        );
+      }
+      
+      setGeneratedCredentials({
+        email: result.email,
+        full_name: result.full_name,
+        temporary_password: result.temporary_password,
+        message: result.message
+      });
+      
       setSelectedRequest(null);
-      loadRequests();
+      await loadRequests();
     } catch (err) {
       alert("Error al procesar el alta del cliente");
       console.error(err);
@@ -212,6 +249,95 @@ export function AccountRequests() {
           </span>
         )}
       </div>
+      
+      {generatedCredentials && (
+        <div
+          role="status"
+          style={{
+            margin: "20px 0",
+            padding: "20px",
+            border: "1px solid #d8c6ca",
+            borderRadius: "8px",
+            background: "#fff",
+            overflowWrap: "anywhere"
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>
+            Credenciales de acceso generadas
+          </h3>
+      
+          <p>
+            <strong>Cliente:</strong>{" "}
+            {generatedCredentials.full_name}
+          </p>
+      
+          <p>
+            <strong>Email:</strong>{" "}
+            {generatedCredentials.email}
+          </p>
+      
+          <p>
+            <strong>Contraseña temporal:</strong>
+          </p>
+      
+          <code
+            style={{
+              display: "block",
+              padding: "12px",
+              background: "#f5f5f5",
+              borderRadius: "4px",
+              fontSize: "16px",
+              userSelect: "all"
+            }}
+          >
+            {generatedCredentials.temporary_password}
+          </code>
+      
+          <p style={{ fontSize: "14px" }}>
+            Comunicá estas credenciales al cliente por un canal seguro.
+            Deberá establecer una contraseña definitiva al iniciar sesión.
+            Si regenerás la contraseña, la anterior dejará de ser válida.
+          </p>
+      
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap"
+            }}
+          >
+            <button
+              type="button"
+              className="btn-burgundy-primary"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(
+                    `Email: ${generatedCredentials.email}\n` +
+                    `Contraseña temporal: ${generatedCredentials.temporary_password}`
+                  );
+                  alert("Credenciales copiadas.");
+                } catch (err) {
+                  console.error("COPY CREDENTIALS ERROR:", err);
+                  alert(
+                    "No se pudieron copiar automáticamente. Seleccioná las credenciales y copialas manualmente."
+                  );
+                }
+              }}
+            >
+              Copiar credenciales
+            </button>
+      
+            <button
+              type="button"
+              className="btn-burgundy-secondary"
+              onClick={() => setGeneratedCredentials(null)}
+            >
+              Ocultar credenciales
+            </button>
+          </div>
+        </div>
+      )}
+
 
       {!selectedRequest ? (
         <div className="account-table-wrapper">
@@ -241,7 +367,7 @@ export function AccountRequests() {
                         </span>
                       ) : (
                         <span className="status-pending">
-                          Email pendiente
+                          Aprobada · acceso manual
                         </span>
                       )}
                     </td>
@@ -266,13 +392,17 @@ export function AccountRequests() {
                         </button>
                       </>
                     ) : (
-                      <button
-                        onClick={() => handleResendEmail(req.id || req._id)}
-                        disabled={actionLoading}
-                        className="btn-burgundy-primary"
-                      >
-                        Reenviar email
-                      </button>
+                    <button
+                      onClick={() =>
+                        handleRegeneratePassword(req.id || req._id)
+                      }
+                      disabled={actionLoading}
+                      className="btn-burgundy-primary"
+                    >
+                      {actionLoading
+                        ? "Procesando..."
+                        : "Regenerar contraseña temporal"}
+                    </button>
                     )}
                     </td>
                   </tr>

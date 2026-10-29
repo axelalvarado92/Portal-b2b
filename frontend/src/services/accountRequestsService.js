@@ -1,26 +1,32 @@
 import api from "../api/api";
 
-// Obtener todas las solicitudes pendientes
+// Obtener todas las solicitudes
 export async function getAccountRequests() {
   const response = await api.get("/admin/account-requests");
   return response.data;
 }
 
-// Aceptar solicitud (enviando los datos finales del usuario)
+// Aprobar solicitud y crear el usuario
 export async function acceptAccountRequest(requestId, userData) {
-  // Ajustá la ruta según cómo la tengas en tu backend (ej: /admin/account-requests/:id/accept)
-  const response = await api.post(`/admin/account-requests/${requestId}/accept`, userData);
+  const response = await api.post(
+    `/admin/account-requests/${requestId}/accept`,
+    userData
+  );
+
   return response.data;
 }
 
 // Rechazar solicitud
 export async function rejectAccountRequest(requestId) {
-  const response = await api.post(`/admin/account-requests/${requestId}/reject`);
+  const response = await api.post(
+    `/admin/account-requests/${requestId}/reject`
+  );
+
   return response.data;
 }
 
-// Reenviar email de acceso
-export async function resendAccountAccess(requestId) {
+// Regenerar contraseña temporal sin enviar email
+export async function regenerateAccountPassword(requestId) {
   const response = await api.post(
     `/admin/account-requests/${requestId}/resend-access`
   );

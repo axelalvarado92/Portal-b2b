@@ -132,6 +132,10 @@ def send_user_confirmation(full_name, email):
 def create_request(body):
     full_name = body.get("full_name")
     email = body.get("email")
+
+    if isinstance(email, str):
+        email = email.strip().lower()
+    
     phone = body.get("phone")
     business_name = body.get("business_name")
 
@@ -187,12 +191,8 @@ def create_request(body):
 
         conn.commit()
 
-        # Enviar notificaciones (no fallan la solicitud si el email falla)
-        send_admin_notification(full_name, business_name, email, phone)
-        send_user_confirmation(full_name, email)
-
         return success({
-            "message": "Solicitud enviada"
+            "message": "Solicitud recibida. Seba revisará tus datos y se comunicará con vos para habilitar la cuenta."
         })
 
     except Exception as e:

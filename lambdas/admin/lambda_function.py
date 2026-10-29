@@ -102,7 +102,7 @@ def create_user(body):
     error = validate_create_user(body)
     if error: return bad_request(error)
     
-    email = body["email"]
+    email = body["email"].strip().lower()
     full_name = body["full_name"]
     role = body["role"]
     
@@ -246,54 +246,6 @@ def create_user(body):
 
         conn.commit()
 
-        # ─────────────────────────────
-        # 3. Enviar email profesional vía SES
-        # ─────────────────────────────
-        try:
-            login_url = LOGIN_URL
-
-            ses.send_email(
-                Source={EMAIL_FROM},
-                Destination={"ToAddresses": [email]},
-                Message={
-                    "Subject": {
-                        "Data": f"Bienvenido a {BUSINESS_NAME} - Tu cuenta está lista"
-                    },
-                    "Body": {
-                        "Html": {
-                            "Data": f"""<html>
-<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
-    <div style="text-align:center;padding:20px 0;">
-        <img src={LOGO_URL} alt={LOGO_INITIALS} style="max-width:200px;">
-    </div>
-    <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
-    <p>Tu cuenta en el portal B2B de <strong>{BUSINESS_NAME}</strong> ha sido creada exitosamente.</p>
-    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
-        <p style="margin:5px 0;"><strong>Email:</strong> {email}</p>
-        <p style="margin:5px 0;"><strong>Contraseña temporal:</strong> 
-            <code style="background:#fff;padding:4px 8px;border-radius:4px;font-size:16px;">{temp_password}</code>
-        </p>
-    </div>
-    <p>Al iniciar sesión por primera vez, se te pedirá cambiar esta contraseña por una propia.</p>
-    <div style="text-align:center;margin:30px 0;">
-        <a href="{login_url}" style="background:#6b1426;color:#fff;padding:12px 30px;text-decoration:none;border-radius:6px;display:inline-block;">
-            Iniciar sesión
-        </a>
-    </div>
-    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
-    <p style="font-size:12px;color:#666;text-align:center;">
-        {BUSINESS_NAME} - Sistema B2B<br>
-        Este es un email automático, no respondas a esta dirección.
-    </p>
-</body>
-</html>"""
-                        }
-                    }
-                }
-            )
-        except Exception as e:
-            print(f"Error enviando email de bienvenida: {e}")
-
     except Exception as e:
         if conn:
             conn.rollback()
@@ -319,7 +271,8 @@ def create_user(body):
         "id": cognito_sub,
         "email": email,
         "full_name": full_name,
-        "role": role
+        "role": role,
+        "temporary_password": temp_password
     })
 
 
@@ -2643,6 +2596,8 @@ def approve_account_request(request_id, body):
 
     if status == "approved":
         return bad_request("Esta solicitud ya fue aprobada")
+    
+    email = email.strip().lower()
 
     # Usamos los datos del body (editados por el admin) con fallback a los de la DB
     full_name           = body.get("full_name", full_name)
@@ -2774,19 +2729,6 @@ def approve_account_request(request_id, body):
 
         conn.commit()
 
-        # ─────────────────────────────
-        # 5. Enviar email profesional vía SES
-        # ─────────────────────────────
-
-        email_sent, message_id = send_account_access_email(
-            email,
-            full_name,
-            temp_password
-        )
-        
-        if not email_sent:
-            print(f"No se pudo enviar el email de acceso a {email}")
-
     except Exception as e:
         conn.rollback()
 
@@ -2799,8 +2741,6 @@ def approve_account_request(request_id, body):
         except:
             pass
 
-        cur.close()
-        conn.close()
         print("APPROVE ACCOUNT REQUEST ERROR")
         print(str(e))
         return server_error()
@@ -2815,11 +2755,15 @@ def approve_account_request(request_id, body):
         "id": cognito_sub,
         "email": email,
         "full_name": full_name,
-        "message": "Usuario creado y solicitud aprobada. Email de acceso enviado."
+        "temporary_password": temp_password,
+        "message": (
+            "Usuario creado y solicitud aprobada. "
+            "Comunicá la contraseña temporal al cliente."
+        )
     })
 
-def resend_account_access(request_id):
 
+def resend_account_access(request_id):
     conn = None
     cur = None
 
@@ -2833,7 +2777,8 @@ def resend_account_access(request_id):
                 u.full_name,
                 u.cognito_sub
             FROM account_requests ar
-            JOIN users u ON u.email = ar.email
+            JOIN users u
+              ON LOWER(TRIM(u.email)) = LOWER(TRIM(ar.email))
             WHERE ar.id = %s
               AND ar.status = 'approved'
         """, [request_id])
@@ -2841,9 +2786,12 @@ def resend_account_access(request_id):
         row = cur.fetchone()
 
         if not row:
-            return not_found("Solicitud aprobada o usuario no encontrado")
+            return not_found(
+                "Solicitud aprobada o usuario no encontrado"
+            )
 
         email, full_name, cognito_sub = row
+        email = email.strip().lower()
 
         temp_password = generate_temporary_password()
 
@@ -2854,23 +2802,18 @@ def resend_account_access(request_id):
             Permanent=False
         )
 
-        email_sent, message_id = send_account_access_email(
-            email,
-            full_name,
-            temp_password
-        )
-
-        if not email_sent:
-            return server_error("No se pudo enviar el email de acceso")
-
         return success({
-            "message": "Email de acceso reenviado correctamente",
+            "message": (
+                "Contraseña temporal regenerada. "
+                "Comunicá la nueva contraseña al cliente."
+            ),
             "email": email,
-            "message_id": message_id
+            "full_name": full_name,
+            "temporary_password": temp_password
         })
 
     except Exception as e:
-        print("RESEND ACCOUNT ACCESS ERROR")
+        print("REGENERATE ACCOUNT PASSWORD ERROR")
         print(str(e))
         return server_error()
 
@@ -2880,6 +2823,7 @@ def resend_account_access(request_id):
 
         if conn:
             conn.close()
+
 
 def reject_account_request(request_id):
     conn = get_connection()

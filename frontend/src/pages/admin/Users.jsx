@@ -57,6 +57,8 @@ export default function Users() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState("actives"); // "actives" o "deleted"
+  const [createdCredentials, setCreatedCredentials] = useState(null);
+  const [credentialsCopied, setCredentialsCopied] = useState(false);
 
 // Y haz lo mismo para los estados de edición (ejemplo: editCuit, setEditCuit, etc.)
 // ... (asegúrate de crear todos los estados "edit..." correspondientes)
@@ -117,22 +119,22 @@ export default function Users() {
     }
   }, [users]);
 
+  
   async function handleCreateUser() {
-
-    // Validaciones frontend
     if (!email.trim() || !fullName.trim()) {
       alert("Email y Nombre Completo son obligatorios.");
       return;
     }
+  
     if (!validateCUIT(cuit)) {
       alert("El CUIT debe tener el formato XX-XXXXXXXX-X (ej: 20-12345678-5).");
       return;
     }
-
+  
     try {
-      await createUser({
-        email,
-        full_name: fullName,
+      const response = await createUser({
+        email: email.trim().toLowerCase(),
+        full_name: fullName.trim(),
         phone,
         role,
         business_name: businessName,
@@ -141,19 +143,25 @@ export default function Users() {
         carrier_phone: carrierPhone,
         delivery_address: deliveryAddress,
         companies: selectedCompanies,
-        cuit: cuit,
+        cuit,
         condicion_fiscal: condicionFiscal,
-        direccion: direccion,
+        direccion,
         direccion_entrega: direccionEntrega,
         direccion_transporte: direccionTransporte,
-        ciudad: ciudad,
-        provincia: provincia,
+        ciudad,
+        provincia,
         telefono_oficina: telefonoOficina,
         telefono_adicional: telefonoAdicional,
         mail_adicional: mailAdicional,
       });
-
+  
+      // La API devuelve { data: {...}, error: null }.
+      const createdUser = response?.data ?? response;
+  
+      // La cuenta ya se creó: no debemos repetir la petición si
+      // por algún motivo la respuesta no contiene la contraseña.
       setShowForm(false);
+  
       setEmail("");
       setFullName("");
       setPhone("");
@@ -169,21 +177,36 @@ export default function Users() {
       setDireccion("");
       setDireccionEntrega("");
       setDireccionTransporte("");
-      setEditCiudad("");
+      setCiudad("");
       setProvincia("");
       setTelefonoOficina("");
       setTelefonoAdicional("");
       setMailAdicional("");
- 
-      alert("Usuario creado y correo de invitación enviado exitosamente.");
-      setShowForm(false);
-
-      await loadInitialData(); // Recarga en segundo plano
+  
+      await loadInitialData();
+  
+      if (!createdUser?.temporary_password) {
+        alert(
+          "El usuario fue creado, pero la API no devolvió la contraseña temporal. No vuelvas a crear la cuenta. Verificá el usuario en la lista y revisá la respuesta del servidor."
+        );
+        return;
+      }
+  
+      setCredentialsCopied(false);
+      setCreatedCredentials({
+        email: createdUser.email,
+        full_name: createdUser.full_name,
+        temporary_password: createdUser.temporary_password,
+      });
     } catch (err) {
-      console.error(err);
-      alert("Error al crear el usuario");
+      console.error("Error al crear el usuario:", err);
+      alert(
+        err.response?.data?.error ||
+        "No se pudo crear el usuario. Revisá la consola y la respuesta del servidor."
+      );
     }
   }
+
 
   // NUEVO: Función para cargar los datos en el form de edición
   function handleEditUser(user) {
@@ -754,185 +777,299 @@ export default function Users() {
         </button>
       </div>
 
-{/* TABLA DE USUARIOS */}
-<div className="table-wrapper">
-  <table className="users-table">
-    <thead>
-      <tr>
-        <th>Nombre</th>
-        <th>Razón Social</th>
-        <th>CUIT</th>
-        <th>Estado</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {filteredUsers.map((user) => (
-        <tr key={user.id}>
-
-          <td>{user.full_name || "-"}</td>
-
-          <td>{user.business_name || "-"}</td>
-
-          <td>{user.cuit || "-"}</td>
-
-          <td>
-            <span className={`status ${user.is_active ? "active" : "inactive"}`}>
-              {user.is_active ? "Activo" : "Inactivo"}
-            </span>
-          </td>
-
-          <td className="actions">
-            {user.is_active ? (
-              <>
-                <button className="btn-secondary" onClick={() => handleEditUser(user)}>
-                  Editar
-                </button>
-                <button className="btn-secondary" onClick={() => handleViewUser(user)}>
-                  Ver detalle
-                </button>
-              </>
-            ) : (
-              <button 
-                className="btn-success" 
-                onClick={() => handleRestoreUser(user)}
-                style={{ backgroundColor: "#16a34a", color: "white", border: "none" }}
+      {/* TABLA DE USUARIOS */}
+      <div className="table-wrapper">
+        <table className="users-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Razón Social</th>
+              <th>CUIT</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.map((user) => (
+              <tr key={user.id}>
+      
+                <td>{user.full_name || "-"}</td>
+      
+                <td>{user.business_name || "-"}</td>
+      
+                <td>{user.cuit || "-"}</td>
+      
+                <td>
+                  <span className={`status ${user.is_active ? "active" : "inactive"}`}>
+                    {user.is_active ? "Activo" : "Inactivo"}
+                  </span>
+                </td>
+      
+                <td className="actions">
+                  {user.is_active ? (
+                    <>
+                      <button className="btn-secondary" onClick={() => handleEditUser(user)}>
+                        Editar
+                      </button>
+                      <button className="btn-secondary" onClick={() => handleViewUser(user)}>
+                        Ver detalle
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      className="btn-success" 
+                      onClick={() => handleRestoreUser(user)}
+                      style={{ backgroundColor: "#16a34a", color: "white", border: "none" }}
+                    >
+                      Restaurar
+                    </button>
+                  )}
+                </td>
+      
+              </tr>
+            ))}
+          </tbody>
+        </table>
+              
+        {selectedUser && (
+        <div id="user-detail-card" className="user-detail-card">
+          <h2>Detalle del usuario</h2>
+      
+          <div className="detail-grid">
+      
+            <div className="detail-section-card">
+              <h3>Datos Personales</h3>
+              <div className="detail-row">
+                <span className="detail-label">Email</span>
+                <span className="detail-value">{selectedUser.email}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Nombre</span>
+                <span className={`detail-value ${!selectedUser.full_name ? 'empty' : ''}`}>
+                  {selectedUser.full_name || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Teléfono</span>
+                <span className={`detail-value ${!selectedUser.phone ? 'empty' : ''}`}>
+                  {selectedUser.phone || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Teléfono Adicional</span>
+                <span className={`detail-value ${!selectedUser.telefono_adicional ? 'empty' : ''}`}>
+                  {selectedUser.telefono_adicional || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Mail Adicional</span>
+                <span className={`detail-value ${!selectedUser.mail_adicional ? 'empty' : ''}`}>
+                  {selectedUser.mail_adicional || 'Sin datos'}
+                </span>
+              </div>
+            </div>
+      
+            <div className="detail-section-card">
+              <h3>Datos Comerciales</h3>
+              <div className="detail-row">
+                <span className="detail-label">Razón Social</span>
+                <span className={`detail-value ${!selectedUser.business_name ? 'empty' : ''}`}>
+                  {selectedUser.business_name || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">CUIT</span>
+                <span className={`detail-value ${!selectedUser.cuit ? 'empty' : ''}`}>
+                  {selectedUser.cuit || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Condición Fiscal</span>
+                <span className={`detail-value ${!selectedUser.condicion_fiscal ? 'empty' : ''}`}>
+                  {selectedUser.condicion_fiscal || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Dirección Fiscal</span>
+                <span className={`detail-value ${!selectedUser.direccion ? 'empty' : ''}`}>
+                  {selectedUser.direccion || 'Sin datos'}
+                </span>
+              </div>
+            </div>
+      
+            <div className="detail-section-card">
+              <h3>Logística y Ubicación</h3>
+              <div className="detail-row">
+                <span className="detail-label">Dirección Entrega</span>
+                <span className={`detail-value ${!selectedUser.delivery_address ? 'empty' : ''}`}>
+                  {selectedUser.delivery_address || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Ciudad</span>
+                <span className={`detail-value ${!selectedUser.ciudad ? 'empty' : ''}`}>
+                  {selectedUser.ciudad || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Provincia</span>
+                <span className={`detail-value ${!selectedUser.provincia ? 'empty' : ''}`}>
+                  {selectedUser.provincia || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Teléfono Oficina</span>
+                <span className={`detail-value ${!selectedUser.telefono_oficina ? 'empty' : ''}`}>
+                  {selectedUser.telefono_oficina || 'Sin datos'}
+                </span>
+              </div>
+            </div>
+      
+            <div className="detail-section-card">
+              <h3>Transporte</h3>
+              <div className="detail-row">
+                <span className="detail-label">Forma de Entrega</span>
+                <span className={`detail-value ${!selectedUser.delivery_method ? 'empty' : ''}`}>
+                  {selectedUser.delivery_method || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Transporte</span>
+                <span className={`detail-value ${!selectedUser.carrier_name ? 'empty' : ''}`}>
+                  {selectedUser.carrier_name || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Dirección Transporte</span>
+                <span className={`detail-value ${!selectedUser.direccion_transporte ? 'empty' : ''}`}>
+                  {selectedUser.direccion_transporte || 'Sin datos'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">Teléfono Transporte</span>
+                <span className={`detail-value ${!selectedUser.carrier_phone ? 'empty' : ''}`}>
+                  {selectedUser.carrier_phone || 'Sin datos'}
+                </span>
+              </div>
+            </div>
+      
+          </div>
+        </div>
+        )}
+      
+           
+      {createdCredentials && (
+        <div
+          className="credentials-modal-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            zIndex: 10000,
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="credentials-modal-title"
+            style={{
+              background: "#fff",
+              borderRadius: "12px",
+              padding: "28px",
+              width: "100%",
+              maxWidth: "480px",
+              boxShadow: "0 10px 35px rgba(0,0,0,0.2)",
+            }}
+          >
+            <h2 id="credentials-modal-title">
+              Usuario creado correctamente
+            </h2>
+      
+            <p>
+              Comunicá estas credenciales al usuario para que pueda
+              iniciar sesión. En su primer acceso deberá establecer
+              una contraseña definitiva.
+            </p>
+      
+            <div style={{ margin: "20px 0" }}>
+              <label className="form-label">Nombre</label>
+              <input
+                className="form-input"
+                value={createdCredentials.full_name || ""}
+                readOnly
+              />
+      
+              <label className="form-label" style={{ display: "block", marginTop: "12px" }}>
+                Email
+              </label>
+              <input
+                className="form-input"
+                value={createdCredentials.email || ""}
+                readOnly
+              />
+      
+              <label className="form-label" style={{ display: "block", marginTop: "12px" }}>
+                Contraseña temporal
+              </label>
+              <input
+                className="form-input"
+                value={createdCredentials.temporary_password}
+                readOnly
+                type="text"
+                autoComplete="off"
+              />
+            </div>
+      
+            <p style={{ fontSize: "13px", color: "#8a4b08" }}>
+              ⚠️ Esta contraseña es temporal. No cierres esta ventana
+              hasta haber copiado las credenciales.
+            </p>
+      
+            <div className="actions-row">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={async () => {
+                  const text = [
+                    `Nombre: ${createdCredentials.full_name || ""}`,
+                    `Email: ${createdCredentials.email}`,
+                    `Contraseña temporal: ${createdCredentials.temporary_password}`,
+                  ].join("\n");
+      
+                  try {
+                    await navigator.clipboard.writeText(text);
+                    setCredentialsCopied(true);
+                  } catch (err) {
+                    console.error("Error copiando credenciales:", err);
+                    alert(
+                      "No se pudieron copiar automáticamente. Copiá los datos manualmente."
+                    );
+                  }
+                }}
               >
-                Restaurar
+                {credentialsCopied ? "Credenciales copiadas ✓" : "Copiar credenciales"}
               </button>
-            )}
-          </td>
+      
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setCreatedCredentials(null);
+                  setCredentialsCopied(false);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-        </tr>
-      ))}
-    </tbody>
-  </table>
-        
-  {selectedUser && (
-  <div id="user-detail-card" className="user-detail-card">
-    <h2>Detalle del usuario</h2>
 
-    <div className="detail-grid">
-
-      <div className="detail-section-card">
-        <h3>Datos Personales</h3>
-        <div className="detail-row">
-          <span className="detail-label">Email</span>
-          <span className="detail-value">{selectedUser.email}</span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Nombre</span>
-          <span className={`detail-value ${!selectedUser.full_name ? 'empty' : ''}`}>
-            {selectedUser.full_name || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Teléfono</span>
-          <span className={`detail-value ${!selectedUser.phone ? 'empty' : ''}`}>
-            {selectedUser.phone || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Teléfono Adicional</span>
-          <span className={`detail-value ${!selectedUser.telefono_adicional ? 'empty' : ''}`}>
-            {selectedUser.telefono_adicional || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Mail Adicional</span>
-          <span className={`detail-value ${!selectedUser.mail_adicional ? 'empty' : ''}`}>
-            {selectedUser.mail_adicional || 'Sin datos'}
-          </span>
-        </div>
-      </div>
-
-      <div className="detail-section-card">
-        <h3>Datos Comerciales</h3>
-        <div className="detail-row">
-          <span className="detail-label">Razón Social</span>
-          <span className={`detail-value ${!selectedUser.business_name ? 'empty' : ''}`}>
-            {selectedUser.business_name || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">CUIT</span>
-          <span className={`detail-value ${!selectedUser.cuit ? 'empty' : ''}`}>
-            {selectedUser.cuit || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Condición Fiscal</span>
-          <span className={`detail-value ${!selectedUser.condicion_fiscal ? 'empty' : ''}`}>
-            {selectedUser.condicion_fiscal || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Dirección Fiscal</span>
-          <span className={`detail-value ${!selectedUser.direccion ? 'empty' : ''}`}>
-            {selectedUser.direccion || 'Sin datos'}
-          </span>
-        </div>
-      </div>
-
-      <div className="detail-section-card">
-        <h3>Logística y Ubicación</h3>
-        <div className="detail-row">
-          <span className="detail-label">Dirección Entrega</span>
-          <span className={`detail-value ${!selectedUser.delivery_address ? 'empty' : ''}`}>
-            {selectedUser.delivery_address || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Ciudad</span>
-          <span className={`detail-value ${!selectedUser.ciudad ? 'empty' : ''}`}>
-            {selectedUser.ciudad || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Provincia</span>
-          <span className={`detail-value ${!selectedUser.provincia ? 'empty' : ''}`}>
-            {selectedUser.provincia || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Teléfono Oficina</span>
-          <span className={`detail-value ${!selectedUser.telefono_oficina ? 'empty' : ''}`}>
-            {selectedUser.telefono_oficina || 'Sin datos'}
-          </span>
-        </div>
-      </div>
-
-      <div className="detail-section-card">
-        <h3>Transporte</h3>
-        <div className="detail-row">
-          <span className="detail-label">Forma de Entrega</span>
-          <span className={`detail-value ${!selectedUser.delivery_method ? 'empty' : ''}`}>
-            {selectedUser.delivery_method || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Transporte</span>
-          <span className={`detail-value ${!selectedUser.carrier_name ? 'empty' : ''}`}>
-            {selectedUser.carrier_name || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Dirección Transporte</span>
-          <span className={`detail-value ${!selectedUser.direccion_transporte ? 'empty' : ''}`}>
-            {selectedUser.direccion_transporte || 'Sin datos'}
-          </span>
-        </div>
-        <div className="detail-row">
-          <span className="detail-label">Teléfono Transporte</span>
-          <span className={`detail-value ${!selectedUser.carrier_phone ? 'empty' : ''}`}>
-            {selectedUser.carrier_phone || 'Sin datos'}
-          </span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-  )}
       {showDeleteModal && userToDelete && (
         <ConfirmDeleteModal
           userName={userToDelete.full_name || userToDelete.email}

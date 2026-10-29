@@ -61,15 +61,15 @@ def mark_account_request_completed(email):
 
 
 def login(body):
-
     email = body.get("email")
     password = body.get("password")
 
     if not email or not password:
         return bad_request("email y password son requeridos")
 
-    try:
+    email = email.strip().lower()
 
+    try:
         response = cognito.initiate_auth(
             ClientId=CLIENT_ID,
             AuthFlow="USER_PASSWORD_AUTH",
@@ -107,13 +107,16 @@ def login(body):
 
 
 def complete_new_password(body):
-
     email = body.get("email")
     new_password = body.get("new_password")
     session = body.get("session")
 
     if not email or not new_password or not session:
-        return bad_request("email, new_password y session son requeridos")
+        return bad_request(
+            "email, new_password y session son requeridos"
+        )
+
+    email = email.strip().lower()
 
     try:
         # 1. Obtener TODOS los atributos del usuario desde Cognito

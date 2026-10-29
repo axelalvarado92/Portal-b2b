@@ -1,36 +1,50 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
 export async function login(email, password) {
+  const normalizedEmail = email.trim().toLowerCase();
+
   const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({
+      email: normalizedEmail,
+      password
+    })
   });
 
   const data = await response.json();
-  console.log("🟡 LOGIN RAW RESPONSE:", JSON.stringify(data, null, 2)); // ← AGREGAR
 
   if (!response.ok) {
     throw new Error(data.error || "Login error");
   }
+
   return data;
 }
 
 export async function completeNewPassword(email, newPassword, session) {
+  const normalizedEmail = email.trim().toLowerCase();
+
   const response = await fetch(`${API_URL}/auth/complete-new-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, new_password: newPassword, session })
+    body: JSON.stringify({
+      email: normalizedEmail,
+      new_password: newPassword,
+      session
+    })
   });
 
   const data = await response.json();
-  console.log("🟢 COMPLETE PASSWORD RAW RESPONSE:", JSON.stringify(data, null, 2)); // ← AGREGAR
 
   if (!response.ok) {
-    throw new Error(data.error || "Error al establecer la contraseña");
+    throw new Error(
+      data.error || "Error al establecer la contraseña"
+    );
   }
+
   return data;
 }
+
 
 // Paso 1: solicitar código de recuperación
 export async function forgotPassword(email) {
