@@ -25,8 +25,8 @@ LOGIN_URL = os.environ.get("LOGIN_URL")
 BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
 LOGO_INITIALS = os.environ.get("LOGO_INITIALS")
 
-def mark_account_request_completed(email):
 
+def mark_account_request_completed(email):
     conn = None
     cur = None
 
@@ -37,13 +37,21 @@ def mark_account_request_completed(email):
         cur.execute("""
             UPDATE account_requests
             SET status = 'completed'
-            WHERE email = %s
+            WHERE LOWER(TRIM(email)) = %s
               AND status = 'approved'
-        """, [email])
+        """, [email.strip().lower()])
 
+        updated_rows = cur.rowcount
         conn.commit()
 
-        print(f"Solicitud de cuenta completada para {email}")
+        if updated_rows == 1:
+            print(f"Solicitud de cuenta completada para {email}")
+            return True
+
+        print(
+            f"No se encontró una solicitud approved para completar: {email}"
+        )
+        return False
 
     except Exception as e:
         if conn:
@@ -51,6 +59,7 @@ def mark_account_request_completed(email):
 
         print("ERROR MARCANDO SOLICITUD COMO COMPLETADA")
         print(str(e))
+        raise
 
     finally:
         if cur:
@@ -58,6 +67,7 @@ def mark_account_request_completed(email):
 
         if conn:
             conn.close()
+
 
 
 def login(body):
@@ -131,8 +141,6 @@ def complete_new_password(body):
             for attr in user_info.get("UserAttributes", [])
         }
         
-        print("ATRIBUTOS DEL USUARIO:", json.dumps(user_attrs, indent=2))
-        
         # 3. Construir ChallengeResponses con TODOS los atributos
         challenge_responses = {
             "USERNAME": email,
@@ -142,8 +150,6 @@ def complete_new_password(body):
         # Agregar todos los atributos que tiene el usuario en Cognito
         for attr_name, attr_value in user_attrs.items():
             challenge_responses[attr_name] = attr_value
-        
-        print("ENVIANDO CHALLENGE CON:", {k: v for k, v in challenge_responses.items() if k != "NEW_PASSWORD"})
 
         # 4. Responder el challenge
         response = cognito.respond_to_auth_challenge(
@@ -153,12 +159,20 @@ def complete_new_password(body):
             ChallengeResponses=challenge_responses
         )
 
-        print("CHALLENGE EXITOSO")
+        auth = response.get("AuthenticationResult")
 
-        # El usuario completó correctamente su primer acceso
-        mark_account_request_completed(email)
+        if not auth:
+            print("CHALLENGE SIN AUTHENTICATION RESULT")
+            return server_error()
         
-        auth = response["AuthenticationResult"]
+        print("CHALLENGE EXITOSO")
+        
+        # Actualizar estado de la solicitud
+        try:
+            mark_account_request_completed(email)
+        except Exception as e:
+            print("ERROR ACTUALIZANDO ESTADO DE SOLICITUD:")
+            print(str(e))
 
         return success({
             "access_token": auth["AccessToken"],

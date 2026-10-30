@@ -2415,12 +2415,15 @@ def generate_temporary_password():
 
     return ''.join(password)
     
+
 def list_account_requests():
 
-    conn = get_connection()
-    cur = conn.cursor()
+    conn = None
+    cur = None
 
     try:
+        conn = get_connection()
+        cur = conn.cursor()
 
         cur.execute("""
             SELECT
@@ -2479,180 +2482,117 @@ def list_account_requests():
 
         return success(requests)
 
-    finally:
-        cur.close()
-        conn.close()
-
-def send_account_access_email(email, full_name, temp_password):
-
-    try:
-        response = ses.send_email(
-            Source=EMAIL_FROM,
-            Destination={"ToAddresses": [email]},
-            Message={
-                "Subject": {
-                    "Data": f"Bienvenido a {BUSINESS_NAME} - Tu cuenta está lista"
-                },
-                "Body": {
-                    "Html": {
-                        "Data": f"""<html>
-<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
-
-    <div style="text-align:center;padding:20px 0;">
-        <img src="{LOGO_URL}"
-             alt="{LOGO_INITIALS}"
-             style="max-width:200px;">
-    </div>
-
-    <h2 style="color:#6b1426;">¡Hola {full_name}!</h2>
-
-    <p>
-        Tu solicitud fue aprobada. Tu cuenta en el portal B2B de
-        <strong>{BUSINESS_NAME}</strong> está lista.
-    </p>
-
-    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
-
-        <p style="margin:5px 0;">
-            <strong>Email:</strong> {email}
-        </p>
-
-        <p style="margin:5px 0;">
-            <strong>Contraseña temporal:</strong>
-            <code style="background:#fff;padding:4px 8px;border-radius:4px;font-size:16px;">
-                {temp_password}
-            </code>
-        </p>
-
-    </div>
-
-    <p>
-        Al iniciar sesión por primera vez, deberás cambiar esta contraseña
-        por una propia.
-    </p>
-
-    <div style="text-align:center;margin:30px 0;">
-        <a href="{LOGIN_URL}"
-           style="background:#6b1426;color:#fff;padding:12px 30px;
-                  text-decoration:none;border-radius:6px;display:inline-block;">
-            Iniciar sesión
-        </a>
-    </div>
-
-    <hr style="border:none;border-top:1px solid #ddd;margin:30px 0;">
-
-    <p style="font-size:12px;color:#666;text-align:center;">
-        {BUSINESS_NAME} - Sistema B2B<br>
-        Este es un email automático, no respondas a esta dirección.
-    </p>
-
-</body>
-</html>"""
-                    }
-                }
-            }
-        )
-
-        message_id = response.get("MessageId")
-
-        print(f"SES email enviado a {email}")
-        print(f"SES MessageId: {message_id}")
-
-        return True, message_id
-
     except Exception as e:
-        print(f"Error enviando email de acceso a {email}: {e}")
-        return False, None
+        print("LIST ACCOUNT REQUESTS ERROR")
+        print(str(e))
+        return server_error()
+
+    finally:
+        if cur:
+            cur.close()
+
+        if conn:
+            conn.close()
+
 
 
 def approve_account_request(request_id, body):
-    companies = body.get("companies", [])
-    role = body.get("role", "customer")
+    conn = None
+    cur = None
+    cognito_sub = None
+    cognito_user_created = False
 
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT full_name, email, phone, business_name,
-               delivery_method, carrier_name, carrier_phone, delivery_address,
-               mail_adicional, telefono_oficina, telefono_adicional,
-               cuit, condicion_fiscal, direccion, ciudad, provincia,
-               direccion_transporte, status
-        FROM account_requests
-        WHERE id = %s
-    """, [request_id])
-
-    row = cur.fetchone()
-    if not row:
-        return not_found("Solicitud no encontrada")
-
-    (
-        full_name, email, phone, business_name,
-        delivery_method, carrier_name, carrier_phone, delivery_address,
-        mail_adicional, telefono_oficina, telefono_adicional,
-        cuit, condicion_fiscal, direccion, ciudad, provincia,
-        direccion_transporte, status
-    ) = row
-
-    if status == "approved":
-        return bad_request("Esta solicitud ya fue aprobada")
-    
-    email = email.strip().lower()
-
-    # Usamos los datos del body (editados por el admin) con fallback a los de la DB
-    full_name           = body.get("full_name", full_name)
-    phone               = body.get("phone", phone)
-    business_name       = body.get("business_name", business_name)
-    cuit                = body.get("cuit", cuit)
-    condicion_fiscal    = body.get("condicion_fiscal", condicion_fiscal)
-    direccion           = body.get("direccion", direccion)
-    ciudad              = body.get("ciudad", ciudad)
-    provincia           = body.get("provincia", provincia)
-    delivery_method     = body.get("delivery_method", delivery_method)
-    delivery_address    = body.get("delivery_address", delivery_address)
-    carrier_name        = body.get("carrier_name", carrier_name)
-    carrier_phone       = body.get("carrier_phone", carrier_phone)
-    direccion_transporte = body.get("direccion_transporte", direccion_transporte)
-    mail_adicional      = body.get("mail_adicional", mail_adicional)
-    telefono_oficina    = body.get("telefono_oficina", telefono_oficina)
-    telefono_adicional  = body.get("telefono_adicional", telefono_adicional)
-
-    # ─────────────────────────────
-    # Generar contraseña temporal
-    # ─────────────────────────────
-    temp_password = ''.join(
-        secrets.choice(string.ascii_letters + string.digits + "!@#$%^&*") 
-        for _ in range(12)
-    )
-
-    # ─────────────────────────────
-    # 1. Crear usuario en Cognito
-    # ─────────────────────────────
     try:
-        response = cognito.admin_create_user(
-            UserPoolId=USER_POOL_ID,
-            Username=email,
-            TemporaryPassword=temp_password,
-            UserAttributes=[
-                {"Name": "email", "Value": email},
-                {"Name": "name", "Value": full_name},
-                {"Name": "custom:role", "Value": role},
-                {"Name": "email_verified", "Value": "true"}
-            ],
-            MessageAction="SUPPRESS"  # ← Cognito NO envía nada
+        companies = body.get("companies", [])
+        role = body.get("role", "customer")
+
+        # 1. Conectar a PostgreSQL
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # 2. Buscar solicitud
+        cur.execute("""
+            SELECT full_name, email, phone, business_name,
+                   delivery_method, carrier_name, carrier_phone, delivery_address,
+                   mail_adicional, telefono_oficina, telefono_adicional,
+                   cuit, condicion_fiscal, direccion, ciudad, provincia,
+                   direccion_transporte, status
+            FROM account_requests
+            WHERE id = %s
+        """, [request_id])
+
+        row = cur.fetchone()
+
+        if not row:
+            return not_found("Solicitud no encontrada")
+
+        (
+            full_name, email, phone, business_name,
+            delivery_method, carrier_name, carrier_phone, delivery_address,
+            mail_adicional, telefono_oficina, telefono_adicional,
+            cuit, condicion_fiscal, direccion, ciudad, provincia,
+            direccion_transporte, status
+        ) = row
+
+        # 3. Validar estado
+        if status != "pending":
+            return bad_request(
+                "La solicitud no está pendiente de aprobación"
+            )
+
+        email = email.strip().lower()
+
+        # 4. Aplicar datos editados por el administrador
+        full_name = body.get("full_name", full_name)
+        phone = body.get("phone", phone)
+        business_name = body.get("business_name", business_name)
+        cuit = body.get("cuit", cuit)
+        condicion_fiscal = body.get("condicion_fiscal", condicion_fiscal)
+        direccion = body.get("direccion", direccion)
+        ciudad = body.get("ciudad", ciudad)
+        provincia = body.get("provincia", provincia)
+        delivery_method = body.get("delivery_method", delivery_method)
+        delivery_address = body.get("delivery_address", delivery_address)
+        carrier_name = body.get("carrier_name", carrier_name)
+        carrier_phone = body.get("carrier_phone", carrier_phone)
+        direccion_transporte = body.get(
+            "direccion_transporte", direccion_transporte
+        )
+        mail_adicional = body.get("mail_adicional", mail_adicional)
+        telefono_oficina = body.get(
+            "telefono_oficina", telefono_oficina
+        )
+        telefono_adicional = body.get(
+            "telefono_adicional", telefono_adicional
         )
 
-        cognito_sub = response["User"]["Username"]
+        # 5. Generar contraseña temporal
+        temp_password = generate_temporary_password()
 
-    except cognito.exceptions.UsernameExistsException:
-        cur.close()
-        conn.close()
-        return bad_request("Ya existe un usuario con ese email")
+        # 6. Crear usuario en Cognito
+        try:
+            response = cognito.admin_create_user(
+                UserPoolId=USER_POOL_ID,
+                Username=email,
+                TemporaryPassword=temp_password,
+                UserAttributes=[
+                    {"Name": "email", "Value": email},
+                    {"Name": "name", "Value": full_name},
+                    {"Name": "custom:role", "Value": role},
+                    {"Name": "email_verified", "Value": "true"}
+                ],
+                MessageAction="SUPPRESS"
+            )
 
-    # ─────────────────────────────
-    # 2. Persistir en Postgres (users)
-    # ─────────────────────────────
-    try:
+            cognito_sub = response["User"]["Username"]
+            cognito_user_created = True
+
+        except cognito.exceptions.UsernameExistsException:
+            return bad_request(
+                "Ya existe un usuario con ese email"
+            )
+
+        # 7. Insertar usuario en PostgreSQL
         cur.execute("""
             INSERT INTO users (
                 id, email, full_name, phone,
@@ -2681,36 +2621,27 @@ def approve_account_request(request_id, body):
             email,
             full_name,
             phone,
-
             business_name,
             cuit,
             condicion_fiscal,
-
             direccion,
             delivery_address,
             direccion_transporte,
-
             ciudad,
             provincia,
-
             telefono_oficina,
             telefono_adicional,
-
             mail_adicional,
-
             delivery_method,
             carrier_name,
             carrier_phone,
             delivery_address,
-            
             role,
             True,
             cognito_sub
         ])
 
-        # ─────────────────────────────
-        # 3. Vincular empresas elegidas por el admin
-        # ─────────────────────────────
+        # 8. Vincular empresas elegidas por el administrador
         for company_id in companies:
             cur.execute("""
                 INSERT INTO user_companies (user_id, company_id)
@@ -2718,49 +2649,64 @@ def approve_account_request(request_id, body):
                 ON CONFLICT DO NOTHING
             """, [cognito_sub, company_id])
 
-        # ─────────────────────────────
-        # 4. Marcar la solicitud como aprobada
-        # ─────────────────────────────
+        # 9. Marcar solicitud como aprobada
         cur.execute("""
             UPDATE account_requests
             SET status = 'approved'
             WHERE id = %s
+              AND status = 'pending'
         """, [request_id])
 
+        if cur.rowcount != 1:
+            raise Exception(
+                "No se pudo actualizar el estado de la solicitud"
+            )
+
+        # 10. Confirmar transacción
         conn.commit()
 
-    except Exception as e:
-        conn.rollback()
-
-        # rollback cognito si falla la DB
-        try:
-            cognito.admin_delete_user(
-                UserPoolId=USER_POOL_ID,
-                Username=email
+        # 11. Devolver credenciales temporales
+        return success({
+            "id": cognito_sub,
+            "email": email,
+            "full_name": full_name,
+            "temporary_password": temp_password,
+            "message": (
+                "Usuario creado y solicitud aprobada. "
+                "Comunicá la contraseña temporal al cliente."
             )
-        except:
-            pass
+        })
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+
+        # Eliminar usuario de Cognito si falló la persistencia
+        if cognito_user_created:
+            try:
+                cognito.admin_delete_user(
+                    UserPoolId=USER_POOL_ID,
+                    Username=cognito_sub
+                )
+            except Exception as rollback_error:
+                print(
+                    "ERROR ELIMINANDO USUARIO DE COGNITO "
+                    "DURANTE ROLLBACK:"
+                )
+                print(str(rollback_error))
 
         print("APPROVE ACCOUNT REQUEST ERROR")
         print(str(e))
+
         return server_error()
 
     finally:
         if cur:
             cur.close()
+
         if conn:
             conn.close()
 
-    return success({
-        "id": cognito_sub,
-        "email": email,
-        "full_name": full_name,
-        "temporary_password": temp_password,
-        "message": (
-            "Usuario creado y solicitud aprobada. "
-            "Comunicá la contraseña temporal al cliente."
-        )
-    })
 
 
 def resend_account_access(request_id):
@@ -2793,6 +2739,27 @@ def resend_account_access(request_id):
         email, full_name, cognito_sub = row
         email = email.strip().lower()
 
+        # Consultar el estado real del usuario en Cognito
+        cognito_user = cognito.admin_get_user(
+            UserPoolId=USER_POOL_ID,
+            Username=cognito_sub
+        )
+
+        user_status = cognito_user.get("UserStatus")
+
+        # Solo permitir regenerar si todavía debe cambiar
+        # su contraseña temporal.
+        if user_status != "FORCE_CHANGE_PASSWORD":
+            print(
+                f"REGENERATE PASSWORD BLOCKED - "
+                f"UserStatus: {user_status}"
+            )
+
+            return bad_request(
+                "El usuario ya no tiene una contraseña temporal pendiente. "
+                "No se puede regenerar el acceso."
+            )
+
         temp_password = generate_temporary_password()
 
         cognito.admin_set_user_password(
@@ -2824,32 +2791,48 @@ def resend_account_access(request_id):
         if conn:
             conn.close()
 
-
 def reject_account_request(request_id):
-    conn = get_connection()
-    cur = conn.cursor()
+    conn = None
+    cur = None
 
     try:
-        # Actualizamos el estado a 'rejected' usando cast nativo a UUID
+        conn = get_connection()
+        cur = conn.cursor()
+
         cur.execute("""
             UPDATE account_requests
             SET status = 'rejected'
             WHERE id = %s::uuid
+              AND status = 'pending'
         """, [request_id])
+
+        if cur.rowcount != 1:
+            conn.rollback()
+
+            return bad_request(
+                "La solicitud no existe o ya no está pendiente de aprobación"
+            )
 
         conn.commit()
 
-        # Usamos tu helper "success" que ya inyecta los headers correctos
-        return success({"message": "Solicitud rechazada con éxito", "id": request_id})
+        return success({
+            "message": "Solicitud rechazada con éxito",
+            "id": request_id
+        })
 
     except Exception as e:
-        print("❌ ERROR AL RECHAZAR SOLICITUD EN BD:", str(e))
-        conn.rollback()
+        if conn:
+            conn.rollback()
+
+        print("ERROR AL RECHAZAR SOLICITUD EN BD:", str(e))
         return server_error()
 
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+
+        if conn:
+            conn.close()
 
 def forgot_password(body):
     email = body.get("email")
@@ -3058,7 +3041,10 @@ def handler(event, context):
         # ACCOUNT REQUESTS
         # ==========================
         
-        if path.startswith("/admin/account-requests"):
+        if (
+            path == "/admin/account-requests"
+            or path.startswith("/admin/account-requests/")
+        ):
 
             # 1. Listar todas las solicitudes (GET /admin/account-requests)
             if method == "GET" and path == "/admin/account-requests":

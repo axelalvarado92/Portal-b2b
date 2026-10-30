@@ -245,7 +245,7 @@ export function AccountRequests() {
         <h1 className="account-main-title">Solicitudes de Cuenta</h1>
         {!selectedRequest && (
           <span className="account-badge-count">
-            {requests.length} Pendientes
+            {requests.filter(r => r.status === "pending").length} Pendientes
           </span>
         )}
       </div>
@@ -367,7 +367,7 @@ export function AccountRequests() {
                         </span>
                       ) : (
                         <span className="status-pending">
-                          Aprobada · acceso manual
+                          Aprobada · pendiente de primer acceso
                         </span>
                       )}
                     </td>
@@ -391,19 +391,19 @@ export function AccountRequests() {
                           Rechazar
                         </button>
                       </>
-                    ) : (
-                    <button
-                      onClick={() =>
-                        handleRegeneratePassword(req.id || req._id)
-                      }
-                      disabled={actionLoading}
-                      className="btn-burgundy-primary"
-                    >
-                      {actionLoading
-                        ? "Procesando..."
-                        : "Regenerar contraseña temporal"}
-                    </button>
-                    )}
+                    ) : req.status === "approved" ? (
+                      <button
+                        onClick={() =>
+                          handleRegeneratePassword(req.id || req._id)
+                        }
+                        disabled={actionLoading}
+                        className="btn-burgundy-primary"
+                      >
+                        {actionLoading
+                          ? "Procesando..."
+                          : "Regenerar contraseña temporal"}
+                      </button>
+                    ) : null}
                     </td>
                   </tr>
                 ))
